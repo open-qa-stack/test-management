@@ -3,12 +3,27 @@ import type { ExportedElement } from "@open-qa-stack/tools";
 import { batchSummary } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";
 import { sourceWords } from "./source-words.ts";
+import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
 
 /** Name of the tool the model places the elements of a batch with. */
 export const PLACE_TOOL = "place_elements";
 
 /** Elements of a domain named as examples in the request of a batch. */
 const EXAMPLES = 3;
+
+/** The prompt of the grouping of the elements of one source, with what its elements are, what is set aside and the tool that places them. */
+export const GROUPING_PROMPT = {
+  template: `You group the elements of one source of an application — {{elements}} — into functional domains, one batch at a time, so that other agents find what they need by domain.
+
+Rules:
+- A domain is a functional area users would name: orders, policies, customers… Reuse a domain the request lists when an element belongs to it. Declare a new one in domains only when none fits, with an English slug as its id, a short label and one sentence of description.
+- Give each element you place its role: one line on what it holds or does.
+- Set an element aside, with a reason and no domain, only when it serves no functional area: {{set_aside}}.
+- Use each name exactly as the request writes it. Place every element of the batch, none twice.
+- Call {{place_tool}} once with every element of the batch. When it answers with problems, fix what it names and call it again with the elements still to place only. Then answer with one word.
+- Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`,
+  variables: ["elements", "set_aside", "place_tool"],
+} as const satisfies PromptTemplate;
 
 /**
  * System instructions of the grouping of the elements of one source, batch by batch.
@@ -18,15 +33,7 @@ const EXAMPLES = 3;
  */
 export function groupingInstructions(type: IndexSourceType): string {
   const words = sourceWords(type);
-  return `You group the elements of one source of an application — ${words.elements} — into functional domains, one batch at a time, so that other agents find what they need by domain.
-
-Rules:
-- A domain is a functional area users would name: orders, policies, customers… Reuse a domain the request lists when an element belongs to it. Declare a new one in domains only when none fits, with an English slug as its id, a short label and one sentence of description.
-- Give each element you place its role: one line on what it holds or does.
-- Set an element aside, with a reason and no domain, only when it serves no functional area: ${words.aside}.
-- Use each name exactly as the request writes it. Place every element of the batch, none twice.
-- Call ${PLACE_TOOL} once with every element of the batch. When it answers with problems, fix what it names and call it again with the elements still to place only. Then answer with one word.
-- Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`;
+  return promptOf(GROUPING_PROMPT, { elements: words.elements, set_aside: words.aside, place_tool: PLACE_TOOL });
 }
 
 /**

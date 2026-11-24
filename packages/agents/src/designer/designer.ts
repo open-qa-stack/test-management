@@ -43,6 +43,7 @@ import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } f
 import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
 import { IndexMap, type WrittenSource } from "./index-map.ts";
 import { CodeReviewer } from "../code-reviewer/code-reviewer.ts";
+import { codeReviewerInstructions } from "../code-reviewer/code-reviewer-prompt.ts";
 import { CoherenceReviewer } from "../coherence-reviewer/coherence-reviewer.ts";
 import { PlanReviewer } from "../plan-reviewer/plan-reviewer.ts";
 import { PLAN_FILE_SUFFIX, planFileText, type PlanRecord } from "./plan-file.ts";
@@ -59,7 +60,7 @@ import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.
 import { TestRepairs, type TestRepair } from "./test-repairs.ts";
 import { TestRepository } from "./test-repository.ts";
 import { SheetWatch } from "./sheet-watch.ts";
-import { writeRequest, type RepairedTest } from "./writer-prompt.ts";
+import { writeRequest, writerInstructions, type RepairedTest } from "./writer-prompt.ts";
 
 /** Prefix of the branches the designer creates. */
 export const BRANCH_PREFIX = "oqas/";
@@ -76,8 +77,8 @@ export interface DesignerOptions {
   readonly runtime: AgentRuntime;
   /** Where the memories of the agents are kept, which they recall and add to. */
   readonly memory: MemoryStorePort;
-  /** System instructions of the agent that writes each test, composed from the test charter by the caller, such as `writerInstructions` of the harness gives them. */
-  readonly writerInstructions: string;
+  /** What the system instructions of the agent that writes each test say of the test charter, after its prompt, such as `writerCharter` of the harness gives it. */
+  readonly writerCharter: string;
   /** A check run on each test before it is accepted, such as one against the charter; none by default. */
   readonly check?: TestCheck;
   /** Runs each test against the application before it is kept, such as the `TrialRunner` of the harness. */
@@ -90,9 +91,9 @@ export interface DesignerOptions {
   readonly reviewPlan?: boolean;
   /** Whether the agent that reviews coherence reads each test that passed against its scenario, in a session of its own, before the test is kept: its findings are told once to the agent that wrote the test, and kept with it. `false` by default. */
   readonly reviewTests?: boolean;
-  /** System instructions of the agent that reviews the quality of the code of each test that passed, composed from the test charter by the caller, such as `reviewerInstructions` of the harness. Its findings are told once to the agent that wrote the test, and kept with it. */
-  readonly reviewerInstructions?: string;
-  /** Whether the agent that reviews the code of the tests does so, with `reviewerInstructions`; `false` by default, and without those instructions. */
+  /** What the system instructions of the agent that reviews the quality of the code of each test that passed say of the test charter, after its prompt, such as `reviewerCharter` of the harness gives it. Its findings are told once to the agent that wrote the test, and kept with it. */
+  readonly reviewerCharter?: string;
+  /** Whether the agent that reviews the code of the tests does so, with `reviewerCharter`; `false` by default, and without that charter. */
   readonly reviewCode?: boolean;
   /** The levels of the pyramid of tests the plan is asked for; `smoke`, `functional` and `business` by default. */
   readonly levels?: readonly ScenarioLevel[];
@@ -392,8 +393,8 @@ export class Designer {
           secrets: declaredSecrets(config, env),
           ...(this.options.check === undefined ? {} : { check: this.options.check }),
           ...(this.options.reviewTests === true ? { coherence: new CoherenceReviewer(reviewed) } : {}),
-          ...(this.options.reviewCode === true && this.options.reviewerInstructions !== undefined
-            ? { quality: new CodeReviewer(reviewed, this.options.reviewerInstructions, playwright) }
+          ...(this.options.reviewCode === true && this.options.reviewerCharter !== undefined
+            ? { quality: new CodeReviewer(reviewed, `${codeReviewerInstructions(config.design.architecture)}\n\n${this.options.reviewerCharter}`, playwright) }
             : {}),
           runner: this.options.runner,
           packages,
@@ -433,7 +434,12 @@ export class Designer {
           index.environment,
           repaired?.get(scenario.id),
         );
-        const task = { instructions: `${this.options.writerInstructions}\n\n${testLanguage}`, tools, request, reminder: () => proposals.reminder() };
+        const task = {
+          instructions: [writerInstructions(config.design.architecture), this.options.writerCharter, testLanguage].join("\n\n"),
+          tools,
+          request,
+          reminder: () => proposals.reminder(),
+        };
         const last = await sessionOf("write", session, task, () => !proposals.writing);
         beyond.close();
         // A limit that cuts a scenario short stops the design; so does a session that failed.

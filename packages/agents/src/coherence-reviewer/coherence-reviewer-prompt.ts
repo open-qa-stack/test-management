@@ -1,10 +1,12 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
+import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
 
 /** Name of the tool the reviewer of a test reports its findings with. */
 export const FINDINGS_TOOL = "report_findings";
 
-/** System instructions of the agent that reviews a test against the scenario of its plan. */
-export const COHERENCE_REVIEWER_INSTRUCTIONS = `You review one Playwright test, written by another agent, against the scenario of the plan it carries out. The test passed. You write no test and you judge nothing of its style.
+/** The prompt of the agent that reviews a test against the scenario of its plan, with the tool it reports with. */
+export const COHERENCE_REVIEWER_PROMPT = {
+  template: `You review one Playwright test, written by another agent, against the scenario of the plan it carries out. The test passed. You write no test and you judge nothing of its style.
 
 A test is coherent with its scenario when a person who reads the scenario would agree the test verifies it:
 - each step does what its action says, with the values of the data of the scenario;
@@ -14,7 +16,12 @@ A test is coherent with its scenario when a person who reads the scenario would 
 Report only what breaks one of these: a step that does something else or nothing, a result no assertion verifies, an assertion that cannot fail, an intent the test never verifies. A locator, a wait, a name or a layout you would have written otherwise is no finding.
 When in doubt, it is no finding: a finding costs the other agent a repair.
 
-Call ${FINDINGS_TOOL} once: each finding with where it is — the step, by its number — and what is wrong, in one sentence; an empty list when the test is coherent with its scenario. Then answer with one word.`;
+Call {{findings_tool}} once: each finding with where it is — the step, by its number — and what is wrong, in one sentence; an empty list when the test is coherent with its scenario. Then answer with one word.`,
+  variables: ["findings_tool"],
+} as const satisfies PromptTemplate;
+
+/** System instructions of the agent that reviews a test against the scenario of its plan. */
+export const COHERENCE_REVIEWER_INSTRUCTIONS = promptOf(COHERENCE_REVIEWER_PROMPT, { findings_tool: FINDINGS_TOOL });
 
 /**
  * Writes the request of a review: the scenario as its plan holds it, then the test.

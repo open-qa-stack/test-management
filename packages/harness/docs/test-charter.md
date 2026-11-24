@@ -21,7 +21,7 @@ Added rules come after the default ones, in the order of the file; their reason 
 
 ## Instructions
 
-`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `writerInstructions(rules, config.repository)` and `reviewerInstructions(rules, config.repository)` write the system instructions of each agent. All three are pure: they read no file and call no model or network.
+`resolveCharter(config.charter)` applies the changes and returns the rules to follow, or the errors. `writerCharter(rules, config.repository)` and `reviewerCharter(rules, config.repository)` write what the system instructions of each agent say of the charter, after the prompt of the agent, which the package of the agents holds. All three are pure: they read no file and call no model or network.
 
 The reviewer — the agent that reviews the quality of the code of a test that passed — gets what it reviews and what is fixed by the plan, how it reports, with `report_quality` and for each finding whether it concerns the test or its plan, then every rule by its identifier with its rationale and example, then the folders of the repository layout. Whether a test does what its plan says is not its matter: another agent reviews that, without the charter.
 
@@ -30,7 +30,7 @@ The writer — the agent that writes the test of one scenario of an accepted pla
 ```ts
 const charter = resolveCharter(config.charter);
 if (!charter.ok) throw new Error(charter.errors.map((e) => `${e.path}: ${e.message}`).join("\n"));
-const instructions = writerInstructions(charter.rules, config.repository);
+const said = writerCharter(charter.rules, config.repository);
 ```
 
 ## Checking a proposed test

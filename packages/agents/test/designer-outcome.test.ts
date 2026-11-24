@@ -240,7 +240,7 @@ describe("the review of the code of each test for its quality", () => {
     const { outcome, server } = await design(replies([...reviewed("list-orders", dated), ...reviewed("place-order"), ...reviewed("follow-order")]), {
       reviewTests: true,
       reviewCode: true,
-      reviewerInstructions: "Review the code against the charter.",
+      reviewerCharter: "Review the code against the charter.",
     });
     assert.equal(outcome.ok, true, messages(outcome));
     assert.deepEqual(
@@ -253,7 +253,7 @@ describe("the review of the code of each test for its quality", () => {
     );
     assert.ok(JSON.stringify(server.requests.map((request) => request.body)).includes("Review the code against the charter."));
     // Without the instructions of a reviewer, or when the review of the code is not asked, no code is reviewed.
-    for (const setup of [{ reviewCode: true }, { reviewerInstructions: "Review the code against the charter." }]) {
+    for (const setup of [{ reviewCode: true }, { reviewerCharter: "Review the code against the charter." }]) {
       const plain = await design(replies(valid(3)), setup);
       assert.deepEqual(
         plain.outcome.tests.map((test) => test.quality),

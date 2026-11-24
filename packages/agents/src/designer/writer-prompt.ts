@@ -1,5 +1,63 @@
-import type { Account, Application } from "@open-qa-stack/domain";
+import type { Account, Application, TestArchitecture } from "@open-qa-stack/domain";
+import { PLAYWRIGHT_READ_TOOL } from "@open-qa-stack/tools";
+import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
 import { PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.ts";
+
+/** What the agent that writes a test copies from its sheet, by how the tests of the repository are built. */
+const COPIED: Readonly<Record<TestArchitecture, string>> = {
+  "page-objects":
+    "the import, the code lines and the locators of the sheet exactly: test, expect and each application with its page objects come from the fixtures of the test repository;",
+  fixtures:
+    "the import, the code lines and the locators of the sheet exactly: test, expect and each application come from the fixtures of the test repository;",
+  standalone: "the code lines and the locators of the sheet exactly;",
+};
+
+/**
+ * The prompt of the agent that writes a test: how it works with the harness, its method, what it always does and what
+ * it never does, with what it copies from its sheet and the tools it names. The charter follows it.
+ */
+export const WRITER_PROMPT = {
+  template: `You write the Playwright test of one scenario of an accepted plan, in TypeScript with @playwright/test, from its sheet: its data, its steps with their code, the texts to assert with their locators, and its file.
+
+How this works
+- The harness checks the test against the plan and the charter, then runs it. A result that starts with "Refused" says what is wrong: fix that, and only that, then call the same tool again.
+- The results of {{run_tool}} and {{propose_tool}} end with a line "Next:" that names the next call. Make that call.
+- If no test can do what the scenario asks, do not force one: call {{propose_tool}} with unfeasible and your reason.
+- {{playwright_read_tool}} gives what the reference of Playwright says of a method, at the version installed: read it rather than guess.
+- The plan is fixed: do not explore again. When the sheet is not enough, take one snapshot at that step, or read a source the sheet cites; never guess. The harness records each such look.
+
+Method. Each step says when it is done.
+1. Write the whole file from the skeleton: each test.step with its title, its code lines and its assertions. Done when no comment of the skeleton asks for anything.
+2. Call {{run_tool}} with the whole file. Done when it gives a verdict.
+3. If the run failed, look at the page at the failed step, then fix a locator, a wait or the form of an assertion; nothing else. Done when a run passed, or three failed.
+4. Call {{propose_tool}}, with diagnosis when the last run failed. Done when the scenario is closed: answer in one sentence and call no more tools.
+
+Always
+- Copy {{copied}} a locator you change comes from a snapshot of this session.
+- Assert with await expect(locator), as the skeleton does.
+- Type only values of the data of the sheet.
+
+Never
+- Never change an expected text, remove, reverse or weaken an assertion, or skip a test, to make it pass. A test that fails stays failing and is reported with its cause; that is a valid result.
+- Never write a host, a user name or a password in a test.
+- Never locate by CSS, XPath or position, and never wait for a fixed time.`,
+  variables: ["run_tool", "propose_tool", "playwright_read_tool", "copied"],
+} as const satisfies PromptTemplate;
+
+/**
+ * Writes the part of the system instructions of the agent that writes a test that is its own, before the charter.
+ *
+ * @param architecture - How the tests of the repository are built.
+ * @returns The prompt of the agent, for that architecture.
+ */
+export function writerInstructions(architecture: TestArchitecture): string {
+  return promptOf(WRITER_PROMPT, {
+    run_tool: RUN_TOOL,
+    propose_tool: PROPOSE_TOOL,
+    playwright_read_tool: PLAYWRIGHT_READ_TOOL,
+    copied: COPIED[architecture],
+  });
+}
 
 /** A test the repository has that the session repairs: its file, and its text now. */
 export interface RepairedTest {

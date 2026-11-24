@@ -5,10 +5,10 @@ import { DEFAULT_REPOSITORY, validateConfig, type CharterSettings } from "@open-
 import { moduleSyntax } from "@open-qa-stack/tools";
 import { CHARTER_DOC_FILE, documentedSection, renderRules } from "../scripts/emit-charter-doc.ts";
 import { DESIGNER_EXAMPLE } from "./designer-example.ts";
-import { DEFAULT_CHARTER, writerInstructions, resolveCharter, reviewerInstructions, type ActiveRule, type CharterResolution } from "../src/index.ts";
+import { DEFAULT_CHARTER, writerCharter, resolveCharter, reviewerCharter, type ActiveRule, type CharterResolution } from "../src/index.ts";
 
 const NO_CHANGE: Required<CharterSettings> = { disable: [], add: [] };
-const COMPOSERS = { writer: writerInstructions, reviewer: reviewerInstructions } as const;
+const COMPOSERS = { writer: writerCharter, reviewer: reviewerCharter } as const;
 
 function rulesOf(resolution: CharterResolution): ActiveRule[] {
   if (!resolution.ok) throw new Error(`expected the charter to resolve: ${JSON.stringify(resolution.errors)}`);
@@ -47,7 +47,7 @@ describe("criterion 1 — the charter lists its rules with identifier, statement
   });
 });
 
-describe("criterion 2 — without changes, the instructions of the writer and the reviewer hold every rule by its identifier", () => {
+describe("criterion 2 — without changes, what the instructions of the writer and the reviewer say of the charter holds every rule by its identifier", () => {
   const rules = rulesOf(resolveCharter(NO_CHANGE));
 
   it("keeps every rule of the charter, in order", () => {
@@ -58,7 +58,7 @@ describe("criterion 2 — without changes, the instructions of the writer and th
   });
 
   it("lists every rule in the reviewer instructions, with its statement, rationale and example", () => {
-    const instructions = reviewerInstructions(rules, DEFAULT_REPOSITORY);
+    const instructions = reviewerCharter(rules, DEFAULT_REPOSITORY);
     assert.deepEqual(
       listedIds(instructions),
       DEFAULT_CHARTER.map((rule) => rule.id),
@@ -70,7 +70,7 @@ describe("criterion 2 — without changes, the instructions of the writer and th
   });
 
   it("lists every rule in the writer instructions in one line, its identifier and its statement, without rationale or example", () => {
-    const instructions = writerInstructions(rules, DEFAULT_REPOSITORY);
+    const instructions = writerCharter(rules, DEFAULT_REPOSITORY);
     const heading = "a finding names the rule and shows an example.\n";
     const charter = instructions.slice(instructions.indexOf(heading) + heading.length, instructions.indexOf("\n\nTests of an application go in"));
     assert.equal(charter, DEFAULT_CHARTER.map((rule) => `- ${rule.id}: ${rule.statement}`).join("\n"));
@@ -79,33 +79,13 @@ describe("criterion 2 — without changes, the instructions of the writer and th
 
   it("gives the reviewer the folders of the repository layout, and the writer the folder of its tests only", () => {
     const layout = { ...DEFAULT_REPOSITORY, appsDir: "tests", blocksDir: "blocks", journeysDir: "journeys" };
-    const reviewer = reviewerInstructions(rules, layout);
+    const reviewer = reviewerCharter(rules, layout);
     assert.ok(reviewer.includes("- Tests of an application: tests/<application id>/tests/<domain>/<functionality>/"));
     assert.ok(reviewer.includes("- Blocks of an application: tests/<application id>/blocks/"));
     assert.ok(reviewer.includes("- Journeys across applications: journeys/"));
-    const writer = writerInstructions(rules, layout);
+    const writer = writerCharter(rules, layout);
     assert.ok(writer.endsWith("\n\nTests of an application go in tests/<application id>/tests/<domain>/<functionality>/. The harness names the file."));
     assert.doesNotMatch(writer, /Blocks of an application|Journeys across applications/);
-  });
-
-  it("asks the reviewer to cite the identifier of each rule a test breaks", () => {
-    const reviewer = reviewerInstructions(rules, DEFAULT_REPOSITORY);
-    assert.match(reviewer, /A rule of the charter below that the test breaks: cite its identifier\./);
-    assert.doesNotMatch(writerInstructions(rules, DEFAULT_REPOSITORY), /cite its identifier/);
-    // It is told what the plan fixed, what concerns the plan rather than the test, and how it reports.
-    for (const said of [
-      "What is fixed, and is no finding",
-      "not.toHaveCount(0)",
-      "context.newPage()",
-      "process.env.OQAS_BASE_URL_",
-      "none breaks a rule of the charter",
-      "a finding that concerns the plan",
-      "playwright_read give its reference",
-      "what you remember may be of another version",
-      "When in doubt, it is no finding",
-      "Call report_quality once",
-    ])
-      assert.ok(reviewer.includes(said), said);
   });
 });
 
@@ -160,7 +140,7 @@ describe("criterion 4 — a rule added by the configuration comes after the defa
   }
 
   it("gives the reviewer the reason of an added rule as its rationale", () => {
-    const instructions = reviewerInstructions(rulesOf(resolveCharter({ disable: [], add: added })), DEFAULT_REPOSITORY);
+    const instructions = reviewerCharter(rulesOf(resolveCharter({ disable: [], add: added })), DEFAULT_REPOSITORY);
     assert.ok(instructions.includes("- TEAM-TAG-01: Tag every test with its domain.\n  Why: The nightly run selects tests by domain.\n- TEAM-TAG-02"));
   });
 
@@ -192,45 +172,11 @@ describe("criterion 5 — the charter and its composition are tested without mod
     const original = globalThis.fetch;
     globalThis.fetch = () => Promise.reject(new Error("network refused"));
     try {
-      const compose = () => writerInstructions(rulesOf(resolveCharter(NO_CHANGE)), DEFAULT_REPOSITORY);
+      const compose = () => writerCharter(rulesOf(resolveCharter(NO_CHANGE)), DEFAULT_REPOSITORY);
       assert.equal(compose(), compose());
     } finally {
       globalThis.fetch = original;
     }
-  });
-});
-
-describe("the guide of the writer", () => {
-  const rules = rulesOf(resolveCharter(NO_CHANGE));
-
-  it("says how the harness works, a method whose every step says when it is done, three things to always do and three never to do, before the charter, and stays out of the reviewer's", () => {
-    const instructions = writerInstructions(rules, DEFAULT_REPOSITORY);
-    const sections = instructions.split("\n\n").map((section) => section.split("\n")[0]);
-    assert.deepEqual(sections.slice(0, 6), [
-      "You write the Playwright test of one scenario of an accepted plan, in TypeScript with @playwright/test, from its sheet: its data, its steps with their code, the texts to assert with their locators, and its file.",
-      "How this works",
-      "Method. Each step says when it is done.",
-      "Always",
-      "Never",
-      "Charter. Every test is checked against these rules before it runs; a finding names the rule and shows an example.",
-    ]);
-    const lines = (heading: string) => instructions.split(`\n\n${heading}\n`)[1]!.split("\n\n")[0]!.split("\n");
-    assert.equal(lines("How this works").length, 5);
-    for (const heading of ["Always", "Never"]) assert.equal(lines(heading).length, 3);
-    const steps = lines("Method. Each step says when it is done.");
-    assert.deepEqual(
-      steps.map((step) => /^\d\. .* Done when [^.]+[.:]/.test(step)),
-      [true, true, true, true],
-    );
-    assert.match(instructions, /^- Never change an expected text, remove, reverse or weaken an assertion, or skip a test, to make it pass\./m);
-    assert.match(instructions, /^- The plan is fixed: do not explore again\./m);
-    assert.ok(!reviewerInstructions(rules, DEFAULT_REPOSITORY).includes("How this works"));
-    assert.doesNotMatch(instructions, /[ \t]$/m);
-  });
-
-  it("stays with the writer whatever the rules in force, and is short enough for a small model", () => {
-    assert.ok(writerInstructions([], DEFAULT_REPOSITORY).startsWith("You write the Playwright test of one scenario"));
-    assert.ok(writerInstructions(rules, DEFAULT_REPOSITORY).length <= 4300, String(writerInstructions(rules, DEFAULT_REPOSITORY).length));
   });
 });
 
