@@ -64,11 +64,14 @@ The table lives in `.oxlintrc.json`, as the options of the rule `open-qa-stack/p
 
 A commit is ready when `pnpm check` passes on it. Its message follows [Conventional Commits](https://www.conventionalcommits.org/): a type among `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore` and `revert`, the scope between parentheses when there is one, and a subject of 72 bytes at most, which is 72 characters in ASCII, such as `feat(check): scan the commits of a branch`. A commit is the work of its author: its message carries no `Co-authored-by` or `Generated-by` trailer.
 
-A merge commit is a commit like the others. The message git proposes for it, `Merge branch '<branch>'`, does not follow the convention: give the merge a subject of its own, which says what the merged branch brings.
+A change has one branch, and a branch one change. What a review or the continuous integration finds is fixed in that branch before it is merged, not by a burst of fix commits on `main` after it.
 
-```sh
-git merge --no-ff -m "feat(check): scan the commits of a branch" <branch>
-```
+A pull request is merged by squashing: its commits become one commit of `main`, whose subject follows the convention and ends with the number of the pull request, the whole within the 72 bytes, such as `feat(check): scan the commits of a branch (#12)`.
+
+## Conventions
+
+- What the code names is in English and does not change with the language of a person: a key of the configuration, an identifier, a state, the code of a refusal. What a person reads is a label, translated: the console keeps its labels in `apps/web/src/i18n/` and the conversation of the command line in `packages/cli/src/solo/conversation/i18n/`, one file per language, under the same keys.
+- The `.gitignore` of the repository names what the project itself produces. The files of your own tools, an editor, an assistant or an operating system, are left out by your global one, which `git config --global core.excludesFile` names.
 
 ## Continuous integration
 
@@ -76,13 +79,13 @@ The pipeline of the repository, in `.github/workflows/`, runs on every pull requ
 
 | Workflow | Job | What it verifies |
 |---|---|---|
-| `ci` | `static`, `tests (1/4)` to `tests (4/4)`, `own tests (api)` and `own tests (check)`, then `check` | The steps of `pnpm check` on a clean clone, the tests in four parts and each package with its own tests at the same time, every job on a machine of its own, then the merge of their coverage in `check`, the job the protection of `main` requires; a pull request tests the packages it touches since its base branch, with the Node.js `.nvmrc` names, the dependencies installed from the frozen lockfile and the Chromium the workspace pins, kept in a cache from one run to the next. Then, when the token is there, the SonarCloud analysis of the code and of the coverage of the whole suite, configured by `sonar-project.properties`. |
+| `ci` | `static`, `tests (1/4)` to `tests (4/4)`, `own tests (api)` and `own tests (check)`, then `check` | The steps of `pnpm check` on a clean clone, the tests in four parts and each package with its own tests at the same time, every job on a machine of its own, then the merge of their coverage in `check`, the job that tells whether the tests pass as a whole; a pull request tests the packages it touches since its base branch, with the Node.js `.nvmrc` names, the dependencies installed from the frozen lockfile and the Chromium the workspace pins, kept in a cache from one run to the next. Then, when the token is there, the SonarCloud analysis of the code and of the coverage of the whole suite, configured by `sonar-project.properties`. |
 | `ci` | `hygiene` | `pnpm scan` on every commit the pull request brings, not only its last: the message of each, and the lines it adds. |
 | `ci` | `advisories` | No production dependency has a known vulnerability of moderate severity or more. |
 | `release` | `candidate` | Started by hand for a version: the check, the scan of the whole history, the advisories, then the tarball of every package, kept as artifacts of the run. It publishes nothing and tags nothing. |
 | `cla` | `cla` | Every author of a pull request has signed the [contributor license agreement](CLA.md); the signatures are kept in the branch `cla-signatures`. The maintainer and the bots that open dependency pull requests are exempt. |
 
-A pull request can be merged once `check`, `hygiene`, `advisories` and `cla` are green: they are the required checks of `main`. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and those of the actions, each kind in one pull request, so that the pipeline runs once for them.
+A pull request is merged once `check`, `hygiene`, `advisories`, `cla` and the SonarCloud analysis are green. `.github/dependabot.yml` proposes, each week, the updates of the pinned dependencies and those of the actions, each kind in one pull request, so that the pipeline runs once for them.
 
 ## Scanning before publishing
 
