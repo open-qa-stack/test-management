@@ -7,6 +7,8 @@ import { SpokenInbox } from "./spoken-inbox.ts";
 /** What a design needs, of which the passes read the levels. */
 const options = (changes: Partial<DesignerOptions>): DesignerOptions => changes as DesignerOptions;
 const test = (path: string) => ({ path }) as DesignOutcome["tests"][number];
+/** A scenario a pass planned, of which the passes read nothing. */
+const planned = (id: string) => ({ id }) as NonNullable<DesignOutcome["planned"]>[number];
 const said = (message: string) => ({ level: "info" as const, message });
 
 describe("the passes of a design", () => {
@@ -17,7 +19,15 @@ describe("the passes of a design", () => {
   it("design each level asked alone, one after the other in the order of the pyramid, and give their tests together", async () => {
     const asked: (readonly string[] | undefined)[] = [];
     const given: Record<string, DesignOutcome> = {
-      smoke: { ok: true, branch: "oqas/a", statePath: "a.json", planPath: "a.plan.md", tests: [test("smoke.spec.ts")], journal: [said("smoke done")] },
+      smoke: {
+        ok: true,
+        branch: "oqas/a",
+        statePath: "a.json",
+        planPath: "a.plan.md",
+        tests: [test("smoke.spec.ts")],
+        planned: [planned("home")],
+        journal: [said("smoke done")],
+      },
       // A level that wrote nothing leaves the branch and the state of the level below as they are.
       functional: {
         ok: true,
@@ -33,6 +43,7 @@ describe("the passes of a design", () => {
         statePath: "c.json",
         planPath: "c.plan.md",
         tests: [test("one.spec.ts"), test("two.spec.ts")],
+        planned: [planned("one"), planned("two")],
         journal: [],
         uncovered: [{ asked: "A journey", reason: "It needs an account." }],
       },
@@ -56,6 +67,8 @@ describe("the passes of a design", () => {
         { asked: "A journey", reason: "It needs an account." },
       ],
       tests: [test("smoke.spec.ts"), test("one.spec.ts"), test("two.spec.ts")],
+      // The scenarios planned are those of every pass, which a later round of the design plans no more.
+      planned: [planned("home"), planned("one"), planned("two")],
       journal: [said("smoke done"), said("Pass smoke: 1 test."), said("Pass functional: 0 tests."), said("Pass business: 2 tests.")],
     });
   });

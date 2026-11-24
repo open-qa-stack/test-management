@@ -82,6 +82,7 @@ stateDiagram-v2
     Asked --> Submitted: propose_plan with the scenarios to add
     Asked --> Closed: propose_plan with no scenario (covered, or none with uncovered)
     Asked --> Closed: third duplicate in a row (exhausted)
+    Asked --> Closed: the plan holds as many scenarios as it may (full)
     Asked --> Closed: the session ends (session-end)
     Closed --> Reviewed: the plan holds scenarios
     Closed --> [*]: it holds none
@@ -370,6 +371,16 @@ The agent that plans is told of the tests the repository already has, whoever wr
 
 A scenario is compared with the tests earlier designs wrote, as it is with the scenarios of its own plan: by the code, then by the agent that reviews the plan. One a test already covers — the same steps with the same values, and nothing expected that the test does not expect — is set aside with the check `PLAN-EXISTING`, and `setAside` names the file of that test. Only a test that passed, whose file is still there and whose plan can be read covers anything.
 
+### The rounds of one design
+
+A design may be made in several rounds, each a design of its own that plans what the tests of the rounds before leave out. Three options of the designer say where one stands:
+
+| Option | What it does |
+| --- | --- |
+| `round` | The round this design is, `1` by default. From the second, the request says the tests of the rounds before are written and asks only for what none of them verifies. A plan with no scenario then says the brief is covered: it is closed as `covered`, without `uncovered`, without a refusal and without an error in the journal, no test is written, and the design succeeds. |
+| `maxScenarios` | The scenarios the plan may hold; no bound by default. The request names the count. A plan that reaches it is closed as `full`: the scenarios of the call it has no room for are left out, in the order of the call, and the agent and the journal are told which. |
+| `planned` | The scenarios the rounds before planned, as `planned` of their outcome gives them. A scenario that does the same steps with the same values as one of them, and expects nothing more, is set aside with the check `PLAN-EARLIER`, whatever became of the test of that scenario: a test that fails, was left unfinished or could not be written is not planned again in the same design. The agent that reviews the plan is told of them as it is of the tests of the repository. |
+
 ### What a test does to the data
 
 Each scenario says its `effect`: `read` when its test only reads the data of the environment, `write` when it creates, changes or removes some. Every test and every user share that data, so a test that writes must pass again right after it passed: it enters data of its own, such as a made-up name no other run uses, or its last step puts back what it changed.
@@ -401,6 +412,7 @@ The harness stops asking, and the plan records why in `ended`:
 | `covered` | The agent called `propose_plan` with no scenario: it says the brief is covered. A plan whose functional scenarios are all of what works is asked once, before it is closed, what the application answers to an input that matches nothing, is wrong or is forbidden, and what else a user does on the same screens; the same call again confirms that the brief asks nothing of the kind. |
 | `exhausted` | Three scenarios submitted in a row were duplicates. The first is only told to the agent; at the second, the agent is reminded that it may say the brief is covered; the third closes the plan. A scenario kept in between starts the count again. |
 | `session-end` | The session of the agent ended once it was asked for more: the plan is closed with the scenarios kept. |
+| `full` | The plan holds as many scenarios as `maxScenarios` allows: see [the rounds of one design](#the-rounds-of-one-design). |
 | `refused` | Six calls in a row were refused by the gates while the plan held scenarios: it is closed with them, and the journal says so. A call the gates let through starts the count again. With no scenario kept, the design stops, as before. |
 | `none` | The first calls gave no scenario, and said in `uncovered` why no test can do what the brief asks. The first such call is asked, once, to plan the applications one at a time — a brief about several of them is often too broad to plan at once —, and the same call again confirms it: the plan is closed without a scenario, no test is written, and the design succeeds. Without `uncovered`, such a call is refused with `PLAN-COUNT`. |
 

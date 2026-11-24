@@ -21,7 +21,7 @@ import {
   type TraceLine,
 } from "@open-qa-stack/domain";
 import { answer, KeptMemories, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
-import { Designer, readPlanFile, type DesignOutcome, type DesignState, type Inbox, type PlanRecord } from "../src/index.ts";
+import { Designer, readPlanFile, type DesignerOptions, type DesignOutcome, type DesignState, type Inbox, type PlanRecord } from "../src/index.ts";
 
 export const MODEL = "test-model";
 
@@ -363,6 +363,8 @@ export interface Setup {
   readonly vision?: boolean;
   /** The language of the tests, when it is not as the configuration says by default. */
   readonly testLanguage?: Language;
+  /** Where the design stands in a batch, when it is a round of one: its round, the scenarios its plan may hold, and those planned before it. */
+  readonly batch?: Pick<DesignerOptions, "round" | "maxScenarios" | "planned">;
 }
 
 export interface Run {
@@ -412,6 +414,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       ...(setup.levels === "default" ? {} : { levels: setup.levels ?? ["functional"] }),
       ...(setup.observe === undefined ? {} : { observe: setup.observe }),
       ...(setup.inbox === undefined ? {} : { inbox: setup.inbox }),
+      ...setup.batch,
     });
     return { outcome: await designer.run(), root, server, before };
   } finally {

@@ -13,6 +13,18 @@ export const PLAN_DUPLICATE = "PLAN-DUPLICATE";
 /** The code of the check that sets aside a scenario a test of the repository already covers. */
 export const PLAN_EXISTING = "PLAN-EXISTING";
 
+/** The code of the check that sets aside a scenario an earlier round of the design already planned. */
+export const PLAN_EARLIER = "PLAN-EARLIER";
+
+/** A scenario an earlier round of the design planned, by what its test does and verifies, whatever became of that test. */
+export interface EarlierScenario {
+  /** Its slug in the plan of its round. */
+  readonly id: string;
+  readonly verified: Verified;
+  /** What it does and verifies, as the judge reads it. */
+  readonly described: string;
+}
+
 /** A test the repository already has, by what it does and verifies. */
 export interface CoveringTest {
   /** Its path, relative to the root of the test repository. */
@@ -38,9 +50,16 @@ export interface DraftRules<S> {
   readonly judge?: DuplicateJudge;
   /** The tests the repository already has: a scenario one of them covers is set aside, as one a scenario of the plan covers. */
   readonly existing?: readonly CoveringTest[];
+  /** The scenarios the earlier rounds of the design planned: a scenario one of them covers is set aside, as one a test covers. */
+  readonly earlier?: readonly EarlierScenario[];
+  /** The scenarios the plan may hold: those a call gives beyond them are left out, and the plan is closed. No bound when left out. */
+  readonly max?: number;
   /** The clock of the dates. */
   readonly now: () => Date;
 }
+
+/** Why a scenario is set aside, and for what. */
+type Duplicate = Omit<SetAsideScenario, "id" | "title" | "intent" | "at">;
 
 /**
  * The scenarios of a plan while the harness still asks the agent for more.
@@ -57,13 +76,15 @@ export interface DraftRules<S> {
  * scenario kept at all, that no test can do what the brief asks. Duplicates in
  * a row are answered by degrees: the first is told to the agent; from `HINTED_DUPLICATES_IN_A_ROW`, the
  * agent is told it may say the brief is covered; at `MAX_DUPLICATES_IN_A_ROW`, the harness asks for no
- * more. A plan that is full is closed as well, which guards a design against scenarios without end.
+ * more. A plan that is full is closed as well, which guards a design against scenarios without end: it
+ * keeps the scenarios of a call in their order while it has room, and leaves out the others.
  */
 export class PlanDraft<S extends { readonly id: string; readonly title: string; readonly intent: string }> {
   private readonly rules: DraftRules<S>;
   private readonly journal: Journal;
   private kept: readonly S[] = [];
   private readonly aside: SetAsideScenario[] = [];
+  private left: readonly S[] = [];
   private streak = 0;
 
   /**
@@ -94,6 +115,15 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
   }
 
   /**
+   * The scenarios of the last call the plan had no room for.
+   *
+   * @returns Them, in the order of the call; none while the plan has room.
+   */
+  public get overflow(): readonly S[] {
+    return this.left;
+  }
+
+  /**
    * The draft as it would be with the scenarios of a call, before any is compared.
    *
    * @param submitted - The scenarios of the call.
@@ -114,26 +144,12 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
   public async keep(submitted: readonly S[]): Promise<readonly SetAsideScenario[]> {
     const fresh = new Set(submitted.map((scenario) => scenario.id));
     const settled = this.kept.filter((scenario) => !fresh.has(scenario.id));
-    const duplicates = new Map<string, Omit<SetAsideScenario, "id" | "title" | "intent" | "at">>();
+    const duplicates = new Map<string, Duplicate>();
     const passed: S[] = [];
     for (const scenario of submitted) {
-      const verified = this.rules.verified(scenario);
-      const other = [...settled, ...passed].find((candidate) => coveredBy(verified, this.rules.verified(candidate)));
-      // A test of an earlier design verifies it already: writing it again would add nothing to the repository.
-      const written = other === undefined ? (this.rules.existing ?? []).find((test) => coveredBy(verified, test.verified)) : undefined;
-      if (written !== undefined)
-        duplicates.set(scenario.id, {
-          duplicates: written.path,
-          origin: { by: "harness", check: PLAN_EXISTING },
-          reason: `The test ${written.path} already does the same steps with the same values, and expects all it expects.`,
-        });
-      else if (other === undefined) passed.push(scenario);
-      else
-        duplicates.set(scenario.id, {
-          duplicates: other.id,
-          origin: { by: "harness", check: PLAN_DUPLICATE },
-          reason: `It does the same steps with the same values as ${other.id}, and expects nothing ${other.id} does not.`,
-        });
+      const duplicate = this.covered(scenario, [...settled, ...passed]);
+      if (duplicate === undefined) passed.push(scenario);
+      else duplicates.set(scenario.id, duplicate);
     }
     for (const { id, of, reason } of await this.judged(settled, passed))
       duplicates.set(id, { duplicates: duplicates.get(of)?.duplicates ?? of, origin: { by: "agent", role: "plan-reviewer" }, reason });
@@ -149,8 +165,43 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
         `The scenario ${id} was set aside as a duplicate of ${of}, by ${origin.by === "harness" ? `the harness (${origin.check})` : "the plan reviewer"}: ${reason}`,
       );
     this.aside.push(...found);
-    this.kept = this.with(submitted).filter((scenario) => !duplicates.has(scenario.id));
+    // The scenarios kept before come first: a plan with no room left leaves out the last of the call.
+    const whole = this.with(submitted).filter((scenario) => !duplicates.has(scenario.id));
+    const max = this.rules.max ?? Infinity;
+    this.kept = whole.slice(0, max);
+    this.left = whole.slice(max);
+    if (this.left.length > 0)
+      this.journal.record("info", `The plan is full at ${max}, and had no room for: ${this.left.map((scenario) => scenario.id).join(", ")}.`);
     return found;
+  }
+
+  /** What already covers a scenario, by what its test would do: a scenario before it, a test of the repository, or a scenario of an earlier round. */
+  private covered(scenario: S, before: readonly S[]): Duplicate | undefined {
+    const verified = this.rules.verified(scenario);
+    const other = before.find((candidate) => coveredBy(verified, this.rules.verified(candidate)));
+    if (other !== undefined)
+      return {
+        duplicates: other.id,
+        origin: { by: "harness", check: PLAN_DUPLICATE },
+        reason: `It does the same steps with the same values as ${other.id}, and expects nothing ${other.id} does not.`,
+      };
+    // A test of an earlier design verifies it already: writing it again would add nothing to the repository.
+    const written = (this.rules.existing ?? []).find((test) => coveredBy(verified, test.verified));
+    if (written !== undefined)
+      return {
+        duplicates: written.path,
+        origin: { by: "harness", check: PLAN_EXISTING },
+        reason: `The test ${written.path} already does the same steps with the same values, and expects all it expects.`,
+      };
+    // An earlier round planned it: whatever became of its test, planning it again would write that test once more.
+    const earlier = (this.rules.earlier ?? []).find((planned) => coveredBy(verified, planned.verified));
+    return earlier === undefined
+      ? undefined
+      : {
+          duplicates: earlier.id,
+          origin: { by: "harness", check: PLAN_EARLIER },
+          reason: `An earlier round of this design planned ${earlier.id}, which does the same steps with the same values, and expects all it expects.`,
+        };
   }
 
   /**
@@ -171,14 +222,18 @@ export class PlanDraft<S extends { readonly id: string; readonly title: string; 
   public ended(submitted: number): PlanEnd | undefined {
     // An agent that submits nothing says it is done: with scenarios kept, the brief is covered; with none, no test can do what it asks.
     if (submitted === 0) return this.kept.length === 0 ? "none" : "covered";
+    if (this.kept.length >= (this.rules.max ?? Infinity)) return "full";
     return this.streak >= MAX_DUPLICATES_IN_A_ROW ? "exhausted" : undefined;
   }
 
   /** What the judge finds among the scenarios the code let through, kept only when it names one of them and a scenario before it. */
   private async judged(settled: readonly S[], passed: readonly S[]): Promise<JudgedDuplicate[]> {
     const { judge, described } = this.rules;
-    // The tests the repository already has come before every scenario: the judge tells one that verifies what a test already does.
-    const written = (this.rules.existing ?? []).map((test) => ({ id: test.path, text: test.described }));
+    // The tests the repository already has, and the scenarios of the earlier rounds, come before every scenario: the judge tells one that verifies what one of them already does.
+    const written = [
+      ...(this.rules.existing ?? []).map((test) => ({ id: test.path, text: test.described })),
+      ...(this.rules.earlier ?? []).map((planned) => ({ id: planned.id, text: planned.described })),
+    ];
     if (judge === undefined || passed.length === 0 || written.length + settled.length + passed.length < 2) return [];
     const item = (scenario: S) => ({ id: scenario.id, text: described(scenario) });
     const answered = await judge.judge([...written, ...settled.map(item)], passed.map(item)).catch((error: unknown) => {

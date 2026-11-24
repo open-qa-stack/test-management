@@ -41,6 +41,12 @@ const SAID: readonly (readonly [string, Saying])[] = [
   ["The plan was accepted: no scenario.", { code: "planAcceptedEmpty", values: {} }],
   ["The plan was accepted: search-customer, open-order.", { code: "planAccepted", values: { scenarios: "search-customer, open-order" } }],
   ["No test was written: the plan holds no scenario, and says what the brief asks that no test can do.", { code: "noTestEmptyPlan", values: {} }],
+  ["No test was written: the plan holds no scenario, the tests already written covering the brief.", { code: "noTestCovered", values: {} }],
+  ["The harness asked for no more scenarios: the plan holds as many scenarios as it may.", { code: "planFull", values: {} }],
+  [
+    "The plan is full at 2, and had no room for: open-order, cancel-order.",
+    { code: "planNoRoom", values: { count: "2", scenarios: "open-order, cancel-order" } },
+  ],
   ["The harness asked for no more scenarios: the agent said the brief is covered.", { code: "briefCovered", values: {} }],
   [
     "The harness asked for no more scenarios: the scenarios last submitted were duplicates, and the agent has nothing new to verify.",

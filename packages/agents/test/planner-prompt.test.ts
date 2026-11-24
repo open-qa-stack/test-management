@@ -105,6 +105,20 @@ describe("the request of the session that plans", () => {
     assert.doesNotMatch(planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["smoke", "functional"]), /This plan is of the level/);
   });
 
+  it("tells a later round of a design to plan what the tests written leave out, and a bounded plan how many scenarios it may hold", () => {
+    const first = planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["functional"], false, { round: 1 });
+    assert.doesNotMatch(first, /round|may hold/);
+    const later = planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["functional"], false, { round: 3, maxScenarios: 12 }).split("\n\n");
+    assert.deepEqual(later.slice(-3, -1), [
+      'This is round 3 of the design: the tests of the rounds before are written, and tests_list names them. Plan only what none of them verifies; when they cover the brief, call propose_plan with "scenarios": [].',
+      "The plan may hold 12 scenarios: plan first what matters most.",
+    ]);
+    assert.match(
+      planRequest(undefined, "local", DOMAINS, [SHOP], ["functional"], false, { maxScenarios: 1 }),
+      /\n\nThe plan may hold 1 scenario: plan first what matters most\.\n\n/,
+    );
+  });
+
   it("says, for a plan of visual tests alone, which states of the screens are worth comparing, and that the harness adds the comparison", () => {
     const visual = planRequest("Test the search of an order.", "local", DOMAINS, [SHOP], ["functional"], true);
     assert.match(

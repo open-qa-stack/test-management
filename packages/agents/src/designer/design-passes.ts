@@ -66,6 +66,7 @@ export class DesignPasses {
         ...(pass.tests.length === 0 && merged.statePath !== undefined ? { statePath: merged.statePath, planPath: merged.planPath! } : {}),
         ...(uncovered.length === 0 ? {} : { uncovered }),
         tests: [...merged.tests, ...pass.tests],
+        planned: [...(merged.planned ?? []), ...(pass.planned ?? [])],
         journal: [...merged.journal, ...pass.journal, said],
       };
       // A pass cut short by a limit, or that could not start, leaves nothing the next could build on: they stop there. A repair is a whole design.

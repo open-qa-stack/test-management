@@ -383,6 +383,69 @@ describe("the scenarios of a plan, asked until the brief is covered", () => {
     );
   });
 
+  it("close a plan that is full, and leave out the scenarios of the call it has no room for", async () => {
+    const full = "the plan holds as many scenarios as it may.";
+    const over = "Next: answer with one sentence. Call no more tools.";
+    const { proposal: made, journal } = await proposal({ maxScenarios: 2 });
+    assert.equal(
+      await add(made, plan("a", "b", "c")),
+      [`The plan was accepted with 2 scenarios: ${full}`, "Left out, the plan having no room for them: c.", over].join("\n"),
+    );
+    assert.deepEqual([made.accepted!.scenarios.map((kept) => kept.id), made.accepted!.ended], [["a", "b"], "full"]);
+    assert.deepEqual(
+      journal.entries().map((entry) => entry.message),
+      ["The plan is full at 2, and had no room for: c.", `The harness asked for no more scenarios: ${full}`, "The plan was accepted: a, b."],
+    );
+    // A plan filled by its last scenario is closed without a word of room: nothing was left out.
+    const filled = await proposal({ maxScenarios: 2 });
+    assert.equal(await add(filled.proposal, plan("a")), asked(["a"]));
+    assert.equal(await add(filled.proposal, plan("b")), [`The plan was accepted with 2 scenarios: ${full}`, over].join("\n"));
+    // An agent that adds nothing to a plan with room left says the brief is covered, as without a bound.
+    const roomy = await proposal({ maxScenarios: 5 });
+    await add(roomy.proposal, plan("a"));
+    await add(roomy.proposal, { scenarios: [] });
+    assert.equal(roomy.proposal.accepted!.ended, "covered");
+  });
+
+  it("set aside a scenario an earlier round of the design planned, whatever became of its test, and tell the judge of those rounds", async () => {
+    const calls: string[][] = [];
+    const judge: DuplicateJudge = {
+      judge: async (kept) => {
+        calls.push(kept.map((item) => item.id));
+        return [];
+      },
+    };
+    const verified = {
+      application: "shop",
+      data: scenario("a").data.map((entry) => entry.value),
+      steps: [{ does: [OPENED, ""], shows: ["Orders"], absent: [] }],
+    };
+    const { proposal: made, journal } = await proposal({ now, judge, earlier: [{ id: "list-orders", verified, described: "Open the orders" }] });
+    const reason = "An earlier round of this design planned list-orders, which does the same steps with the same values, and expects all it expects.";
+    const told = (await add(made, { scenarios: [scenario("a"), scenario("d")] })) as string;
+    assert.ok(told.includes(`Set aside (PLAN-EARLIER): scenario a is a duplicate of list-orders. ${reason}`), told);
+    assert.equal(journal.entries()[0]!.message, `The scenario a was set aside as a duplicate of list-orders, by the harness (PLAN-EARLIER): ${reason}`);
+    assert.deepEqual(calls, [["list-orders"]]);
+    await add(made, { scenarios: [] });
+    assert.deepEqual(
+      [made.accepted!.scenarios.map((kept) => kept.id), made.accepted!.setAside?.map((aside) => [aside.id, aside.duplicates, aside.origin])],
+      [["d"], [["a", "list-orders", { by: "harness", check: "PLAN-EARLIER" }]]],
+    );
+  });
+
+  it("close the plan of a later round that holds no scenario as covered: the tests already written do what the brief asks", async () => {
+    const { proposal: made, journal } = await proposal({ later: true });
+    assert.equal(
+      await add(made, { scenarios: [] }),
+      "The plan was accepted with 0 scenarios: the agent said the brief is covered.\nNext: answer with one sentence. Call no more tools.",
+    );
+    assert.deepEqual(made.accepted, { scenarios: [], ended: "covered" });
+    assert.deepEqual(
+      journal.entries().map((entry) => `${entry.level}: ${entry.message}`),
+      ["info: The harness asked for no more scenarios: the agent said the brief is covered.", "info: The plan was accepted: no scenario."],
+    );
+  });
+
   it("answer duplicates in a row by degrees: tell the first, say at the second that the brief may be covered, and ask for no more at the third", async () => {
     const { proposal: made } = await proposal();
     const hint =

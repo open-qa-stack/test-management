@@ -30,6 +30,7 @@ import {
   toolsOffered,
   requestText,
   sessions,
+  firstMessage,
   asked,
   toolResult,
   told,
@@ -305,6 +306,31 @@ describe("a brief no test can do", () => {
     assert.equal(git(root, "symbolic-ref", "--short", "HEAD"), "main");
     // The session that plans is over once the plan is accepted: no session writes a test.
     assert.equal(server.requests.length, 4);
+  });
+});
+
+describe("a later round of a design", () => {
+  it("is told what round it is and how many scenarios its plan may hold, and closes a plan with no scenario as covered, without a refusal", async () => {
+    const none = { id: "plan", name: "propose_plan", arguments: { scenarios: [] } };
+    const { outcome, root, server } = await design(replies([[OPEN], [none], DONE]), { plan: false, batch: { round: 2, maxScenarios: 5, planned: [] } });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.deepEqual([outcome.tests, outcome.planned, outcome.branch, outcome.uncovered], [[], [], undefined, []]);
+    assert.match(told(server, "plan"), /^The plan was accepted with 0 scenarios: the agent said the brief is covered\./);
+    assert.deepEqual([planOf(outcome).scenarios, planOf(outcome).ended], [[], "covered"]);
+    assert.match(messages(outcome), /No test was written: the plan holds no scenario, the tests already written covering the brief\./);
+    assert.doesNotMatch(messages(outcome), /does not cover|not closed yet/);
+    const request = firstMessage(sessions(server)[0]!);
+    assert.match(request, /\n\nThis is round 2 of the design: the tests of the rounds before are written, and tests_list names them\./);
+    assert.match(request, /\n\nThe plan may hold 5 scenarios: plan first what matters most\.\n\n/);
+    assert.equal(git(root, "symbolic-ref", "--short", "HEAD"), "main");
+  });
+
+  it("gives the scenarios of its plan, which the round after it plans no more", async () => {
+    const { outcome } = await design(replies(valid(3)));
+    assert.deepEqual(
+      outcome.planned?.map((scenario) => scenario.id),
+      IDS,
+    );
   });
 });
 

@@ -3,7 +3,7 @@ import { join, posix } from "node:path";
 import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
 import { writtenValues } from "./assertion-line.ts";
 import { DESIGNS_FOLDER, type DesignState } from "./design-state.ts";
-import type { CoveringTest } from "./plan-draft.ts";
+import type { CoveringTest, EarlierScenario } from "./plan-draft.ts";
 import { readPlanFile } from "./plan-file.ts";
 import { described } from "./scenario-description.ts";
 import type { Verified } from "./verified.ts";
@@ -93,6 +93,20 @@ function verifiedOf(scenario: PlannedScenario): Verified | undefined {
       };
     }),
   };
+}
+
+/**
+ * The scenarios the earlier rounds of a design planned, each by what its test does and verifies: what a
+ * scenario of a later round is compared with, whatever became of the test of each.
+ *
+ * @param planned - The scenarios, as their plans were accepted.
+ * @returns Them, but one whose plan did not keep where its lines come from: it covers nothing.
+ */
+export function earlierScenarios(planned: readonly PlannedScenario[]): EarlierScenario[] {
+  return planned.flatMap((scenario) => {
+    const verified = verifiedOf(scenario);
+    return verified === undefined ? [] : [{ id: scenario.id, verified, described: described(scenario) }];
+  });
 }
 
 /** A test an earlier design wrote, with the scenario of its plan; none when the plan cannot be read. */
