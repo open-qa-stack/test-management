@@ -86,9 +86,12 @@ Test accounts used to sign in. The format keeps them with the application's auth
 | `name` | non-empty string, unique within the application | yes | `"local"` |
 | `uiUrl` | URL | for `web` and `web-and-api` | `"http://localhost:3010"` |
 | `exploration` | `read-only` or `read-write` | no, `read-only` by default | `"read-write"` |
+| `allow` | `design` and `run`, each `true` or `false` | no, both allowed by default | `{ "design": false }` |
 | `apis` | array of [named APIs](#named-api) | no | see below |
 
 `exploration` says what the agent that explores the user interface may do in this environment. With `read-only`, it browses, searches, filters and opens forms to read their fields, and the harness refuses any click that would create, change or remove data. With `read-write`, for an environment whose data may be changed, it may also submit the forms that create or change data, to see what the application answers; a click that would remove data stays refused.
+
+`allow` says what the agents may do in this environment: `design`, write tests there; `run`, run tests there. Each is allowed when left out. Open QA Stack is not meant to work against production: an environment that should not have tests written or run against it says so, and a session that writes tests, or a launch or a campaign that runs them, is refused before it starts, with a message that names the applications that forbid it and what to do. Nothing is refused by the address itself: the person decides.
 
 ### Named API
 

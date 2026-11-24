@@ -1,6 +1,7 @@
 import { START_ADVICE } from "../configuration/start-advice.ts";
 import { posix, relative, sep } from "node:path";
 import {
+  activityRefusal,
   CONFIG_FILE_NAME,
   runIdAt,
   declaredValues,
@@ -404,6 +405,12 @@ export class Run {
       return ExitCode.configuration;
     }
     const config = scoped.config;
+    // A session that writes tests is refused where an application in its scope forbids it; a mapping writes none.
+    const refusal = this.options.purpose === "map" ? undefined : activityRefusal(config.applications, environment, "design");
+    if (refusal !== undefined) {
+      journal.record("configuration", "error", refusal);
+      return ExitCode.configuration;
+    }
     const charter = resolveCharter(config.charter);
     if (!charter.ok) {
       for (const error of charter.errors) journal.record("configuration", "error", `${error.path}: ${error.message}`);

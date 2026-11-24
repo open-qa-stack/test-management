@@ -5,6 +5,7 @@ import { Card } from "../ui/card.tsx";
 import {
   AddButton,
   AdvancedFields,
+  FlagField,
   choices,
   ChoiceField,
   InputField,
@@ -107,6 +108,11 @@ export function EnvironmentFields({ at, environment, name }: { readonly at: stri
           none={t("configuration.application.explorationDefault")}
         />
       </div>
+      <p className="config-note warn">{t("configuration.application.notProduction")}</p>
+      <AdvancedFields pointers={[`${at}/allow`]}>
+        <FlagField pointer={`${at}/allow/design`} label={t("configuration.application.allowDesign")} value={environment.allow?.design} />
+        <FlagField pointer={`${at}/allow/run`} label={t("configuration.application.allowRun")} value={environment.allow?.run} />
+      </AdvancedFields>
       {apis.map((api, index) => (
         <div key={index} className="config-item">
           <ItemHead

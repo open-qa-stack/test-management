@@ -208,6 +208,24 @@ export function CheckField({ pointer, label, hint, checked, member, defaults = [
 }
 
 /**
+ * A box to check for a key that is true when left out, such as what an environment allows: checked unless the draft
+ * says false; unchecked, it writes false, and checked again, it leaves the key out.
+ *
+ * @param props - Where the key is, its label, and its value in the draft.
+ * @returns The box.
+ */
+export function FlagField({ pointer, label, value }: { readonly pointer: string; readonly label: string; readonly value: boolean | undefined }): ReactNode {
+  const { change } = useContext(EditContext);
+  const id = idOf(pointer);
+  return (
+    <label className="check" htmlFor={id}>
+      <input id={id} type="checkbox" name={pointer} data-kind="flag" checked={value !== false} onChange={change} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+/**
  * The errors the instance found at a pointer that has no field of its own, such as a list that needs an item.
  *
  * @param props - The pointer.

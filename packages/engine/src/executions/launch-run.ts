@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   CONFIG_FILE_NAME,
   InvalidConfigurationError,
+  activityRefusal,
   LaunchRefusedError,
   launchProgress,
   validateConfig,
@@ -80,7 +81,7 @@ export class LaunchRun {
    * @param request - The tests, and where.
    * @returns The launch, which has not run yet.
    * @throws `NoConfigurationError` or `InvalidConfigurationError` when the configuration in force is missing or not valid.
-   * @throws `LaunchRefusedError` when the environment is not one the configuration declares, or none is named among several.
+   * @throws `LaunchRefusedError` when the environment is not one the configuration declares, none is named among several, or an application forbids running tests there.
    */
   static async ready(host: LaunchHost, request: LaunchRequest): Promise<LaunchRun> {
     const revision = await host.configuration.current();
@@ -92,6 +93,8 @@ export class LaunchRun {
       throw new LaunchRefusedError(`Several environments are declared (${declared.join(", ")}): name the one the tests run against.`);
     if (!declared.includes(environment))
       throw new LaunchRefusedError(`The environment ${environment} is not declared: the configuration declares ${declared.join(", ")}.`);
+    const refusal = activityRefusal(result.config.applications, environment, "run");
+    if (refusal !== undefined) throw new LaunchRefusedError(refusal);
     const launch: TestLaunch = {
       startedAt: host.now().toISOString(),
       environment,

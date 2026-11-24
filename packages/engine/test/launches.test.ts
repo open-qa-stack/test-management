@@ -124,6 +124,16 @@ describe("tests launched as they are, with no agent", () => {
       (error) =>
         error instanceof LaunchRefusedError && error.message === "Several environments are declared (local, staging): name the one the tests run against.",
     );
+    // An environment where an application forbids running tests refuses a launch before it starts.
+    const file = join(hosted.root, CONFIG_FILE_NAME);
+    const config = JSON.parse(readFileSync(file, "utf8")) as { applications: { environments: { name: string; allow?: unknown }[] }[] };
+    config.applications[0]!.environments.find(({ name }) => name === "local")!.allow = { run: false };
+    writeFileSync(file, JSON.stringify(config));
+    await hosted.settings.synchronise();
+    await assert.rejects(
+      hosted.sessions.launch({ environment: "local" }),
+      (error) => error instanceof LaunchRefusedError && error.message.startsWith("Running tests is not allowed on the environment local of "),
+    );
     const unset = await Hosted.create([], { host: { env: {} } });
     try {
       await assert.rejects(unset.sessions.launch({ environment: "local" }), (error) => error instanceof InvalidConfigurationError);

@@ -126,6 +126,24 @@ describe("the page of an application", () => {
     assert.doesNotMatch(changed, /Répond/, "a test of an address since changed is not shown");
   });
 
+  it("warns that Open QA Stack is not meant for production, and folds under « Avancé » what the environment allows, each allowed by default", () => {
+    const panel = "#/applications/shop?panel=environment%3A0";
+    const html = page(panel);
+    assert.match(html, /<p class="config-note warn">Open QA Stack n’est pas fait pour la production/);
+    assert.match(
+      html,
+      /<input id="config-applications-0-environments-0-allow-design" type="checkbox" data-kind="flag" name="\/applications\/0\/environments\/0\/allow\/design" checked=""\/>/,
+    );
+    assert.match(html, /name="\/applications\/0\/environments\/0\/allow\/run" checked=""\/><span>Les tests peuvent s’exécuter sur cet environnement/);
+    const document = {
+      ...DOCUMENT,
+      applications: [{ ...DOCUMENT.applications[0]!, environments: [{ ...DOCUMENT.applications[0]!.environments[0]!, allow: { run: false } }] }],
+    };
+    const view = { ...VIEW, revision: { ...VIEW.revision!, document } };
+    const forbidding = page(panel, configurationAfter(INITIAL_CONFIGURATION, { type: "read", view, revisions: REVISIONS }));
+    assert.match(forbidding, /name="\/applications\/0\/environments\/0\/allow\/run"\/>/, "a run forbidden is unchecked");
+  });
+
   it("offers no test of an address an environment does not give", () => {
     const document = {
       ...DOCUMENT,

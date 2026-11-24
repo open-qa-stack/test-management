@@ -63,6 +63,20 @@ describe("solo command, criterion 2 — an invalid configuration, or an environm
     assert.equal(unnamed.code, 3);
     assert.match(unnamed.err, /Several environments are declared \(local, staging\); name one with --environment\./);
   });
+
+  it("refuses to write tests where an application forbids it, before anything starts, naming it and what to do", async () => {
+    const forbidding = (url: string): string => {
+      const config = JSON.parse(configText(url)) as { applications: { environments: { name: string; allow?: unknown }[] }[] };
+      config.applications[0]!.environments.find(({ name }) => name === "local")!.allow = { design: false };
+      return JSON.stringify(config);
+    };
+    const refused = await ran([], { environment: "local", config: forbidding });
+    assert.equal(refused.code, 3);
+    assert.match(
+      refused.err,
+      /Writing tests is not allowed on the environment local of .+: allow it in the settings of that environment, or choose another one\./,
+    );
+  });
 });
 
 describe("solo command, criterion 3 — a missing prerequisite stops with 4, and nothing is mapped", () => {

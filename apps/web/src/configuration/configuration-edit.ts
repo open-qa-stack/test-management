@@ -35,7 +35,7 @@ export const EditContext = createContext<ConfigurationEdit>(NO_EDIT);
  * How a field reads what the person typed: a text, a number, a choice, a member of a set, a level of autonomy, the
  * value of a variable, or the reach of a knowledge source.
  */
-export type FieldKind = "text" | "number" | "choice" | "member" | "level" | "connection" | "secret" | "reach";
+export type FieldKind = "text" | "number" | "choice" | "member" | "flag" | "level" | "connection" | "secret" | "reach";
 
 /** What a field holds when the person changed it. */
 export interface ChangedField {
@@ -70,6 +70,9 @@ export function actionOf(field: ChangedField): ConfigurationAction {
         on: checked,
         defaults: field.defaults === undefined || field.defaults === "" ? [] : field.defaults.split(","),
       };
+    case "flag":
+      // A flag is true when left out: only false is written.
+      return { type: "edit", pointer, value: checked ? undefined : false };
     case "level":
       return { type: "level", level: value === "bounded" ? "bounded" : "autonomous" };
     case "connection":

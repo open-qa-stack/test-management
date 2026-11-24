@@ -47,6 +47,12 @@ describe("what the person does to a field", () => {
 });
 
 describe("what the person presses", () => {
+  it("writes false for a flag unchecked, and leaves its key out once it is checked again", () => {
+    const pointer = "/applications/0/environments/0/allow/design";
+    assert.deepEqual(actionOf({ name: pointer, value: "on", checked: false, kind: "flag" }), { type: "edit", pointer, value: false });
+    assert.deepEqual(actionOf({ name: pointer, value: "on", checked: true, kind: "flag" }), { type: "edit", pointer, value: undefined });
+  });
+
   it("sets the reach of a source: the whole project leaves its attachments out, applications start with one to choose", () => {
     const reach = { name: "/knowledge/2/attachments", checked: false, kind: "reach" } as const;
     assert.deepEqual(actionOf({ ...reach, value: "project" }), { type: "edit", pointer: "/knowledge/2/attachments", value: undefined });
