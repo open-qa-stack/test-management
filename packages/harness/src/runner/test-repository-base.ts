@@ -89,6 +89,8 @@ export interface TestProject {
   readonly stateDir: string;
   /** Path of the file of the fixtures the tests share, relative to the root of the repository; none for tests that each stand alone. */
   readonly fixturesFile?: string;
+  /** Whether the tests act on page objects, one class per screen; they act on the page itself otherwise. */
+  readonly pageObjects: boolean;
 }
 
 /** The levels of the pyramid of tests, each with a script that runs its tests by their tag. */

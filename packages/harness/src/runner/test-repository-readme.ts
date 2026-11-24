@@ -11,23 +11,36 @@ export function testRepositoryReadme(project: TestProject): string {
   const applications = project.applications.map(
     ({ id, name }) => `| \`${project.appsDir}/${id}/tests/\` | The tests of ${name}: a folder per domain, then one per functionality. |`,
   );
-  const { fixturesFile } = project;
+  const { fixturesFile, pageObjects } = project;
+  const given = `A test imports \`test\` and \`expect\` from \`${fixturesFile}\`, never from \`@playwright/test\` itself, so that what the repository adds to a test is added once. That file gives each application as a fixture, named after it, such as \`customerManagement\` for an application \`customer-management\`. The application of a test is on its \`page\`; another one has a tab of its own, so that what is under way on one stays as it is while the test acts on the other.`;
   // What the tests share, for a repository whose tests do not each stand alone.
   const shared =
     fixturesFile === undefined
       ? ""
-      : `| \`${project.appsDir}/<application id>/pages/\` | The page objects of an application: one class per screen, which holds where its elements are. |
-| \`${fixturesFile}\` | The fixtures every test shares: the \`test\` and the \`expect\` the tests import, with each application and its page objects. |\n`;
+      : pageObjects
+        ? `| \`${project.appsDir}/<application id>/pages/\` | The page objects of an application: one class per screen, which holds where its elements are. |
+| \`${fixturesFile}\` | The fixtures every test shares: the \`test\` and the \`expect\` the tests import, with each application and its page objects. |\n`
+        : `| \`${fixturesFile}\` | The fixtures every test shares: the \`test\` and the \`expect\` the tests import, with each application. |\n`;
   const built =
     fixturesFile === undefined
       ? ""
-      : `## Fixtures and page objects
+      : pageObjects
+        ? `## Fixtures and page objects
 
-A test imports \`test\` and \`expect\` from \`${fixturesFile}\`, never from \`@playwright/test\` itself, so that what the repository adds to a test is added once. That file gives each application as a fixture, named after it, such as \`customerManagement\` for an application \`customer-management\`. The application of a test is on its \`page\`; another one has a tab of its own, so that what is under way on one stays as it is while the test acts on the other.
+${given}
 
 An application holds a page object for each of its screens, such as \`customerManagement.customers\`. A page object says where the elements of its screen are, and a test acts on them: \`await customerManagement.customers.searchTextbox.fill("…")\`. What a test expects stays in the test. A locator that changes is changed once, in its page object.
 
 A fixture a team needs — an account signed in, data created then removed — goes in \`${fixturesFile}\`; \`pages/index.ts\` is written again from the page objects of its folder.
+
+`
+        : `## Fixtures
+
+${given}
+
+A test acts on its \`page\`, each line by a locator of its own: \`await page.getByRole("searchbox").fill("…")\`. It acts on another application by the page of its fixture: \`await customerManagement.page.getByRole("searchbox").fill("…")\`.
+
+A fixture a team needs — an account signed in, data created then removed — goes in \`${fixturesFile}\`.
 
 `;
   return `# Playwright tests
