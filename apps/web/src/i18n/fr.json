@@ -950,6 +950,20 @@
     "relaunch_one": "Relancer l’échec",
     "relaunch_other": "Relancer les {{count}} échecs",
     "relaunchNote": "Les fichiers de ces tests sont rejoués en entier, avec les autres tests qu’ils contiennent.",
+    "change": {
+      "new_failure": "Nouvel échec",
+      "still_failing": "Déjà en échec",
+      "fixed": "Corrigé"
+    },
+    "changes": {
+      "new_failure_one": "{{count}} nouvel échec",
+      "new_failure_other": "{{count}} nouveaux échecs",
+      "still_failing_one": "{{count}} déjà en échec",
+      "still_failing_other": "{{count}} déjà en échec",
+      "fixed_one": "{{count}} corrigé",
+      "fixed_other": "{{count}} corrigés"
+    },
+    "since": "Depuis le dernier passage de chaque test : {{changes}}",
     "duration": "Durée {{duration}}",
     "launchedBy": "Lancée par la session « {{request}} »",
     "bySession": "Lancée par une session de l’agent",

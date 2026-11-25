@@ -47,6 +47,11 @@ export interface ExecutionResult {
   readonly version?: number;
   /** Where it failed and why, for a test that failed; left out when the report says nothing of it, or for a result kept before the instance kept them. */
   readonly failure?: ExecutionFailure;
+  /**
+   * What came of the test in the last execution before this one that ran it, in the same project of the runner; told
+   * of an execution read alone, and left out when none ran it before. It is read, never kept.
+   */
+  readonly previous?: Exclude<ExecutionVerdict, "skipped">;
 }
 
 /** An execution of tests, with what came of each one. */

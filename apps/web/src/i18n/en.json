@@ -950,6 +950,20 @@
     "relaunch_one": "Run the failure again",
     "relaunch_other": "Run the {{count}} failures again",
     "relaunchNote": "The files of these tests run whole, with the other tests they hold.",
+    "change": {
+      "new_failure": "New failure",
+      "still_failing": "Failed already",
+      "fixed": "Fixed"
+    },
+    "changes": {
+      "new_failure_one": "{{count}} new failure",
+      "new_failure_other": "{{count}} new failures",
+      "still_failing_one": "{{count}} failed already",
+      "still_failing_other": "{{count}} failed already",
+      "fixed_one": "{{count}} fixed",
+      "fixed_other": "{{count}} fixed"
+    },
+    "since": "Since the last run of each test: {{changes}}",
     "duration": "Duration {{duration}}",
     "launchedBy": "Run by the session “{{request}}”",
     "bySession": "Run by an agent session",

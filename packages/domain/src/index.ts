@@ -183,6 +183,7 @@ export { SecretRefusedError } from "./secrets/secret-refused-error.ts";
 export type { SecretKind, SecretList, SecretSource, SecretState } from "./secrets/secret-state.ts";
 export { UnknownSecretError } from "./secrets/unknown-secret-error.ts";
 export type { CampaignStorePort } from "./campaigns/campaign-store-port.ts";
+export { resultChange, type ResultChange } from "./executions/result-change.ts";
 export { executionResults } from "./executions/execution-results.ts";
 export type { ExecutionStorePort } from "./executions/execution-store-port.ts";
 export { testFacets, type TestFacets } from "./repository-tests/test-facets.ts";

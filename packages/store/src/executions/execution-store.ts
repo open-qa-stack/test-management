@@ -43,6 +43,9 @@ function resultOf(row: Selectable<ExecutionResultsTable>): ExecutionResult {
   };
 }
 
+/** What names a test from an execution to the next, in a project of the runner. */
+const testKey = ({ path, title, project }: Pick<ExecutionResult, "path" | "title" | "project">): string => JSON.stringify([path, title, project]);
+
 /** A row of the versions as the version it holds, with how many executions ran it. */
 function versionOf({
   path,
@@ -174,10 +177,19 @@ export class ExecutionStore implements ExecutionStorePort {
     return { items, total, start, ...(rows.length > limit ? { next: page.at(-1)!.id } : {}) };
   }
 
-  /** @returns The execution of an identifier with its results in the order of its report; `undefined` when none is kept under it. */
+  /**
+   * @returns The execution of an identifier with its results in the order of its report, each with what came of its
+   * test before; `undefined` when none is kept under it.
+   */
   async get(id: string): Promise<Execution | undefined> {
     const row = await this.#database.selectFrom("executions").selectAll().where("id", "=", id).executeTakeFirst();
-    return row === undefined ? undefined : executionOf(row, (await this.#resultsOf([id])).map(resultOf));
+    if (row === undefined) return undefined;
+    const before = await this.#before(row);
+    const results = (await this.#resultsOf([id])).map((kept) => {
+      const previous = before.get(testKey(kept));
+      return { ...resultOf(kept), ...(previous === undefined ? {} : { previous }) };
+    });
+    return executionOf(row, results);
   }
 
   /** @returns What came of the tests of a file in each execution that ran them, the latest first, then in the order of the report. */
@@ -244,6 +256,42 @@ export class ExecutionStore implements ExecutionStorePort {
   /** @returns The report of each execution it keeps. */
   async reports(): Promise<string[]> {
     return (await this.#database.selectFrom("executions").select("report").execute()).map(({ report }) => report);
+  }
+
+  /** What came of each test of the files of an execution in the last execution before it that ran the test. */
+  async #before({ id, ran_at }: Selectable<ExecutionsTable>): Promise<Map<string, NonNullable<ExecutionResult["previous"]>>> {
+    const rows = await this.#database
+      .selectFrom((builder) =>
+        builder
+          .selectFrom("execution_results")
+          .innerJoin("executions", "executions.id", "execution_results.execution_id")
+          .select(["execution_results.path", "execution_results.title", "execution_results.project", "execution_results.verdict"])
+          .select(({ fn }) =>
+            fn
+              .agg<number | string>("row_number")
+              .over((over) =>
+                over
+                  .partitionBy(["execution_results.path", "execution_results.title", "execution_results.project"])
+                  .orderBy("executions.ran_at", "desc")
+                  .orderBy("executions.id", "desc")
+                  .orderBy("execution_results.position", "desc"),
+              )
+              .as("rank"),
+          )
+          .where("execution_results.path", "in", (files) => files.selectFrom("execution_results").select("path").where("execution_id", "=", id))
+          .where("execution_results.verdict", "!=", "skipped")
+          .where((earlier) =>
+            earlier.or([
+              earlier("executions.ran_at", "<", ran_at),
+              earlier.and([earlier("executions.ran_at", "=", ran_at), earlier("executions.id", "<", id)]),
+            ]),
+          )
+          .as("ranked"),
+      )
+      .selectAll()
+      .where("rank", "=", 1)
+      .execute();
+    return new Map(rows.map((row) => [testKey(row), row.verdict as NonNullable<ExecutionResult["previous"]>]));
   }
 
   /** How many executions a query keeps. */

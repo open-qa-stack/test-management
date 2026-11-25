@@ -1,3 +1,4 @@
+import { resultChange, type ResultChange } from "@open-qa-stack/domain";
 import type {
   Execution,
   ExecutionFailure,
@@ -66,6 +67,15 @@ function tally(execution: Execution): string {
   return `${passed} of ${execution.results.length} tests passed`;
 }
 
+/** What an execution changed for a test, in the words of the command. */
+const CHANGES: Readonly<Record<ResultChange, string>> = { new_failure: "new failure", still_failing: "failed already", fixed: "fixed" };
+
+/** What an execution changed for a test since its last run, after its line; nothing when nothing changed. */
+function changeNote(result: Execution["results"][number]): string {
+  const change = resultChange(result);
+  return change === undefined ? "" : `, ${CHANGES[change]}`;
+}
+
 /** What an execution belongs to, in a few words. */
 function owner(execution: Pick<Execution, "origin" | "sessionId" | "campaignId">): string {
   if (execution.sessionId !== undefined) return `${execution.origin}, session ${execution.sessionId}`;
@@ -93,15 +103,16 @@ export function executionPageLines(page: ExecutionList): string[] {
 
 /**
  * @param execution - An execution of tests.
- * @returns Its line, then a line per test it ran with its verdict, and where and why a test failed.
+ * @returns Its line, then a line per test it ran with its verdict and what changed since its last run, and where and why a test failed.
  */
 export function executionLines(execution: Execution): string[] {
   return [
     `${executionLine(execution)}${execution.commit === undefined ? "" : `, at the commit ${execution.commit}`}.`,
-    ...execution.results.flatMap(({ verdict, path, title, version, failure }) => [
-      `${verdict.padEnd(7)} ${path} › ${title}${version === undefined ? "" : `, version ${version}`}`,
-      ...failureLines(failure),
-    ]),
+    ...execution.results.flatMap((result) => {
+      const { verdict, path, title, version, failure } = result;
+      const named = `${verdict.padEnd(7)} ${path} › ${title}${version === undefined ? "" : `, version ${version}`}`;
+      return [`${named}${changeNote(result)}`, ...failureLines(failure)];
+    }),
   ];
 }
 
