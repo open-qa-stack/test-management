@@ -1,4 +1,4 @@
-import { ExitCode, MODEL_PROVIDERS, providerOf, type ExitCodeValue, type Model, type ModelConnectionCheck } from "@open-qa-stack/domain";
+import { MODEL_ROLES, ExitCode, MODEL_PROVIDERS, providerOf, type ExitCodeValue, type Model, type ModelConnectionCheck } from "@open-qa-stack/domain";
 import type { ModelArguments } from "../arguments/command.ts";
 import { UsageError } from "../errors/usage-error.ts";
 
@@ -32,13 +32,25 @@ export function modelOfArguments(given: ModelArguments): Model {
 
 /**
  * The connection to set, with what an expert tuned on the one in force kept when it names the same model the same
- * way: whether it reads images, its effort of reasoning and, for a provider key, its wait for an answer.
+ * way: whether it reads images, its effort of reasoning and, for a provider key, its wait for an answer. The models of the
+ * roles are kept as long as the models come from the same place.
  *
  * @param given - The connection the command was given.
  * @param inForce - The connection in force.
  * @returns The connection given, with the tuning of the one in force when both are of the same mode and name the same model.
  */
 export function keptTuning(given: Model, inForce: Model): Model {
+  return { ...tunedAs(given, inForce), ...(inForce.roles === undefined || !sameReach(given, inForce) ? {} : { roles: inForce.roles }) };
+}
+
+/** Whether two connections offer the same models: through the GitHub account, or from the same server. */
+function sameReach(given: Model, inForce: Model): boolean {
+  if (given.mode === "github" || inForce.mode === "github") return given.mode === inForce.mode;
+  return given.baseUrl === inForce.baseUrl;
+}
+
+/** The connection given, with what is tuned on the model in force when it names the same one. */
+function tunedAs(given: Model, inForce: Model): Model {
   if (given.mode !== inForce.mode || given.model !== inForce.model) return given;
   const { capabilities, reasoningEffort } = inForce;
   const tuned = { ...given, ...(capabilities === undefined ? {} : { capabilities }), ...(reasoningEffort === undefined ? {} : { reasoningEffort }) };
@@ -56,7 +68,8 @@ export function keptTuning(given: Model, inForce: Model): Model {
  */
 export function modelReport(model: Model, check: ModelConnectionCheck): ModelReport {
   const offered = check.state === "connected" && check.models !== undefined ? check.models.some(({ id }) => id === model.model) : undefined;
-  const lines = [`${reachOf(model)}, model ${model.model}.`, stateLine(check), ...modelsLines(model, check, offered)];
+  const roles = MODEL_ROLES.flatMap((role) => (model.roles?.[role] === undefined ? [] : [`The ${role} works with ${model.roles[role].model}.`]));
+  const lines = [`${reachOf(model)}, model ${model.model}.`, ...roles, stateLine(check), ...modelsLines(model, check, offered)];
   const answers = check.state === "connected" && offered !== false;
   return {
     text: lines.join("\n"),

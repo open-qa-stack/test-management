@@ -497,7 +497,15 @@
       "timeout": "Wait for an answer, in seconds",
       "vision": "Reads images",
       "visionHint": "the agents see the screenshots",
-      "visionTold": "the list says this model reads images"
+      "visionTold": "the list says this model reads images",
+      "roles": {
+        "title": "A model for each role",
+        "hint": "Through the same connection. A role left as it is uses the model above.",
+        "same": "Same model as above",
+        "cartographer": "Cartography",
+        "designer": "Design of the tests",
+        "reviewer": "Review of the tests"
+      }
     },
     "secret": {
       "model_key": "Key",

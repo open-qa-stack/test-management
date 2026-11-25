@@ -195,3 +195,38 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });
+
+describe("a model for each role", () => {
+  it("opens one runtime for each model, sends each role to its own, and tells it in the journal", async () => {
+    const run = await ran(chain(), {
+      environment: "local",
+      config: (url) => {
+        const config = JSON.parse(configText(url)) as { model: Record<string, unknown> };
+        config.model["roles"] = { cartographer: { model: "small" }, designer: { model: "big" }, reviewer: { model: "big" } };
+        return JSON.stringify(config);
+      },
+    });
+    assert.equal(run.code, 0, run.err);
+    const asked = run.server.requests.flatMap(({ body }) => {
+      const { model } = (body ?? {}) as { model?: string };
+      return model === undefined ? [] : [model];
+    });
+    assert.deepEqual([...new Set(asked)], ["small", "big"]);
+    const told = journalOf(run.root).map(({ message }) => message);
+    for (const said of ["The cartographer works with the model small.", "The designer works with the model big.", "The reviewer works with the model big."])
+      assert.ok(told.includes(said), said);
+  });
+
+  it("leaves the model of every one to a role that has none", async () => {
+    const run = await ran(chain(), {
+      environment: "local",
+      config: (url) => {
+        const config = JSON.parse(configText(url)) as { model: Record<string, unknown> };
+        config.model["roles"] = { reviewer: { model: "big" } };
+        return JSON.stringify(config);
+      },
+    });
+    assert.equal(run.code, 0);
+    assert.ok(!journalOf(run.root).some(({ message }) => message.includes("The designer works with")));
+  });
+});

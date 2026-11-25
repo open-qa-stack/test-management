@@ -354,6 +354,8 @@ export interface Setup {
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
+  /** The model of the agents that review, when it is another. */
+  readonly reviewModel?: string;
   readonly reviewTests?: boolean;
   readonly reviewerCharter?: string;
   readonly reviewCode?: boolean;
@@ -383,6 +385,10 @@ export async function design(script: readonly { status?: number; body: unknown }
   const server = await scriptedServer(setup.plan === false ? script : [...planned, ...script]);
   const gateway = await ModelGateway.start({ kind: "live", upstream: { baseUrl: server.baseUrl } });
   const runtime = new CopilotAgentRuntime({ endpoint: gateway, model: MODEL, homeDirectory: mkdtempSync(join(workspace, "home-")) });
+  const reviewRuntime =
+    setup.reviewModel === undefined
+      ? undefined
+      : new CopilotAgentRuntime({ endpoint: gateway, model: setup.reviewModel, homeDirectory: mkdtempSync(join(workspace, "home-")) });
   const root = setup.root ?? repository();
   const before = existsSync(join(root, ".git")) || existsSync(join(root, "..", ".git")) ? snapshot(root) : {};
   try {
@@ -399,6 +405,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       repositoryRoot: root,
       env: setup.env ?? ENV,
       runtime,
+      ...(reviewRuntime === undefined ? {} : { reviewRuntime }),
       writerCharter: writerCharter(charter.rules, config.repository),
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
       ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
@@ -422,6 +429,7 @@ export async function design(script: readonly { status?: number; body: unknown }
     });
     return { outcome: await designer.run(), root, server, before };
   } finally {
+    await reviewRuntime?.close();
     await runtime.close();
     await gateway.close();
     await server.close();

@@ -10,6 +10,12 @@ describe("what the person does to a field", () => {
     assert.deepEqual(actionOf({ ...field, kind: "choice", value: "" }), { type: "edit", pointer: "/model/model", value: undefined });
   });
 
+  it("gives a role its own model, with nothing tuned on the former, and that of every one when it is emptied", () => {
+    const role = { ...field, name: "/model/roles/reviewer", kind: "role" as const };
+    assert.deepEqual(actionOf(role), { type: "edit", pointer: "/model/roles/reviewer", value: { model: "m" } });
+    assert.deepEqual(actionOf({ ...role, value: "" }), { type: "edit", pointer: "/model/roles/reviewer", value: undefined });
+  });
+
   it("sets a number as a number, and leaves the key out when it is emptied", () => {
     assert.deepEqual(actionOf({ ...field, kind: "number", value: "12" }), { type: "edit", pointer: "/model/model", value: 12 });
     assert.deepEqual(actionOf({ ...field, kind: "number", value: "" }), { type: "edit", pointer: "/model/model", value: undefined });

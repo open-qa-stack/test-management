@@ -1,5 +1,5 @@
-import type { MouseEventHandler, ReactNode } from "react";
-import { MODEL_PROVIDERS, type Model, type ModelChoice, type ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
+import { Fragment, type MouseEventHandler, type ReactNode } from "react";
+import { MODEL_ROLES, MODEL_PROVIDERS, type Model, type ModelChoice, type ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
 import { AdvancedFields, CheckField, ChoiceField, InputField, SecretField } from "./configuration-fields.tsx";
@@ -28,7 +28,7 @@ export interface ModelCardProps {
 /**
  * The model the agents call, as a person who is not in IT sets it: they choose how to reach it in a list, test
  * the connection, and pick the model in what it offers. The address and the key are asked only when the
- * connection needs them; what an expert tunes stays folded under « Advanced ».
+ * connection needs them; a model for each role, and what an expert tunes stays folded under « Advanced ».
  *
  * @param props - The model of the draft, the latest test of its connection, and how to ask for one.
  * @returns Its card.
@@ -90,6 +90,7 @@ export function ModelCard({ model, connection, onTest }: ModelCardProps): ReactN
             options={models.map(({ id, name }) => ({ value: id, label: name === id ? id : `${name} (${id})` }))}
           />
         )}
+        <Roles model={model} models={models} />
         <Advanced model={model} chosen={chosen} />
       </div>
     </Card>
@@ -155,6 +156,44 @@ function CheckText({ check }: { readonly check: ModelConnectionCheck }): ReactNo
         </p>
       );
   }
+}
+
+/** The model of each role, folded: one of those the connection offers, or its name, or that of every one when it is left empty; and whether it reads images. */
+function Roles({ model, models }: { readonly model: Model; readonly models: readonly ModelChoice[] | undefined }): ReactNode {
+  return (
+    <details className="config-advanced">
+      <summary>{t("configuration.model.roles.title")}</summary>
+      <p className="small muted">{t("configuration.model.roles.hint")}</p>
+      <div className="config-fields">
+        {MODEL_ROLES.map((role) => {
+          const own = model.roles?.[role];
+          const field = { pointer: `/model/roles/${role}`, label: t(`configuration.model.roles.${role}`), value: own?.model, kind: "role" as const };
+          const offered = models === undefined ? undefined : modelChoices({ state: "connected", models }, own?.model ?? "");
+          return (
+            <Fragment key={role}>
+              {offered === undefined ? (
+                <InputField {...field} placeholder={t("configuration.model.roles.same")} code />
+              ) : (
+                <ChoiceField
+                  {...field}
+                  none={t("configuration.model.roles.same")}
+                  options={offered.map(({ id, name }) => ({ value: id, label: name === id ? id : `${name} (${id})` }))}
+                />
+              )}
+              {own !== undefined && (
+                <CheckField
+                  pointer={`/model/roles/${role}/capabilities`}
+                  member="vision"
+                  label={t("configuration.model.vision")}
+                  checked={own.capabilities?.includes("vision") === true}
+                />
+              )}
+            </Fragment>
+          );
+        })}
+      </div>
+    </details>
+  );
 }
 
 /** What an expert tunes, folded: the effort of reasoning, the wait for an answer, and whether the model reads images. */

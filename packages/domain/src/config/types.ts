@@ -160,6 +160,19 @@ export interface CharterSettings {
 /** What a model can do besides reading and writing text: `vision`, it reads images. */
 export type ModelCapability = "vision";
 
+/** The roles of agents that may each use a model of their own: the one that maps the knowledge, the one that plans and writes the tests, the one that reviews them. */
+export type ModelRole = "cartographer" | "designer" | "reviewer";
+
+/** The model of one role, offered by the connection the configuration names for every one: what an expert tunes on that one is not taken over. */
+export interface RoleModel {
+  model: string;
+  capabilities?: ModelCapability[];
+  reasoningEffort?: string;
+}
+
+/** The roles that have a model of their own; the others use the model of every one. */
+export type RoleModels = Partial<Record<ModelRole, RoleModel>>;
+
 /** A model served by an OpenAI-compatible server, reached with a provider key. */
 export interface ProviderKeyModel {
   mode: "provider-key";
@@ -170,6 +183,7 @@ export interface ProviderKeyModel {
   capabilities?: ModelCapability[];
   reasoningEffort?: string;
   requestTimeoutSeconds?: number;
+  roles?: RoleModels;
 }
 
 /**
@@ -182,6 +196,7 @@ export interface GitHubModel {
   model: string;
   capabilities?: ModelCapability[];
   reasoningEffort?: string;
+  roles?: RoleModels;
 }
 
 /** Connection to the model: a provider key on an OpenAI-compatible server, or the GitHub account of the machine. */

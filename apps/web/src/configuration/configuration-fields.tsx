@@ -43,6 +43,8 @@ function FieldNotes({ pointer, hint, texts }: { readonly pointer: string; readon
 export interface InputFieldProps extends FieldBase {
   /** What the draft holds there; nothing when it leaves the key out. */
   readonly value: string | number | undefined;
+  /** How what is typed is read, when it is neither a text nor a number: the model of a role. */
+  readonly kind?: "role";
   /** A number, or a text by default. */
   readonly numeric?: boolean;
   /** What stands in the field while it is empty: the default, when the configuration has one. */
@@ -57,7 +59,7 @@ export interface InputFieldProps extends FieldBase {
  * @param props - Where it is, its label and what it holds.
  * @returns The field.
  */
-export function InputField({ pointer, label, hint, value, numeric = false, placeholder, code = false }: InputFieldProps): ReactNode {
+export function InputField({ pointer, label, hint, value, kind, numeric = false, placeholder, code = false }: InputFieldProps): ReactNode {
   const { change } = useContext(EditContext);
   const { texts, described } = useDescription(pointer, hint);
   const id = idOf(pointer);
@@ -68,7 +70,7 @@ export function InputField({ pointer, label, hint, value, numeric = false, place
         id={id}
         name={pointer}
         type={numeric ? "number" : "text"}
-        data-kind={numeric ? "number" : "text"}
+        data-kind={kind ?? (numeric ? "number" : "text")}
         className={code ? "mono" : undefined}
         value={value === undefined ? "" : String(value)}
         onChange={change}
@@ -92,7 +94,7 @@ export interface ChoiceFieldProps extends FieldBase {
   /** The label of the choice that leaves the key out, for a key that has a default; none for a key the configuration requires. */
   readonly none?: string;
   /** How the choice is read: a level of autonomy, or a value by default. */
-  readonly kind?: "choice" | "level" | "connection" | "reach";
+  readonly kind?: "choice" | "level" | "connection" | "reach" | "role";
 }
 
 /**

@@ -680,6 +680,94 @@
               "type": "string",
               "minLength": 1,
               "description": "How much the model reasons before it answers, in a word of its server, such as `none`, `low` or `high`; sent with every request when set."
+            },
+            "roles": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "The roles that use a model of their own, through the same connection; the others use `model`.",
+              "properties": {
+                "cartographer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "vision"
+                        ]
+                      },
+                      "description": "What this model can do besides reading and writing text: `vision`, it reads images."
+                    },
+                    "reasoningEffort": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "How much this model reasons before it answers."
+                    }
+                  }
+                },
+                "designer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "vision"
+                        ]
+                      },
+                      "description": "What this model can do besides reading and writing text: `vision`, it reads images."
+                    },
+                    "reasoningEffort": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "How much this model reasons before it answers."
+                    }
+                  }
+                },
+                "reviewer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "vision"
+                        ]
+                      },
+                      "description": "What this model can do besides reading and writing text: `vision`, it reads images."
+                    },
+                    "reasoningEffort": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "How much this model reasons before it answers."
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -712,6 +800,94 @@
               "type": "string",
               "minLength": 1,
               "description": "How much the model reasons before it answers, in a word Copilot offers for the model, such as `low` or `high`."
+            },
+            "roles": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "The roles that use a model of their own, through the same connection; the others use `model`.",
+              "properties": {
+                "cartographer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "vision"
+                        ]
+                      },
+                      "description": "What this model can do besides reading and writing text: `vision`, it reads images."
+                    },
+                    "reasoningEffort": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "How much this model reasons before it answers."
+                    }
+                  }
+                },
+                "designer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "vision"
+                        ]
+                      },
+                      "description": "What this model can do besides reading and writing text: `vision`, it reads images."
+                    },
+                    "reasoningEffort": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "How much this model reasons before it answers."
+                    }
+                  }
+                },
+                "reviewer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "capabilities": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "vision"
+                        ]
+                      },
+                      "description": "What this model can do besides reading and writing text: `vision`, it reads images."
+                    },
+                    "reasoningEffort": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "How much this model reasons before it answers."
+                    }
+                  }
+                }
+              }
             }
           }
         }

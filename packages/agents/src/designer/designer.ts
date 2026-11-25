@@ -78,6 +78,8 @@ export interface DesignerOptions {
   readonly env: Readonly<Record<string, string | undefined>>;
   /** The runtime that opens the agent's session. */
   readonly runtime: AgentRuntime;
+  /** The runtime that opens the sessions of the agents that review, when their model is another; `runtime` by default. */
+  readonly reviewRuntime?: AgentRuntime;
   /** Where the memories of the agents are kept, which they recall and add to. */
   readonly memory: MemoryStorePort;
   /** What the system instructions of the agent that writes each test say of the test charter, after its prompt, such as `writerCharter` of the harness gives it. */
@@ -324,7 +326,11 @@ export class Designer {
     const reviewed = async (task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">): Promise<TerminalEvent> => {
       const events: AgentEvent[] = [];
       const sent = (text: string) => opened.harness("review", { type: "message", text });
-      await runAgentTask(this.options.runtime, { ...task, events, sent, received: (event) => opened.agent("review", event) }, taskLimits(config));
+      await runAgentTask(
+        this.options.reviewRuntime ?? this.options.runtime,
+        { ...task, events, sent, received: (event) => opened.agent("review", event) },
+        taskLimits(config),
+      );
       const { last, counters } = taskEnd(events);
       used.iterations += counters.iterations;
       used.actions += counters.actions;

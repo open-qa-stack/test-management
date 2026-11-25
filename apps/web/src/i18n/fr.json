@@ -497,7 +497,15 @@
       "timeout": "Attente d’une réponse, en secondes",
       "vision": "Lit les images",
       "visionHint": "les agents voient les captures des écrans",
-      "visionTold": "la liste indique que ce modèle lit les images"
+      "visionTold": "la liste indique que ce modèle lit les images",
+      "roles": {
+        "title": "Un modèle par rôle",
+        "hint": "Par la même connexion. Un rôle laissé tel quel utilise le modèle ci-dessus.",
+        "same": "Même modèle que ci-dessus",
+        "cartographer": "Cartographie",
+        "designer": "Conception des tests",
+        "reviewer": "Relecture des tests"
+      }
     },
     "secret": {
       "model_key": "Clé",

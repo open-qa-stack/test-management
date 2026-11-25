@@ -64,6 +64,8 @@ export { declaredValues, declaredVariables, secretVariables, type DeclaredVariab
 export { CONFIG_FILE_NAME, DATABASE_FILE_NAME, STATE_DIR_NAME } from "./config/file-names.ts";
 export { configurationText } from "./config/configuration-text.ts";
 export { DEFAULT_LANGUAGE, LANGUAGES, languageOf } from "./config/language.ts";
+export type { ModelRole, RoleModel, RoleModels } from "./config/types.ts";
+export { MODEL_ROLES, roleConfig, roleModel } from "./config/role-model.ts";
 export { readsImages } from "./config/model-capabilities.ts";
 export type { ModelChoice, ModelConnectionCheck } from "./config/model-connection.ts";
 export type { AddressCheck } from "./config/address-check.ts";

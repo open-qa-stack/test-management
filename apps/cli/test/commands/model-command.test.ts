@@ -7,7 +7,7 @@ import type { Model, ModelConnectionCheck, OqasConfig } from "@open-qa-stack/dom
 import type { ConnectionProbes } from "@open-qa-stack/engine";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { runOqas } from "../../src/index.ts";
-import { keptTuning } from "../../src/output/model-lines.ts";
+import { keptTuning, modelReport } from "../../src/output/model-lines.ts";
 import { FakeTerminal } from "../support/fake-terminal.ts";
 
 const workspace = mkdtempSync(join(tmpdir(), "oqas-model-command-"));
@@ -165,6 +165,13 @@ describe("oqas model set", () => {
     assert.deepEqual(keptTuning(local, { ...local, reasoningEffort: "none" }), { ...local, reasoningEffort: "none" });
     assert.deepEqual(keptTuning({ ...local, model: "other" }, tuned), { ...local, model: "other" });
     const copilot: Model = { mode: "github", model: "m" };
+    // The models of the roles stay as long as the models come from the same place, whichever is chosen for every one.
+    const roles = { reviewer: { model: "big" } };
+    assert.deepEqual(keptTuning({ ...local, model: "other" }, { ...local, roles }), { ...local, model: "other", roles });
+    assert.deepEqual(keptTuning({ ...copilot, model: "other" }, { ...copilot, roles }), { ...copilot, model: "other", roles });
+    assert.deepEqual(keptTuning(copilot, { ...local, roles }), copilot);
+    assert.deepEqual(keptTuning({ ...local, baseUrl: "http://y/v1" }, { ...local, roles }), { ...local, baseUrl: "http://y/v1" });
+    assert.match(modelReport({ ...local, roles }, { state: "connected" }).text, /, model m\.\nThe reviewer works with big\.\n/);
     assert.deepEqual(keptTuning(copilot, tuned), copilot);
     assert.deepEqual(keptTuning(local, { ...copilot, reasoningEffort: "high" }), local);
     assert.deepEqual(keptTuning(copilot, { ...copilot, capabilities: ["vision"], reasoningEffort: "high" }), {

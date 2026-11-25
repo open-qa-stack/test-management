@@ -240,6 +240,16 @@ A provider key:
 | `reasoningEffort` | non-empty string, as the server names it: how much the model reasons before it answers | no | `"none"` |
 | `requestTimeoutSeconds` | whole number of seconds, one at least: the longest wait for the answer to one request | no | `120` |
 
+Either way, `roles` gives a role a model of its own, offered by the same connection, with the same key; a role it leaves out uses `model`:
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `roles.cartographer`, `roles.designer`, `roles.reviewer` | the agent that maps the knowledge, the one that plans and writes the tests, the ones that review the plan and the tests | no | `{ "model": "small-model" }` |
+| `roles.<role>.model` | non-empty string | yes | `"small-model"` |
+| `roles.<role>.capabilities`, `roles.<role>.reasoningEffort` | as for `model`; what is set on `model` is not taken over, since it is said of another model | no | `["vision"]` |
+
+The journal of a run tells the model of each role that has one, and the cards, the index and the state of a design keep the model that produced them. The prerequisites check that the server answers, not that it offers each model.
+
 The console offers by name the providers whose OpenAI-compatible API is known, and fills in their address and the variable their key is usually kept in: the five that `MODEL_PROVIDERS` lists, OpenAI first. Any other server, a model run on the machine among them, is reached by its address.
 
 The GitHub account of the machine:

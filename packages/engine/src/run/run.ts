@@ -9,7 +9,9 @@ import {
   ExitCode,
   InvalidConfigurationError,
   NoConfigurationError,
+  roleConfig,
   scopedConfig,
+  type ModelRole,
   type DomainSetting,
   validateConfig,
   type ConfigurationRevision,
@@ -153,8 +155,8 @@ export class Run {
     const inbox = this.options.openInbox(reference);
     const steps: { step: Step; durationMs: number; modelRequests: number }[] = [{ step: "configuration", durationMs: loaded.durationMs, modelRequests: 0 }];
     // The requests of a step are those its sessions sent to the model, whatever its end.
-    let counted: CountedRuntime | undefined;
-    const requests = (): number => counted?.modelRequests ?? 0;
+    const opened = new Map<string, { readonly counted: CountedRuntime; readonly open: OpenRuntime }>();
+    const requests = (): number => [...opened.values()].reduce((total, { counted }) => total + counted.modelRequests, 0);
     const timed = async <T>(step: Step, body: () => Promise<{ value: T; ok: boolean }>): Promise<{ value: T; ok: boolean }> => {
       const at = now().getTime();
       const before = requests();
@@ -206,7 +208,6 @@ export class Run {
       journal: this.options.journal.location(reference),
     };
     let found: Partial<RunState> = {};
-    let open: OpenRuntime | undefined;
     const finish = async (exitCode: ExitCodeValue): Promise<ExitCodeValue> => {
       const written: RunState = { ...state, ...found, exitCode, steps, durationMs: now().getTime() - started.getTime() };
       await timed("summary", async () => {
@@ -215,35 +216,46 @@ export class Run {
         for (const { number } of inbox.pending())
           journal.record("summary", "info", `The message ${number} of the person was not delivered: no agent was at work to receive it.`);
         // A runtime that cannot be closed is told, and the state is written all the same.
-        await open?.close().catch((error: unknown) => journal.record("summary", "error", `The runtime of the agents could not be closed: ${messageOf(error)}`));
+        for (const { open } of opened.values())
+          await open
+            .close()
+            .catch((error: unknown) => journal.record("summary", "error", `The runtime of the agents could not be closed: ${messageOf(error)}`));
         await this.options.store.write(reference, written);
         return { value: undefined, ok: true };
       });
       return exitCode;
     };
-    // The runtime of the agents is opened by the first step that calls the model.
-    const agents = async (): Promise<CountedRuntime> => {
-      if (counted === undefined) {
-        open = await this.options.openRuntime(config);
-        const { guardrailMinutes } = config.autonomy.limits;
-        // Every session of the run speaks to the person in their language.
-        const spoken = new SpokenRuntime(open.runtime, config.language);
-        const stoppable = this.options.stop === undefined ? spoken : new StoppableRuntime(spoken, this.options.stop);
-        counted = new CountedRuntime(new GuardedRuntime(stoppable, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()));
-      }
+    // The runtime of a role is opened by the first step that calls its model; roles on the same model share it.
+    const agents = async (role: ModelRole): Promise<CountedRuntime> => {
+      const own = roleConfig(config, role);
+      const key = JSON.stringify(own.model);
+      const known = opened.get(key);
+      if (known !== undefined) return known.counted;
+      const open = await this.options.openRuntime(own);
+      const { guardrailMinutes } = config.autonomy.limits;
+      // Every session of the run speaks to the person in their language.
+      const spoken = new SpokenRuntime(open.runtime, config.language);
+      const stoppable = this.options.stop === undefined ? spoken : new StoppableRuntime(spoken, this.options.stop);
+      const counted = new CountedRuntime(new GuardedRuntime(stoppable, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()));
+      opened.set(key, { counted, open });
       return counted;
     };
     const observed = { inbox, ...(this.options.follow === undefined ? {} : { observe: this.options.follow }) };
+    /** Tells the model a role works with, when the configuration gives some role one of its own. */
+    const told = (step: Step, role: ModelRole): void => {
+      if (config.model.roles?.[role] !== undefined) journal.record(step, "info", `The ${role} works with the model ${config.model.roles[role].model}.`);
+    };
     const chain = async (): Promise<ExitCodeValue> => {
       const mapped = await unlessStopped("cartography", async () => {
         // The agents read the documents the instance keeps where they read those of the repository: in a folder.
         await writeStoredDocuments(this.options.repositoryRoot, config.repository.stateDir, stored, this.options.documents);
+        told("cartography", "cartographer");
         const outcome = await new Cartographer({
-          config,
+          config: roleConfig(config, "cartographer"),
           environment,
           repositoryRoot: this.options.repositoryRoot,
           env: this.options.env,
-          runtime: await agents(),
+          runtime: await agents("cartographer"),
           memory: this.options.memory,
           concurrency: config.cartography.concurrency,
           ...observed,
@@ -267,12 +279,15 @@ export class Run {
           return { value: { ok: false, tests: [], journal: [] } as Awaited<ReturnType<Designer["run"]>>, ok: false };
         }
         // The levels asked are designed one after the other, each building on those below, unless the configuration asks for one plan.
+        told("design", "designer");
+        told("design", "reviewer");
         const outcome = await new DesignPasses(
           {
-            config,
+            config: roleConfig(config, "designer"),
             repositoryRoot: this.options.repositoryRoot,
             env: this.options.env,
-            runtime: await agents(),
+            runtime: await agents("designer"),
+            reviewRuntime: await agents("reviewer"),
             memory: this.options.memory,
             writerCharter: writerCharter(rules, config.repository),
             check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),

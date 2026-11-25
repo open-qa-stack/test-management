@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import {
+  MODEL,
   BRANCH,
   PASSWORD,
   git,
@@ -241,7 +242,13 @@ describe("the review of the code of each test for its quality", () => {
       reviewTests: true,
       reviewCode: true,
       reviewerCharter: "Review the code against the charter.",
+      reviewModel: "reviewing-model",
     });
+    // The agents that review work with their own model, and the one that writes keeps its own.
+    const models = (text: string) =>
+      server.requests.filter(({ body }) => JSON.stringify(body).includes(text)).map(({ body }) => (body as { model: string }).model);
+    assert.deepEqual([...new Set(models('"name":"report_quality"'))], ["reviewing-model"]);
+    assert.deepEqual([...new Set(models('"name":"run_test"'))], [MODEL]);
     assert.equal(outcome.ok, true, messages(outcome));
     assert.deepEqual(
       outcome.tests.map((test) => [test.scenario, test.review?.findings, test.quality?.findings]),
