@@ -21,6 +21,12 @@ export function campaignLine(campaign: Campaign): string {
   return `${campaign.id}  ${campaign.name}  ${STATUSES[campaign.status]}  ${campaign.environment}  ${tests}`;
 }
 
+/** What was said of a campaign, a line each, in the words of the command. */
+function detailLines({ objective, targetVersion, startsOn, endsOn, owner }: Campaign): string[] {
+  const said = { objective, version: targetVersion, from: startsOn, until: endsOn, owner };
+  return Object.entries(said).flatMap(([name, value]) => (value === undefined ? [] : [`${name}: ${value}`]));
+}
+
 /**
  * @param overview - A campaign with how many of its tests came to each verdict.
  * @returns Its line, followed by the verdicts some of its tests came to.
@@ -32,11 +38,12 @@ export function overviewLine(overview: CampaignOverview): string {
 
 /**
  * @param progress - A campaign with what came of each of its tests.
- * @returns Its line, then a line per test with its verdict and the execution that gave it.
+ * @returns Its line, what was said of it, then a line per test with its verdict and the execution that gave it.
  */
 export function progressLines({ campaign, results }: CampaignProgress): string[] {
   return [
     campaignLine(campaign),
+    ...detailLines(campaign),
     ...results.map(
       ({ verdict, path, title, execution }) =>
         `${(verdict === "not_run" ? "not run" : verdict).padEnd(7)} ${path} › ${title}${execution === undefined ? "" : `, execution ${execution}`}`,

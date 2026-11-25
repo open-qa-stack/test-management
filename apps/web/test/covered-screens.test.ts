@@ -172,6 +172,9 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: /Recette 4\.2/ }).waitFor();
         await page.getByRole("textbox", { name: "Nom" }).fill("Recette 4.3");
         await page.getByRole("textbox", { name: "Environnement" }).fill("local");
+        await page.getByText("En dire plus").click();
+        await page.getByLabel("Version visée").fill("4.3");
+        await page.getByLabel("Dernier jour").fill("2026-12-05");
         instance.refusal = "invalid_request";
         await page.getByRole("button", { name: "Planifier" }).click();
         await page.getByRole("alert").waitFor();

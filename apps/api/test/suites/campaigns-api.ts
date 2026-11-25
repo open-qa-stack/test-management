@@ -100,6 +100,7 @@ export function campaignsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(await problem(`/campaigns/${id}/tests`, "PUT", { tests: [{ path: QUOTES, title: "Gone" }] }), [409, "campaign_refused"]);
       assert.deepEqual(await problem(`/campaigns/${id}/tests`, "PUT", { tests: "all" }), [400, "invalid_request"]);
       assert.deepEqual(await problem(`/campaigns/${id}/closure`, "POST"), [409, "campaign_refused"]);
+      assert.deepEqual(await problem("/campaigns", "POST", { name: "R", environment: "local", endsOn: "soon" }), [409, "campaign_refused"]);
       assert.deepEqual(await problem("/campaigns", "POST", { name: "", environment: "local" }), [400, "invalid_request"]);
     });
   });

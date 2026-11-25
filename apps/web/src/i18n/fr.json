@@ -1047,10 +1047,24 @@
       "namePlaceholder": "Recette 4.2",
       "environment": "Environnement",
       "submit": "Planifier",
-      "pending": "Planification…"
+      "pending": "Planification…",
+      "more": "En dire plus (facultatif)"
     },
     "chosen_one": "{{count}} test choisi",
-    "chosen_other": "{{count}} tests choisis"
+    "chosen_other": "{{count}} tests choisis",
+    "details": {
+      "objective": "Objectif",
+      "targetVersion": "Version visée",
+      "startsOn": "Premier jour",
+      "endsOn": "Dernier jour",
+      "days": "Fenêtre",
+      "owner": "Responsable"
+    },
+    "days": {
+      "both": "du {{from}} au {{until}}",
+      "from": "à partir du {{from}}",
+      "until": "jusqu’au {{until}}"
+    }
   },
   "campaign": {
     "reading": "Lecture de la campagne",

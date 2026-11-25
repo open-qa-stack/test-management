@@ -3,6 +3,7 @@ import {
   campaignCounts,
   campaignResults,
   campaignTransition,
+  campaignWindow,
   CampaignRefusedError,
   chosenTests,
   UnknownCampaignError,
@@ -54,10 +55,12 @@ export class Campaigns {
   /**
    * Plans a campaign, with no test yet.
    *
-   * @param plan - Its name and its environment.
+   * @param plan - Its name, its environment, and what a person says of it.
    * @returns The campaign, planned.
+   * @throws `CampaignRefusedError` when it would end before it starts, or on no day of the calendar.
    */
   async plan(plan: CampaignPlan): Promise<Campaign> {
+    campaignWindow(plan);
     const campaign: Campaign = { ...plan, id: randomUUID(), status: "planned", createdAt: this.#now().toISOString(), tests: [] };
     await this.#host.store.add(campaign);
     return campaign;

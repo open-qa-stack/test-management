@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { CampaignLaunchScope, CampaignProgress, CampaignResult, FinishedTest, TestLaunch } from "@open-qa-stack/domain/sessions";
+import { Fragment, type ReactNode } from "react";
+import type { Campaign, CampaignLaunchScope, CampaignProgress, CampaignResult, FinishedTest, TestLaunch } from "@open-qa-stack/domain/sessions";
 import { campaignCounts } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
@@ -14,6 +14,7 @@ import { Page } from "../ui/page.tsx";
 import { CampaignComposer, type ComposerProps } from "./campaign-composer.tsx";
 import { CampaignLifecycle } from "./campaign-lifecycle.tsx";
 import { CampaignProgressCard } from "./campaign-progress.tsx";
+import { campaignDays, campaignEnvironment } from "./campaign-text.ts";
 import { CampaignStatusBadge } from "./campaign-status.tsx";
 import { CampaignVerdictBadge } from "./campaign-verdict.tsx";
 import { CAMPAIGNS_PATH } from "./campaigns-paths.ts";
@@ -148,6 +149,23 @@ function Gestures({
   );
 }
 
+/** What was said of a campaign when it was planned: what it is for, its days, who answers for it; what was not said is left out. */
+function Details({ campaign }: { readonly campaign: Campaign }): ReactNode {
+  const said = [
+    [t("campaigns.details.objective"), campaign.objective],
+    [t("campaigns.details.days"), campaignDays(campaign)],
+    [t("campaigns.details.owner"), campaign.owner],
+  ] as const;
+  return said.map(([name, value]) =>
+    value === undefined ? null : (
+      <Fragment key={name}>
+        <dt>{name}</dt>
+        <dd>{value}</dd>
+      </Fragment>
+    ),
+  );
+}
+
 /** A campaign: where it is in its life, how far it went, its tests with what came of each, and what can be done with it now. */
 export function CampaignScreen({ project, id, state, launch, gestures, onGesture, composer }: CampaignScreenProps): ReactNode {
   const progress = state.value;
@@ -189,7 +207,8 @@ export function CampaignScreen({ project, id, state, launch, gestures, onGesture
       <CampaignLifecycle status={campaign.status} />
       <dl className="campaign-facts small">
         <dt>{t("campaign.environment")}</dt>
-        <dd>{campaign.environment}</dd>
+        <dd>{campaignEnvironment(campaign)}</dd>
+        <Details campaign={campaign} />
         <dt>{t("campaign.created")}</dt>
         <dd>{dateText(campaign.createdAt)}</dd>
         {campaign.closedAt !== undefined && (

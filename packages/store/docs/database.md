@@ -76,6 +76,7 @@ The migrations so far:
 | `0011_memories` | The table of [the memories of the agents](#the-memories-of-the-agents). The notes an earlier version kept in `<stateDir>/memory/notes.jsonl` are not brought in: the file is neither read nor removed. |
 | `0012_session_purposes` | The purpose of a session: `map` for one that maps the knowledge alone. The sessions asked for before test. |
 | `0014_execution_environments` | The environment of an execution. The executions kept before stay without one. |
+| `0015_campaign_details` | What a person says of a campaign: what it is for, the version it tests, its days and who answers for it. The campaigns kept before say none. |
 
 ## The database of an instance, assembled
 

@@ -47,6 +47,27 @@ describe("oqas campaigns", () => {
     assert.equal((await terminal.oqas(["campaigns", "close", id])).out, `${id}  Release 1  closed  local  2 tests\n`);
   });
 
+  it("is planned with what is said of it, which its reading tells", async () => {
+    terminal = await Terminal.open(chain());
+    await terminal.oqas(BRIEF);
+    const said = ["--objective", "Ship it", "--target", "4.2", "--from", "2026-12-01", "--until", "2026-12-05", "--owner", "QA"];
+    const [id = ""] = (await terminal.oqas(["campaigns", "plan", "Release 1", "--environment", "local", ...said])).out.split(" ");
+    assert.deepEqual((await terminal.oqas(["campaigns", "show", id])).out.split("\n").slice(1), [
+      "objective: Ship it",
+      "version: 4.2",
+      "from: 2026-12-01",
+      "until: 2026-12-05",
+      "owner: QA",
+      "",
+    ]);
+    const alone = await terminal.oqas(["campaigns", "show", id, "--owner", "QA"]);
+    assert.deepEqual(
+      [alone.code, alone.err.includes("--objective, --target, --from, --until and --owner say what a campaign is: they go with oqas campaigns plan alone.")],
+      [3, true],
+    );
+    assert.equal((await terminal.oqas(["campaigns", "plan", "R", "--environment", "local", "--from", "soon"])).code, 3);
+  });
+
   it("is refused with 3 for a campaign the instance does not keep, a step out of turn, a file without tests, and words it does not take", async () => {
     terminal = await Terminal.open([]);
     const refused = async (argv: readonly string[], err: string): Promise<void> =>

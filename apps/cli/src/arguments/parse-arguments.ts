@@ -1,5 +1,6 @@
 import { EXECUTION_ORIGINS, type ExecutionOrigin, type ExecutionOutcome } from "@open-qa-stack/domain";
 import type { Arguments } from "./arguments.ts";
+import { detailsOf } from "./campaign-details.ts";
 import { commandOf } from "./command-of.ts";
 import type { Command } from "./command.ts";
 import { served } from "./ui-arguments.ts";
@@ -18,6 +19,11 @@ const VALUED = [
   "--outcome",
   "--origin",
   "--before",
+  "--objective",
+  "--target",
+  "--from",
+  "--until",
+  "--owner",
 ] as const;
 
 /** The options that take none. */
@@ -51,6 +57,11 @@ export function parseArguments(argv: readonly string[]): Parsed {
     outcome?: string;
     origin?: string;
     before?: string;
+    objective?: string;
+    target?: string;
+    from?: string;
+    until?: string;
+    owner?: string;
   } = {};
   const flags = new Set<string>();
   const words: string[] = [];
@@ -83,6 +94,10 @@ export function parseArguments(argv: readonly string[]): Parsed {
   const listsExecutions = command.name === "executions" && command.action === "list";
   if (!listsExecutions && command.name !== "help" && [outcome, origin, before].some((value) => value !== undefined))
     return refused("--outcome, --origin and --before choose the executions oqas executions lists: they go with it alone.");
+  const details = detailsOf(values);
+  const plans = command.name === "campaigns" && command.action === "plan";
+  if (!plans && command.name !== "help" && details !== undefined)
+    return refused("--objective, --target, --from, --until and --owner say what a campaign is: they go with oqas campaigns plan alone.");
   if (outcome !== undefined && outcome !== "failing" && outcome !== "passing") return refused("--outcome needs failing or passing.");
   if (origin !== undefined && !EXECUTION_ORIGINS.some((known) => known === origin)) return refused(`--origin needs ${EXECUTION_ORIGINS.join(" or ")}.`);
   if (command.name !== "ui" && command.name !== "help" && (host !== undefined || port !== undefined))
@@ -97,6 +112,8 @@ export function parseArguments(argv: readonly string[]): Parsed {
         ...(origin === undefined ? {} : { origin: origin as ExecutionOrigin }),
         ...(before === undefined ? {} : { before }),
       }
-    : command;
+    : plans && details !== undefined
+      ? { ...command, details }
+      : command;
   return { ok: true, arguments: { ...(repository === undefined ? {} : { repository }), output, follow, command: listed } };
 }

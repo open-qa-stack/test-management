@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { CampaignRefusedError, UnknownCampaignError } from "@open-qa-stack/domain";
-import { campaignPlanOf, MAX_CAMPAIGN_NAME_LENGTH } from "../src/campaigns/campaign-plan.ts";
+import { campaignPlanOf, MAX_CAMPAIGN_DETAIL_LENGTH, MAX_CAMPAIGN_NAME_LENGTH } from "../src/campaigns/campaign-plan.ts";
 import { campaignTestsOf, MAX_CAMPAIGN_TESTS } from "../src/campaigns/campaign-tests.ts";
 import { CampaignTestsPipe } from "../src/campaigns/campaign-tests.pipe.ts";
 import { CampaignLaunchPipe } from "../src/campaigns/campaign-launch.pipe.ts";
@@ -26,6 +26,12 @@ describe("a plan of a campaign", () => {
     assert.equal(campaignPlanOf({ name: "x".repeat(MAX_CAMPAIGN_NAME_LENGTH), environment: "local" }).name.length, MAX_CAMPAIGN_NAME_LENGTH);
   });
 
+  it("says what the campaign is for, the version it tests, its days and who answers for it, when they are given", () => {
+    const details = { objective: "Ship", targetVersion: "4.2", startsOn: "2026-12-01", endsOn: "2026-12-05", owner: "QA" };
+    assert.deepEqual(campaignPlanOf({ name: "R", environment: "local", ...details, objective: " Ship " }), { name: "R", environment: "local", ...details });
+  });
+
+  const OWNER = `owner must be a text that is not empty, does not start with -- and is at most ${MAX_CAMPAIGN_DETAIL_LENGTH} characters long, or be left out.`;
   const NAME = `name must be a text that is not empty, does not start with -- and is at most ${MAX_CAMPAIGN_NAME_LENGTH} characters long.`;
   const ENVIRONMENT = "environment must be a text that is not empty and does not start with --.";
   for (const [body, message] of [
@@ -36,6 +42,8 @@ describe("a plan of a campaign", () => {
     [{ name: "x".repeat(MAX_CAMPAIGN_NAME_LENGTH + 1), environment: "local" }, NAME],
     [{ name: "R" }, ENVIRONMENT],
     [{ name: "R", environment: "--x" }, ENVIRONMENT],
+    [{ name: "R", environment: "local", owner: " " }, OWNER],
+    [{ name: "R", environment: "local", owner: "x".repeat(MAX_CAMPAIGN_DETAIL_LENGTH + 1) }, OWNER],
     [{ name: "R", environment: "local", tags: ["@p0"] }, "tags is not a field of a plan of a campaign."],
   ] as const) {
     it(`is refused, naming what is at fault, when it is ${JSON.stringify(body).slice(0, 60)}`, () => {

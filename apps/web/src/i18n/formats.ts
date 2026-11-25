@@ -49,6 +49,16 @@ export function dayText(iso: string): string {
 }
 
 /**
+ * Writes a day of the calendar for the person, the same wherever they are.
+ *
+ * @param day - The day, in ISO 8601, such as `2026-12-01`.
+ * @returns It with its month abbreviated and its year, such as `1 déc. 2026`.
+ */
+export function calendarText(day: string): string {
+  return new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeZone: "UTC" }).format(new Date(day));
+}
+
+/**
  * Writes a date for the person, to the minute, in the time zone of the browser.
  *
  * @param iso - The date, in ISO 8601.

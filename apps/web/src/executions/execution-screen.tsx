@@ -1,5 +1,5 @@
 import type { FormEventHandler, ReactNode } from "react";
-import type { Execution, ExecutionResult, LaunchRequest, RepositoryTest, Session } from "@open-qa-stack/domain/sessions";
+import type { CampaignOverview, Execution, ExecutionResult, LaunchRequest, RepositoryTest, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
@@ -12,7 +12,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { domainsOf, ExecutionResults } from "./execution-results.tsx";
 import { ExecutionTiles } from "./execution-tiles.tsx";
-import { requestOf } from "./execution-text.ts";
+import { environmentText, requestOf } from "./execution-text.ts";
 import { EXECUTION_VIEWS, openingView, shownIn, type ExecutionView } from "./execution-view.ts";
 import { EXECUTIONS_PATH, executionHref } from "./executions-paths.ts";
 import { campaignHref } from "../campaigns/campaigns-paths.ts";
@@ -31,6 +31,8 @@ export interface ExecutionScreenProps {
   readonly search?: string;
   /** Narrows its tests to the words of the search form. */
   readonly onSearch?: FormEventHandler<HTMLFormElement>;
+  /** The campaigns of the project, which tell the version the one it was launched for tests; none until they are read. */
+  readonly campaigns?: readonly CampaignOverview[];
   /** The tests of the repository, which tell the domain of each; none until they are read. */
   readonly tests?: readonly RepositoryTest[];
   /** What the instance told of the execution. */
@@ -115,11 +117,13 @@ export function ExecutionScreen({
   search = "",
   onSearch,
   tests = [],
+  campaigns = [],
   state,
   relaunch,
   onRelaunch,
 }: ExecutionScreenProps): ReactNode {
   const execution = state.value;
+  const where = execution === undefined ? undefined : environmentText(execution, campaigns);
   const shown = view ?? openingView(execution?.results ?? []);
   // The failures of a campaign are launched from it, so that their execution belongs to it.
   const failures = execution === undefined || execution.campaignId !== undefined ? 0 : failuresOf(execution).length;
@@ -154,7 +158,7 @@ export function ExecutionScreen({
           <ExecutionTiles execution={execution} />
           <Card>
             <div className="row exec-summary">
-              {execution.environment !== undefined && <Badge tone="outline">{execution.environment}</Badge>}
+              {where !== undefined && <Badge tone="outline">{where}</Badge>}
               {isFirst(execution) && <span className="small">{t("execution.first")}</span>}
               <Origin execution={execution} sessions={sessions} />
             </div>

@@ -47,6 +47,14 @@ describe("the screen of a campaign", () => {
     assert.deepEqual(buttons(html), ["Relancer l’échec", "Lancer le test non joué", "Tout relancer", "Clôturer"]);
   });
 
+  it("tells what was said of the campaign when it was planned", () => {
+    const told = { ...RUNNING, objective: "Livrer", targetVersion: "4.2", endsOn: "2026-12-05", owner: "QA" };
+    assert.match(
+      textOf(screen({ value: { ...PROGRESS, campaign: told } })),
+      /Environnement local · 4\.2 Objectif Livrer Fenêtre jusqu’au 5 déc\. 2026 Responsable QA Planifiée le/,
+    );
+  });
+
   it("offers what the state of the campaign allows: fix its tests, launch them, launch them all again, nothing once closed", () => {
     const planned = screen({ value: { campaign: PLANNED, results: [] } });
     assert.deepEqual(buttons(planned), ["Figer les tests"]);

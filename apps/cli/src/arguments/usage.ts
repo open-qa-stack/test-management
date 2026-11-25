@@ -28,7 +28,8 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests capture <test> <step> <file>
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
        oqas [--repository <folder>] campaigns [--output text|json]
-       oqas [--repository <folder>] campaigns plan <name> --environment <name> [--output text|json]
+       oqas [--repository <folder>] campaigns plan <name> --environment <name> [--objective <text>] [--target <version>] [--from <day>] [--until <day>] [--owner <text>]
+            [--output text|json]
        oqas [--repository <folder>] campaigns show|ready|close <campaign> [--output text|json]
        oqas [--repository <folder>] campaigns choose <campaign> <test>... [--output text|json]
        oqas [--repository <folder>] campaigns launch <campaign> [failed|not-run] [--output text|json]
@@ -110,7 +111,8 @@ Commands:
                          --environment, and follow them to their end: every test, or those of the files named.
                          It exits with 0 when each passed, 1 when one failed, 2 when one was skipped.
   campaigns              List the campaigns, the latest planned first, with how many of their tests came to each verdict.
-  campaigns plan <name>  Plan a campaign against --environment, with no test yet.
+  campaigns plan <name>  Plan a campaign against --environment, with no test yet: what it is for, the version it tests,
+                         the days it is meant to run and who answers for it may be said.
   campaigns choose <campaign> <test>...
                          Choose the tests of a campaign that is planned: every test of the files named.
   campaigns ready <campaign>
@@ -156,6 +158,11 @@ Options:
                          With executions: keep those where a test failed, or those where none did.
   --origin design|manual|campaign
                          With executions: keep those a session ran, those launched by hand, or those of a campaign.
+  --objective <text>     With campaigns plan: what the campaign is for.
+  --target <version>     With campaigns plan: the version of the application it tests.
+  --from <day>, --until <day>
+                         With campaigns plan: the first and the last day it is meant to run, such as 2026-12-01.
+  --owner <text>         With campaigns plan: who answers for it.
   --before <execution>   With executions: start the page after this execution.
   --init                 Initialise the test repository as a Playwright project, from its oqas.json: write the files it
                          lacks, overwrite none, run nothing.

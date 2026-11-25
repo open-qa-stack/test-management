@@ -32,9 +32,10 @@ const planned = (id: string, seconds: number): Campaign => ({
 describe("the campaigns the store keeps", () => {
   it("gives back a campaign as it was planned, the latest planned first, and none for an identifier it does not keep", async () => {
     await store.add(planned("c1", 1));
-    await store.add(planned("c2", 2));
+    const told = { ...planned("c2", 2), objective: "Ship", targetVersion: "4.2", startsOn: "2026-12-01", endsOn: "2026-12-05", owner: "QA" };
+    await store.add(told);
     assert.deepEqual(await store.get("c1"), planned("c1", 1));
-    assert.deepEqual(await store.list(), [planned("c2", 2), planned("c1", 1)]);
+    assert.deepEqual(await store.list(), [told, planned("c1", 1)]);
     assert.equal(await store.get("c3"), undefined);
   });
 

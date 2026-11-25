@@ -74,6 +74,7 @@ describe("the executions of the tests", () => {
       id: "c1",
       name: "Recette 4.2",
       environment: "local",
+      targetVersion: "4.2",
       status: "in_progress" as const,
       createdAt: "2026-11-20T08:00:00.000Z",
       tests: [],
@@ -81,7 +82,10 @@ describe("the executions of the tests", () => {
     };
     const named = screen({ value: pageOf([launched]) }, { campaigns: [campaign] });
     assert.match(textOf(named), / Campagne Toutes les campagnes Recette 4\.2 Période /);
-    assert.match(named, /<span class="exec-content small"><a href="#\/campaigns\/view\?id=c1">Campagne « Recette 4\.2 » · 5 tests<\/a><\/span>/);
+    assert.match(
+      named,
+      /<span class="exec-content small"><a href="#\/campaigns\/view\?id=c1">Campagne « Recette 4\.2 » · 5 tests<\/a><span class="muted"> · 4\.2<\/span><\/span>/,
+    );
   });
 
   it("says at a glance what came of the tests of an execution: a bar of their verdicts, the failures and the retries in words, or how many passed", () => {

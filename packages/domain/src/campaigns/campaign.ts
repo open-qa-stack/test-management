@@ -13,8 +13,25 @@ export interface CampaignTest {
   readonly title: string;
 }
 
+/** What a person may say of a campaign when they plan it, each left out when they do not: none of it changes what the campaign runs. */
+export interface CampaignDetails {
+  /** What it is for, in a sentence. */
+  readonly objective?: string;
+  /** The version of the application it tests. */
+  readonly targetVersion?: string;
+  /** The first day it is meant to run, as an ISO 8601 day such as `2026-12-01`. */
+  readonly startsOn?: string;
+  /** The last day it is meant to run, as an ISO 8601 day. */
+  readonly endsOn?: string;
+  /** Who answers for it. */
+  readonly owner?: string;
+}
+
+/** The details of a campaign, in the order a person says them. */
+export const CAMPAIGN_DETAILS: readonly (keyof CampaignDetails)[] = ["objective", "targetVersion", "startsOn", "endsOn", "owner"];
+
 /** What a campaign is asked to be when it is planned: its tests are chosen afterwards. */
-export interface CampaignPlan {
+export interface CampaignPlan extends CampaignDetails {
   readonly name: string;
   /** The environment its tests run against. */
   readonly environment: string;
