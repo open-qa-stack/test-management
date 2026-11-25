@@ -149,6 +149,47 @@
   gap: var(--space-1);
 }
 
+/* The figures of an execution, side by side as many as the width takes. */
+.exec-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9em), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.exec-tile {
+  padding: var(--space-3) var(--space-4);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.exec-tile dd {
+  display: grid;
+  margin: 0;
+}
+
+.exec-figure {
+  font-size: var(--type-heading);
+}
+
+/* The tests of an execution: a table on a wide screen, its cells one after the other on a phone. */
+.exec-result-line {
+  flex-wrap: wrap;
+}
+
+.exec-result-line > div {
+  flex: 1 0 100%;
+}
+
+.exec-result-line > :empty {
+  display: none;
+}
+
+.exec-result-head {
+  display: none;
+}
+
 /* What came of the tests of an execution, at a glance: the bar of their verdicts, then a few words. */
 .verdict-bar {
   display: inline-flex;
@@ -228,8 +269,24 @@
     width: calc(var(--space-8) + var(--space-8));
   }
 
-  .exec-duration {
+  .exec-duration,
+  .exec-seconds {
     text-align: right;
+  }
+
+  .exec-result-line {
+    display: grid;
+    grid-template-columns: 7rem 11rem minmax(0, 1fr) 10rem 5rem;
+    gap: var(--space-3);
+  }
+
+  .exec-result-line > :empty {
+    display: block;
+  }
+
+  .exec-result-head {
+    padding: var(--space-2) var(--inset);
+    border-bottom: var(--hairline) solid var(--line);
   }
 }
 

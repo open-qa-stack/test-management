@@ -960,15 +960,6 @@
       "still_failing": "Failed already",
       "fixed": "Fixed"
     },
-    "changes": {
-      "new_failure_one": "{{count}} new failure",
-      "new_failure_other": "{{count}} new failures",
-      "still_failing_one": "{{count}} failed already",
-      "still_failing_other": "{{count}} failed already",
-      "fixed_one": "{{count}} fixed",
-      "fixed_other": "{{count}} fixed"
-    },
-    "since": "Since the last run of each test: {{changes}}",
     "views": {
       "label": "Tests to show",
       "attention": "To look at",
@@ -978,7 +969,6 @@
       "flaky": "Flaky"
     },
     "noneInView": "No test in this view.",
-    "duration": "Duration {{duration}}",
     "launchedBy": "Run by the session “{{request}}”",
     "bySession": "Run by an agent session",
     "seeSession": "See the session →",
@@ -987,7 +977,28 @@
     "noVersion": "Version of the test repository not kept.",
     "noTest": "No test ran in this execution.",
     "forCampaign": "Launched for a campaign →",
-    "manual": "Launched by hand, with no agent."
+    "manual": "Launched by hand, with no agent.",
+    "first": "First run of these tests.",
+    "search": "Search a test",
+    "noMatch": "No test matches this search.",
+    "columns": {
+      "result": "Result",
+      "change": "Since its last run",
+      "test": "Test",
+      "domain": "Domain",
+      "duration": "Duration"
+    },
+    "tiles": {
+      "passed": "Passed",
+      "percent": "{{percent}}%",
+      "failed": "Failed",
+      "new_one": "{{count}} of them new",
+      "new_other": "{{count}} of them new",
+      "skipped": "Skipped",
+      "fixed": "Fixed",
+      "fixedNote": "since their last run",
+      "duration": "Duration"
+    }
   },
   "result": {
     "card": "Card of the test",
@@ -1318,7 +1329,7 @@
     "badge": "Running",
     "since": "Execution that runs since {{date}}",
     "preparing": "Preparing the tests…",
-    "progress": "{{finished}} of {{total}} tests",
+    "progress": "{{finished}} / {{total}} tests",
     "finished": "Tests that ended",
     "none": "No execution runs",
     "noneNote": "One shows here as soon as tests are launched.",

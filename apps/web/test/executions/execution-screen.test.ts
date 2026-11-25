@@ -40,12 +40,12 @@ describe("the screen of an execution", () => {
     nameApplications([]);
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec 1 échoué 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Voir la session → À regarder · 1 Tous · 5 Nouveaux échecs · 0 Corrigés · 0 Instables · 1 Policy Management · 5 tests /,
+      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec Réussis 3 60 % · 1 instable Échoués 1 Ignorés 1 Corrigés 0 depuis leur dernier passage Durée 9 s Premier passage de ces tests\. Lancée par la session « Test the policies » Voir la session → À regarder · 1 Tous · 5 Nouveaux échecs · 0 Corrigés · 0 Instables · 1 Policy Management · 5 tests Résultat Depuis son dernier passage Test Domaine Durée /,
     );
     assert.match(text, / Détails techniques Version du dépôt de tests : 4f2a9c0$/);
     assert.match(
       text,
-      /Policy Management · 5 tests Échoué Policies › Edit a policy Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies 1 s Réussi Display the detail/,
+      /Domaine Durée Échoué Policies › Edit a policy Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies 1 s Réussi Display the detail/,
     );
     const result = `#/executions/result?id=${LATEST.id}&path=${encodeURIComponent(DETAIL)}`;
     assert.deepEqual(linksOf(screen({ value: LATEST })), [
@@ -88,9 +88,9 @@ describe("the screen of an execution", () => {
       { ...failed, previous: "failed" as const },
     ];
     const text = textOf(screen({ value: { ...LATEST, results } }));
-    assert.match(text, /Depuis le dernier passage de chaque test : 2 nouveaux échecs, 1 déjà en échec, 1 corrigé Durée/);
+    assert.match(text, /Réussis 1 25 % Échoués 3 dont 2 nouveaux Ignorés 0 Corrigés 1 /);
     assert.match(text, /Échoué Nouvel échec Policies › Edit a policy .*Échoué Déjà en échec Policies .*Réussi Corrigé Display the detail/);
-    assert.doesNotMatch(textOf(screen({ value: LATEST })), /Depuis le dernier passage/);
+    assert.doesNotMatch(text, /Premier passage/);
   });
 
   it("says the environment it ran against, and offers it first to run its failures again, while it is declared", () => {
@@ -105,7 +105,7 @@ describe("the screen of an execution", () => {
       }),
     );
     assert.match(html, /<option value="staging" selected="">staging<\/option><option value="local">/);
-    assert.match(textOf(html), /1 ignoré staging Durée/);
+    assert.match(textOf(html), /staging Premier passage/);
   });
 
   it("opens on the tests to look at, shows those of another view, and says a view holds none", () => {
@@ -123,11 +123,32 @@ describe("the screen of an execution", () => {
           }),
         ),
       );
-    assert.match(told(), / · 1 test Échoué Policies › Edit a policy/);
-    assert.match(told("flaky"), / · 1 test Instable Policies › Filter the policies/);
+    assert.match(told(), / Domaine Durée Échoué Policies › Edit a policy/);
+    assert.match(told("flaky"), / Domaine Durée Instable Policies › Filter the policies/);
     assert.match(told("fixed"), /Instables · 1 Aucun test dans cette vue\./);
     const passed = { ...LATEST, results: LATEST.results.filter(({ verdict }) => verdict === "passed") };
-    assert.match(told(undefined, passed), / · 2 tests Réussi Display/);
+    assert.match(told(undefined, passed), / Domaine Durée Réussi Display/);
+  });
+
+  it("tells the domain of each test, and narrows them to the words of a search, or says none matches", () => {
+    const test = { path: DETAIL, title: "Display the detail of a policy", steps: [], tags: [], applications: [], domain: "contracts" };
+    const told = (search: string) =>
+      render(
+        createElement(ExecutionScreen, {
+          search,
+          tests: [test],
+          view: "all",
+          project: "lakeside-tests",
+          id: LATEST.id,
+          sessions: [],
+          state: { value: LATEST },
+          relaunch: { environments: [], pending: false },
+          onRelaunch: () => undefined,
+        }),
+      );
+    assert.match(textOf(told("CONTRACTS  display")), / · 1 test .* Réussi Display the detail of a policy contracts 2 s Détails/);
+    assert.ok(linksOf(told("print")).includes(`#/executions/view?id=${LATEST.id}&view=flaky&q=print`));
+    assert.match(textOf(told("nowhere")), /Aucun test ne correspond à cette recherche\./);
   });
 
   it("runs the files of its failures again, each once, but not for a campaign nor without a failure", () => {
@@ -142,7 +163,7 @@ describe("the screen of an execution", () => {
   it("says a past run belongs to no session it keeps, kept no version, and ran no test", () => {
     assert.match(
       textOf(screen({ value: PAST })),
-      /Durée 0 s La session qui l’a lancée n’est plus gardée\. Aucun test n’a tourné dans cette exécution\. Détails techniques Version du dépôt de tests non conservée\.$/,
+      /Réussis 0 Échoués 0 Ignorés 0 Corrigés 0 depuis leur dernier passage Durée 0 s La session qui l’a lancée n’est plus gardée\. Aucun test n’a tourné dans cette exécution\. Détails techniques Version du dépôt de tests non conservée\.$/,
     );
   });
 });

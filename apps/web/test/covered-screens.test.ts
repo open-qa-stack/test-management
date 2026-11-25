@@ -393,6 +393,11 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: "Tous · 5" }).click();
         await page.waitForURL(/&view=all$/);
         await page.getByRole("link", { name: /Print a policy/ }).waitFor();
+        // A search narrows them, and the address keeps it with the view.
+        await page.getByRole("searchbox").fill("edit");
+        await page.getByRole("searchbox").press("Enter");
+        await page.waitForURL(/&view=all&q=edit$/);
+        await page.getByRole("link", { name: /Edit a policy/ }).waitFor();
         // Its failures run again: a refusal is said, then the launch is followed to the execution it kept.
         instance.refusal = "launch_refused";
         await page.getByRole("button", { name: "Relancer l’échec" }).click();

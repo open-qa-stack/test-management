@@ -32,7 +32,7 @@ describe("the execution that runs", () => {
     const html = screen({ value: { running: { ...LAUNCH, campaign: "c1", progress: { total: 5, finished } } } });
     assert.match(
       textOf(html),
-      /2 tests sur 5 1 échoué 1 réussi Campagne · Recette 4\.2 · staging Tests terminés · 2 tests Échoué Edit a policy Réussi Display a policy$/,
+      /2 \/ 5 tests 1 échoué 1 réussi Campagne · Recette 4\.2 · staging Tests terminés · 2 tests Échoué Edit a policy Réussi Display a policy$/,
     );
     const card = `#/tests/view?path=${encodeURIComponent(DETAIL)}`;
     assert.deepEqual(linksOf(html).slice(-3), ["#/campaigns/view?id=c1", card, card]);

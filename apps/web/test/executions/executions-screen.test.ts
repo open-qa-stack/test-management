@@ -129,7 +129,7 @@ describe("the executions of the tests", () => {
     // It is there too when the instance keeps none yet, and tells how far it went.
     const some = { ...running, campaign: "c1", progress: { total: 5, finished: [{ path: DETAIL, title: "A", verdict: "passed" as const }] } };
     const alone = textOf(screen({ value: pageOf([]) }, { running: some, filter: {} }));
-    assert.match(alone, / Campagne · staging 1 tests sur 5$/);
+    assert.match(alone, / Campagne · staging 1 \/ 5 tests$/);
   });
 
   it("selects the filter chosen, tells which executions the page shows, and leads to the older ones and back to the latest ones, keeping the filter", () => {

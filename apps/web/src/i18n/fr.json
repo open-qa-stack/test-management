@@ -960,15 +960,6 @@
       "still_failing": "Déjà en échec",
       "fixed": "Corrigé"
     },
-    "changes": {
-      "new_failure_one": "{{count}} nouvel échec",
-      "new_failure_other": "{{count}} nouveaux échecs",
-      "still_failing_one": "{{count}} déjà en échec",
-      "still_failing_other": "{{count}} déjà en échec",
-      "fixed_one": "{{count}} corrigé",
-      "fixed_other": "{{count}} corrigés"
-    },
-    "since": "Depuis le dernier passage de chaque test : {{changes}}",
     "views": {
       "label": "Tests à montrer",
       "attention": "À regarder",
@@ -978,7 +969,6 @@
       "flaky": "Instables"
     },
     "noneInView": "Aucun test dans cette vue.",
-    "duration": "Durée {{duration}}",
     "launchedBy": "Lancée par la session « {{request}} »",
     "bySession": "Lancée par une session de l’agent",
     "seeSession": "Voir la session →",
@@ -987,7 +977,28 @@
     "noVersion": "Version du dépôt de tests non conservée.",
     "noTest": "Aucun test n’a tourné dans cette exécution.",
     "forCampaign": "Lancée pour une campagne →",
-    "manual": "Lancée à la main, sans agent."
+    "manual": "Lancée à la main, sans agent.",
+    "first": "Premier passage de ces tests.",
+    "search": "Chercher un test",
+    "noMatch": "Aucun test ne correspond à cette recherche.",
+    "columns": {
+      "result": "Résultat",
+      "change": "Depuis son dernier passage",
+      "test": "Test",
+      "domain": "Domaine",
+      "duration": "Durée"
+    },
+    "tiles": {
+      "passed": "Réussis",
+      "percent": "{{percent}} %",
+      "failed": "Échoués",
+      "new_one": "dont {{count}} nouveau",
+      "new_other": "dont {{count}} nouveaux",
+      "skipped": "Ignorés",
+      "fixed": "Corrigés",
+      "fixedNote": "depuis leur dernier passage",
+      "duration": "Durée"
+    }
   },
   "result": {
     "card": "Fiche du test",
@@ -1318,7 +1329,7 @@
     "badge": "En cours",
     "since": "Exécution en cours depuis le {{date}}",
     "preparing": "Préparation des tests…",
-    "progress": "{{finished}} tests sur {{total}}",
+    "progress": "{{finished}} / {{total}} tests",
     "finished": "Tests terminés",
     "none": "Aucune exécution en cours",
     "noneNote": "Elle apparaît ici dès que des tests sont lancés.",
