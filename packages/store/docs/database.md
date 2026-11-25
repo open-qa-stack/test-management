@@ -75,6 +75,7 @@ The migrations so far:
 | `0010_campaign_selections` | Leaves the tags of the campaigns: a campaign is made of the tests chosen for it. A campaign still planned keeps no test, and its tests are chosen again. |
 | `0011_memories` | The table of [the memories of the agents](#the-memories-of-the-agents). The notes an earlier version kept in `<stateDir>/memory/notes.jsonl` are not brought in: the file is neither read nor removed. |
 | `0012_session_purposes` | The purpose of a session: `map` for one that maps the knowledge alone. The sessions asked for before test. |
+| `0014_execution_environments` | The environment of an execution. The executions kept before stay without one. |
 
 ## The database of an instance, assembled
 
@@ -174,7 +175,7 @@ The primary key of a message is its session and its number. A number is given on
 
 ### The executions of tests
 
-`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — narrowed to those where a test failed or none did, and to those kept from a date on, with how many the query keeps and the rank of the first of the page among them; one by its identifier, or what came of the tests of one file in each execution, by the path of its results, each with the version of its test.
+`executions` holds one row an execution of tests, and `execution_results` one row each test of it. `ExecutionStore` keeps an execution in one transaction, with all of its results or none. It reads them a page at a time, the latest first — by date then identifier, a page going on after the last execution of the one before it — narrowed to those where a test failed or none did, to those of an origin, and to those kept from a date on, with how many the query keeps and the rank of the first of the page among them; one by its identifier, or what came of the tests of one file in each execution, by the path of its results, each with the version of its test.
 
 | Column of `executions` | Type | Why |
 |---|---|---|
@@ -184,6 +185,7 @@ The primary key of a message is its session and its number. A number is given on
 | `campaign_id` | `text`, or nothing | The campaign it was launched for. |
 | `ran_at` | date | When it was kept. |
 | `commit_sha` | `text`, or nothing | The commit the test repository was at. |
+| `environment` | `text`, or nothing | The environment its tests ran against; nothing for an execution kept before the instance kept it. |
 | `report` | `text` | The report of the runner, relative to the test repository. |
 
 | Column of `execution_results` | Type | Why |

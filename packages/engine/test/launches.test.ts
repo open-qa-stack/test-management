@@ -49,7 +49,7 @@ describe("tests launched as they are, with no agent", () => {
     assert.equal(items.length, 1);
     const [execution] = items;
     assert.deepEqual(ended, { ...launch, endedAt: ended.endedAt, execution: execution!.id });
-    assert.equal(execution!.origin, "manual");
+    assert.deepEqual([execution!.origin, execution!.environment], ["manual", "local"]);
     assert.equal(execution!.sessionId, undefined);
     assert.deepEqual(
       execution!.results.map(({ title, verdict }) => [title, verdict]),

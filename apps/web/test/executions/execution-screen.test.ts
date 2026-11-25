@@ -82,6 +82,21 @@ describe("the screen of an execution", () => {
     assert.doesNotMatch(textOf(screen({ value: LATEST })), /Depuis le dernier passage/);
   });
 
+  it("says the environment it ran against, and offers it first to run its failures again, while it is declared", () => {
+    const html = render(
+      createElement(ExecutionScreen, {
+        project: "lakeside-tests",
+        id: LATEST.id,
+        sessions: [],
+        state: { value: { ...LATEST, environment: "staging" } },
+        relaunch: { environments: ["local", "staging"], pending: false },
+        onRelaunch: () => undefined,
+      }),
+    );
+    assert.match(html, /<option value="staging" selected="">staging<\/option><option value="local">/);
+    assert.match(textOf(html), /1 ignoré staging Durée/);
+  });
+
   it("runs the files of its failures again, each once, but not for a campaign nor without a failure", () => {
     const failed = LATEST.results.find((result) => result.verdict === "failed")!;
     const two = { ...LATEST, results: [failed, failed, ...LATEST.results] };

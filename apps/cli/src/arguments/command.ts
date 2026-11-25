@@ -1,4 +1,4 @@
-import type { CampaignLaunchScope, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
+import type { CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
 
 /** What the command is asked to do, with what that takes. */
 export type Command =
@@ -77,7 +77,7 @@ export type Command =
   /** Launch the tests of a campaign, every one or some, in this process, and follow them to their end. */
   | { readonly name: "campaigns"; readonly action: "launch"; readonly campaign: string; readonly only?: CampaignLaunchScope }
   /** List the executions of tests, the latest first, a page at a time. */
-  | { readonly name: "executions"; readonly action: "list"; readonly outcome?: ExecutionOutcome; readonly before?: string }
+  | { readonly name: "executions"; readonly action: "list"; readonly outcome?: ExecutionOutcome; readonly origin?: ExecutionOrigin; readonly before?: string }
   /** Print an execution, with what came of each of its tests. */
   | { readonly name: "executions"; readonly action: "show"; readonly execution: string }
   /** Serve the console of the test repository, and the sessions opened in it. */

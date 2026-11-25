@@ -359,6 +359,10 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: /Plus anciennes/ }).click();
         await page.waitForURL(/#\/executions\?outcome=failing&period=week&before=older$/);
         await page.getByRole("link", { name: /Les plus récentes/ }).waitFor();
+        await page.getByLabel("Origine").selectOption("manual");
+        await page.waitForURL(/#\/executions\?outcome=failing&origin=manual&period=week$/);
+        await page.getByLabel("Origine").selectOption("");
+        await page.waitForURL(/#\/executions\?outcome=failing&period=week$/);
         // Choosing a filter opens its first page; the first choice of a list keeps every execution.
         await outcome.selectOption("");
         await page.waitForURL(/#\/executions\?period=week$/);

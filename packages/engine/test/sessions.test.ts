@@ -607,7 +607,7 @@ describe("the execution of the tests of a session", () => {
     const [execution, ...others] = hosted.executions.all();
     assert.ok(execution !== undefined);
     assert.deepEqual(others, []);
-    assert.deepEqual([execution.origin, execution.sessionId], ["design", session.id]);
+    assert.deepEqual([execution.origin, execution.environment, execution.sessionId], ["design", "local", session.id]);
     assert.match(execution.report, /^\.oqas\/runs\/run-.+\/report\.json$/);
     assert.match(String(execution.commit), /^[0-9a-f]{40}$/);
     // The double of the runner names each file from the root of the test repository: what the digests are taken of is tested on the recorder.

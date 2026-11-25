@@ -16,6 +16,7 @@ const EARLIER: Execution = {
   origin: "design",
   ranAt: "2026-11-19T09:00:00.000Z",
   commit: "4f2a9c01d3",
+  environment: "local",
   report: ".oqas/runs/run-2026-11-19T09-00-00-000Z/report.json",
   results: [
     { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", project: "shop", verdict: "passed", durationMs: 120, fileDigest: "ab12" },
@@ -88,6 +89,8 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
           await read("limit=1&before=e2"),
           await read("outcome=failing"),
           await read("outcome=passing"),
+          await read("origin=design"),
+          await read("origin=manual"),
           await read("since=2026-11-19T09:30:00%2B00:00"),
           await read("since=2026-11-19"),
         ],
@@ -96,6 +99,8 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
           { items: [EARLIER], total: 2, start: 1 },
           { items: [EARLIER], total: 1, start: 0 },
           { items: [LATER], total: 1, start: 0 },
+          { items: [LATER, EARLIER], total: 2, start: 0 },
+          { items: [], total: 0, start: 0 },
           { items: [LATER], total: 1, start: 0 },
           { items: [LATER, EARLIER], total: 2, start: 0 },
         ],
@@ -114,6 +119,7 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
         ["?limit=101", 400, "invalid_request"],
         ["?limit=a", 400, "invalid_request"],
         ["?outcome=flaky", 400, "invalid_request"],
+        ["?origin=robot", 400, "invalid_request"],
         ["?since=yesterday", 400, "invalid_request"],
         ["?since=2026-13-40", 400, "invalid_request"],
       ] as const) {

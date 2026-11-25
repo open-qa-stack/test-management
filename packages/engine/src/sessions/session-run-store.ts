@@ -18,9 +18,10 @@ export class SessionRunStore implements RunStore {
     return this.#state === undefined ? undefined : sessionResultOf({ ...this.#state });
   }
 
-  /** @returns The report of the runner, relative to the test repository, once the run wrote a state in which the tests ran. */
-  get report(): string | undefined {
-    return this.#state?.report;
+  /** @returns The report of the runner, relative to the test repository, with the environment the tests ran against, once the run wrote a state in which they ran. */
+  get report(): { readonly path: string; readonly environment: string } | undefined {
+    const { report, environment } = this.#state ?? {};
+    return report === undefined || environment === undefined ? undefined : { path: report, environment };
   }
 
   /** {@inheritDoc RunStore.write} */

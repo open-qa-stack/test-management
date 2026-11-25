@@ -125,10 +125,14 @@ export class SessionExecution {
   }
 
   /** Keeps the execution of the tests the session ran; @returns why it could not be kept, `undefined` once it is. */
-  async #record(id: string, repository: string, report: string, now: () => Date): Promise<string | undefined> {
+  async #record(id: string, repository: string, report: NonNullable<SessionRunStore["report"]>, now: () => Date): Promise<string | undefined> {
     const { configuration, executions: store } = this.#host;
     try {
-      await new ExecutionRecorder({ repository, configuration, store, now }).record(report, { origin: "design", sessionId: id });
+      await new ExecutionRecorder({ repository, configuration, store, now }).record(report.path, {
+        origin: "design",
+        environment: report.environment,
+        sessionId: id,
+      });
       return undefined;
     } catch (error) {
       return error instanceof Error ? error.message : String(error);

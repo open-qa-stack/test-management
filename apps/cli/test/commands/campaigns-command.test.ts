@@ -38,7 +38,7 @@ describe("oqas campaigns", () => {
     assert.ok(launched.err.startsWith(`Tests launched against local: ${FIRST}, ${SECOND}.\n`), launched.err);
     assert.match(
       launched.out,
-      new RegExp(`^\\S+ {2}campaign, campaign ${id} {2}\\S+Z {2}1 of 2 tests passed, at the commit [0-9a-f]{40}\\.\\nfailed {2}${FIRST}`),
+      new RegExp(`^\\S+ {2}campaign, campaign ${id}, on local {2}\\S+Z {2}1 of 2 tests passed, at the commit [0-9a-f]{40}\\.\\nfailed {2}${FIRST}`),
     );
     assert.equal((await terminal.oqas(["campaigns", "launch", id, "not-run"])).code, 1);
     assert.match((await terminal.oqas(["campaigns"])).out, new RegExp(`^${id} {2}Release 1 {2}in progress {2}local {2}2 tests: 2 not run\\n$`));

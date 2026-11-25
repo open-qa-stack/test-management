@@ -43,7 +43,10 @@ describe("oqas launch", () => {
     });
     assert.equal(ran.code, 0);
     assert.equal(ran.err, `Tests launched against local: ${FIRST}, ${SECOND}.\npassed  ${FIRST} › the test\npassed  ${SECOND} › the test\n`);
-    assert.match(ran.out, new RegExp(`^\\S+ {2}manual {2}\\S+Z {2}2 of 2 tests passed, at the commit [0-9a-f]{40}\\.\\npassed {2}${FIRST} › the test\\n`));
+    assert.match(
+      ran.out,
+      new RegExp(`^\\S+ {2}manual, on local {2}\\S+Z {2}2 of 2 tests passed, at the commit [0-9a-f]{40}\\.\\npassed {2}${FIRST} › the test\\n`),
+    );
     const executions = await terminal.oqas(["executions", "--output", "json"]);
     assert.deepEqual(
       (JSON.parse(executions.out) as { items: Execution[] }).items.map(({ origin }) => origin),

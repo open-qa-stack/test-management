@@ -32,7 +32,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] campaigns show|ready|close <campaign> [--output text|json]
        oqas [--repository <folder>] campaigns choose <campaign> <test>... [--output text|json]
        oqas [--repository <folder>] campaigns launch <campaign> [failed|not-run] [--output text|json]
-       oqas [--repository <folder>] executions [--outcome failing|passing] [--before <execution>] [--output text|json]
+       oqas [--repository <folder>] executions [--outcome failing|passing] [--origin design|manual|campaign] [--before <execution>] [--output text|json]
        oqas [--repository <folder>] executions show <execution> [--output text|json]
        oqas [--repository <folder>] secrets [--output text|json]
        oqas [--repository <folder>] secrets set <variable>
@@ -121,7 +121,8 @@ Commands:
   campaigns close <campaign>
                          Close a campaign for good: what came of its tests is fixed.
   executions             List the executions of tests, the latest first, twenty at a time: --outcome keeps those
-                         where a test failed or none did, --before starts after an execution.
+                         where a test failed or none did, --origin those of an origin, --before starts after an
+                         execution.
   executions show <execution>
                          Print an execution, with what came of each of its tests and why a test failed.
   knowledge domains      List the domains the cartography found in the knowledge.
@@ -152,6 +153,8 @@ Options:
   --model <id>           With model set: the model to use, as the connection names it.
   --outcome failing|passing
                          With executions: keep those where a test failed, or those where none did.
+  --origin design|manual|campaign
+                         With executions: keep those a session ran, those launched by hand, or those of a campaign.
   --before <execution>   With executions: start the page after this execution.
   --init                 Initialise the test repository as a Playwright project, from its oqas.json: write the files it
                          lacks, overwrite none, run nothing.

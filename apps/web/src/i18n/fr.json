@@ -910,6 +910,7 @@
       "failing": "Avec un échec",
       "passing": "Sans échec"
     },
+    "allOrigins": "Toutes les origines",
     "periodFilter": "Période",
     "periods": {
       "all": "Toutes les dates",

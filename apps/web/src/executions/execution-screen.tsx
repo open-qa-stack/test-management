@@ -85,6 +85,10 @@ function Changes({ results }: { readonly results: readonly ExecutionResult[] }):
   return told.length === 0 ? null : <span className="small">{t("execution.since", { changes: told.join(", ") })}</span>;
 }
 
+/** The environments to choose from, that of the execution first, as long as the configuration declares it. */
+const firstOf = (environment: string | undefined, declared: readonly string[]): readonly string[] =>
+  declared.toSorted((left, right) => Number(right === environment) - Number(left === environment));
+
 /** A test of the execution, which leads to what came of it: its verdict, what changed since its last run, its title, where it failed, and how long it took. */
 function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
   return (
@@ -117,7 +121,7 @@ function Results({ execution }: { readonly execution: Execution }): ReactNode {
 }
 
 /**
- * The screen of an execution: what came of its tests, what changed since the last run of each, how long it took, where it comes from and at which version,
+ * The screen of an execution: what came of its tests, against which environment, what changed since the last run of each, how long it took, where it comes from and at which version,
  * then its tests, each leading to what came of it; the files of those that failed run again on demand.
  *
  * @param props - The name of the project, the identifier of the execution, the sessions, and what the instance told.
@@ -137,7 +141,17 @@ export function ExecutionScreen({ project, id, sessions, state, relaunch, onRela
         { label: execution === undefined ? id : dateText(execution.ranAt) },
       ]}
       title={title}
-      {...(failures === 0 ? {} : { actions: <TestRelaunch state={relaunch} onLaunch={onRelaunch} several={several} /> })}
+      {...(failures === 0
+        ? {}
+        : {
+            actions: (
+              <TestRelaunch
+                state={{ ...relaunch, environments: firstOf(execution?.environment, relaunch.environments) }}
+                onLaunch={onRelaunch}
+                several={several}
+              />
+            ),
+          })}
     >
       {execution === undefined ? (
         <EmptyState title={t("execution.reading")}>
@@ -150,6 +164,7 @@ export function ExecutionScreen({ project, id, sessions, state, relaunch, onRela
               <span className="exec-counts">
                 <VerdictCounts results={execution.results} />
               </span>
+              {execution.environment !== undefined && <Badge tone="outline">{execution.environment}</Badge>}
               <Changes results={execution.results} />
               <span className="small">{t("execution.duration", { duration: executionDuration(execution) })}</span>
               <Origin execution={execution} sessions={sessions} />

@@ -11,6 +11,7 @@ import { ConfigurationPage } from "./configuration/configuration-page.tsx";
 import { DiscoveryPage } from "./discovery/discovery-page.tsx";
 import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
+import { EXECUTION_ORIGINS, type ExecutionOrigin } from "@open-qa-stack/domain/sessions";
 import type { ExecutionsFilter } from "./executions/executions-paths.ts";
 import { ExecutionsPage } from "./executions/executions-page.tsx";
 import { ResultPage } from "./executions/result-page.tsx";
@@ -101,8 +102,12 @@ function stepOf(step: string | undefined): { readonly step?: number } {
 }
 
 /** What a page of the executions is narrowed to, of what the address names that the console knows. */
-function filterOf({ outcome, period }: Route["query"]): ExecutionsFilter {
-  return { ...(outcome === "failing" || outcome === "passing" ? { outcome } : {}), ...(isExecutionPeriod(period) ? { period } : {}) };
+function filterOf({ outcome, origin, period }: Route["query"]): ExecutionsFilter {
+  return {
+    ...(outcome === "failing" || outcome === "passing" ? { outcome } : {}),
+    ...(EXECUTION_ORIGINS.some((known) => known === origin) ? { origin: origin as ExecutionOrigin } : {}),
+    ...(isExecutionPeriod(period) ? { period } : {}),
+  };
 }
 
 /** A value the address gives, when it is not empty. */
@@ -203,7 +208,7 @@ function Screen(props: ConsoleProps): ReactNode {
     case "executions":
       return (
         <ExecutionsPage
-          key={`${shown.filter.outcome}:${shown.filter.period}:${shown.before}`}
+          key={`${shown.filter.outcome}:${shown.filter.origin}:${shown.filter.period}:${shown.before}`}
           project={name}
           sessions={listed}
           filter={shown.filter}

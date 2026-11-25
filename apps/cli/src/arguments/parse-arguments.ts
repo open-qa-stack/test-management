@@ -1,4 +1,4 @@
-import type { ExecutionOutcome } from "@open-qa-stack/domain";
+import { EXECUTION_ORIGINS, type ExecutionOrigin, type ExecutionOutcome } from "@open-qa-stack/domain";
 import type { Arguments } from "./arguments.ts";
 import { commandOf } from "./command-of.ts";
 import type { Command } from "./command.ts";
@@ -16,6 +16,7 @@ const VALUED = [
   "--key-env",
   "--model",
   "--outcome",
+  "--origin",
   "--before",
 ] as const;
 
@@ -48,6 +49,7 @@ export function parseArguments(argv: readonly string[]): Parsed {
     "key-env"?: string;
     model?: string;
     outcome?: string;
+    origin?: string;
     before?: string;
   } = {};
   const flags = new Set<string>();
@@ -63,7 +65,7 @@ export function parseArguments(argv: readonly string[]): Parsed {
     } else if (argument.startsWith("--")) return refused(`Unknown option ${argument}; see oqas --help.`);
     else words.push(argument);
   }
-  const { repository, environment, brief, output = "text", host, port, provider, "key-env": keyEnv, model, outcome, before } = values;
+  const { repository, environment, brief, output = "text", host, port, provider, "key-env": keyEnv, model, outcome, origin, before } = values;
   if (output !== "text" && output !== "json") return refused("--output needs text or json.");
   const follow = flags.has("--follow");
   const help = flags.has("--help");
@@ -79,16 +81,22 @@ export function parseArguments(argv: readonly string[]): Parsed {
   if (!setsTheModel && command.name !== "help" && (connection.github || [provider, keyEnv, model].some((value) => value !== undefined)))
     return refused(MODEL_OPTIONS);
   const listsExecutions = command.name === "executions" && command.action === "list";
-  if (!listsExecutions && command.name !== "help" && (outcome !== undefined || before !== undefined))
-    return refused("--outcome and --before choose the executions oqas executions lists: they go with it alone.");
+  if (!listsExecutions && command.name !== "help" && [outcome, origin, before].some((value) => value !== undefined))
+    return refused("--outcome, --origin and --before choose the executions oqas executions lists: they go with it alone.");
   if (outcome !== undefined && outcome !== "failing" && outcome !== "passing") return refused("--outcome needs failing or passing.");
+  if (origin !== undefined && !EXECUTION_ORIGINS.some((known) => known === origin)) return refused(`--origin needs ${EXECUTION_ORIGINS.join(" or ")}.`);
   if (command.name !== "ui" && command.name !== "help" && (host !== undefined || port !== undefined))
     return refused("--host and --port say where --ui listens: they go with it alone.");
   // An initialisation writes files and runs nothing: it takes the repository, and nothing of a session.
   if (command.name === "init" && (follow || values.output !== undefined))
     return refused("--init writes the files of the test repository and runs nothing: it takes --repository alone.");
   const listed: Command = listsExecutions
-    ? { ...command, ...(outcome === undefined ? {} : { outcome: outcome as ExecutionOutcome }), ...(before === undefined ? {} : { before }) }
+    ? {
+        ...command,
+        ...(outcome === undefined ? {} : { outcome: outcome as ExecutionOutcome }),
+        ...(origin === undefined ? {} : { origin: origin as ExecutionOrigin }),
+        ...(before === undefined ? {} : { before }),
+      }
     : command;
   return { ok: true, arguments: { ...(repository === undefined ? {} : { repository }), output, follow, command: listed } };
 }

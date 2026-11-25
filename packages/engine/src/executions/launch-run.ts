@@ -132,7 +132,7 @@ export class LaunchRun {
       if (result.report === undefined) return ended({ failure: result.tests[0]?.reason ?? "The runner wrote no report." });
       const execution = await new ExecutionRecorder({ repository, configuration, store, now }).record(
         result.report,
-        campaign === undefined ? { origin: "manual" } : { origin: "campaign", campaignId: campaign },
+        campaign === undefined ? { origin: "manual", environment } : { origin: "campaign", campaignId: campaign, environment },
       );
       // The run read the report it wrote: the recorder reads it as well.
       return ended({ execution: execution!.id });

@@ -19,8 +19,13 @@ export async function executed(
     print(printing, executionLines(execution).join("\n"), execution);
     return ExitCode.passed;
   }
-  const { outcome, before } = command;
-  const page = await executions.page({ limit: EXECUTIONS_PAGE, ...(outcome === undefined ? {} : { outcome }), ...(before === undefined ? {} : { before }) });
+  const { outcome, origin, before } = command;
+  const page = await executions.page({
+    limit: EXECUTIONS_PAGE,
+    ...(outcome === undefined ? {} : { outcome }),
+    ...(origin === undefined ? {} : { origin }),
+    ...(before === undefined ? {} : { before }),
+  });
   print(printing, executionPageLines(page).join("\n"), page);
   return ExitCode.passed;
 }

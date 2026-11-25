@@ -5,6 +5,9 @@
  */
 export type ExecutionOrigin = "design" | "manual" | "campaign";
 
+/** The origins of an execution, in the order a person chooses among them. */
+export const EXECUTION_ORIGINS: readonly ExecutionOrigin[] = ["design", "manual", "campaign"];
+
 /**
  * What came of a test in an execution, as the runner reported it: `passed` when it went as expected, `failed` when it
  * did not, `flaky` when it passed only on a retry, `skipped` when it did not run.
@@ -48,7 +51,7 @@ export interface ExecutionResult {
   /** Where it failed and why, for a test that failed; left out when the report says nothing of it, or for a result kept before the instance kept them. */
   readonly failure?: ExecutionFailure;
   /**
-   * What came of the test in the last execution before this one that ran it, in the same project of the runner; told
+   * What came of the test in the last execution before this one that ran it, against the same environment and in the same project of the runner; told
    * of an execution read alone, and left out when none ran it before. It is read, never kept.
    */
   readonly previous?: Exclude<ExecutionVerdict, "skipped">;
@@ -64,6 +67,8 @@ export interface Execution {
   readonly campaignId?: string;
   /** When the execution was kept, as an ISO 8601 date. */
   readonly ranAt: string;
+  /** The environment its tests ran against; left out for an execution kept before the instance kept it. */
+  readonly environment?: string;
   /** The commit the test repository was at, when it had one. */
   readonly commit?: string;
   /** The report of the runner, relative to the test repository. */
@@ -93,6 +98,8 @@ export interface ExecutionQuery {
   /** The identifier of an execution: the page starts after it. */
   readonly before?: string;
   readonly outcome?: ExecutionOutcome;
+  /** Where the executions come from. */
+  readonly origin?: ExecutionOrigin;
   /** An ISO 8601 date: only the executions kept from then on. */
   readonly since?: string;
 }

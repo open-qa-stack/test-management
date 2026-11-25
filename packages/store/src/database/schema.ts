@@ -129,7 +129,7 @@ export interface CampaignTestsTable {
 /**
  * The executions of tests, each under its identifier. The origin is a text, as the state of a session is. The session
  * of an execution it ran is emptied when the session goes; the commit is empty for a test repository without one; the
- * campaign is empty for an execution launched for none.
+ * campaign is empty for an execution launched for none, the environment for one kept before the instance kept it.
  */
 export interface ExecutionsTable {
   id: string;
@@ -138,6 +138,7 @@ export interface ExecutionsTable {
   campaign_id: string | null;
   ran_at: StoredInstant;
   commit_sha: string | null;
+  environment: string | null;
   report: string;
 }
 

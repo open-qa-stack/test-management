@@ -12,7 +12,7 @@ import { DETAIL, EXECUTIONS } from "./executions-fixture.ts";
 const SESSION = { id: "8d3f1a52-0c4e-4b8a-9e61-7f2a5c9d0b13", request: "Test the policies", openedAt: "", lastEventAt: "", state: "completed" } as Session;
 
 /** What the person does on the screen, which drawing it never calls. */
-const CONTROLS: ExecutionsControls = { outcome: () => undefined, period: () => undefined };
+const CONTROLS: ExecutionsControls = { outcome: () => undefined, origin: () => undefined, period: () => undefined };
 
 /** A page of the executions, the first of those the query keeps unless the page says otherwise. */
 const pageOf = (items: ExecutionList["items"], more: Partial<ExecutionList> = {}): ExecutionList => ({ items, total: items.length, start: 0, ...more });
@@ -32,7 +32,7 @@ describe("the executions of the tests", () => {
       textOf(screen({ value: pageOf([]) })),
       /Aucune exécution pour l’instant Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé/,
     );
-    for (const more of [{ filter: { outcome: "failing" } }, { filter: { period: "day" } }, { before: "e1" }] as const)
+    for (const more of [{ filter: { outcome: "failing" } }, { filter: { origin: "manual" } }, { filter: { period: "day" } }, { before: "e1" }] as const)
       assert.match(
         textOf(screen({ value: pageOf([]) }, more)),
         /30 derniers jours Aucune exécution ne correspond Aucune exécution gardée ne correspond à ces filtres\.$/,
@@ -43,11 +43,15 @@ describe("the executions of the tests", () => {
     const text = textOf(screen());
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
+      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Origine Toutes les origines Session de l’agent Lancement manuel Campagne Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
     );
     assert.match(text, / Session de l’agent Session « Test the policies » 1 échoué 1 instable 9 s Échoué /);
     assert.doesNotMatch(text, /4f2a9c0/);
     assert.match(text, / Session de l’agent 0 test 0 s Aucun test n’a tourné dans cette exécution\. Ouvrir l’exécution → 1–2 sur 2$/);
+  });
+
+  it("says the environment an execution ran against, when it is kept", () => {
+    assert.match(textOf(screen({ value: pageOf([{ ...EXECUTIONS[0]!, environment: "staging" }]) })), / Session « Test the policies » · staging 1 échoué /);
   });
 
   it("says an execution of a campaign is one, whatever session the console lists", () => {

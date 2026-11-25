@@ -60,7 +60,7 @@ function versionOf({
 }
 
 /** A row of the executions as what it says of the execution, but its report and its results, its empty columns left out. */
-function headOf({ id, origin, session_id, campaign_id, ran_at, commit_sha }: Selectable<ExecutionsTable>): Omit<Execution, "report" | "results"> {
+function headOf({ id, origin, session_id, campaign_id, ran_at, commit_sha, environment }: Selectable<ExecutionsTable>): Omit<Execution, "report" | "results"> {
   return {
     id,
     origin,
@@ -68,6 +68,7 @@ function headOf({ id, origin, session_id, campaign_id, ran_at, commit_sha }: Sel
     ...(campaign_id === null ? {} : { campaignId: campaign_id }),
     ranAt: instant(ran_at),
     ...(commit_sha === null ? {} : { commit: commit_sha }),
+    ...(environment === null ? {} : { environment }),
   };
 }
 
@@ -104,11 +105,20 @@ export class ExecutionStore implements ExecutionStorePort {
 
   /** Keeps an execution with all of its results and the versions of their tests, or nothing of it. */
   async add(execution: Execution): Promise<void> {
-    const { id, origin, sessionId, campaignId, ranAt, commit, report, results } = execution;
+    const { id, origin, sessionId, campaignId, ranAt, commit, environment, report, results } = execution;
     await this.#database.transaction().execute(async (transaction) => {
       await transaction
         .insertInto("executions")
-        .values({ id, origin, session_id: sessionId ?? null, campaign_id: campaignId ?? null, ran_at: instant(ranAt), commit_sha: commit ?? null, report })
+        .values({
+          id,
+          origin,
+          session_id: sessionId ?? null,
+          campaign_id: campaignId ?? null,
+          ran_at: instant(ranAt),
+          commit_sha: commit ?? null,
+          environment: environment ?? null,
+          report,
+        })
         .execute();
       if (results.length === 0) return;
       const rows = [];
@@ -144,9 +154,10 @@ export class ExecutionStore implements ExecutionStorePort {
    * many the query keeps and the rank of the first of the page among them.
    * @throws `UnknownExecutionError` when the page starts after an execution it does not keep.
    */
-  async page({ limit, before, outcome, since }: ExecutionQuery): Promise<ExecutionList> {
+  async page({ limit, before, outcome, origin, since }: ExecutionQuery): Promise<ExecutionList> {
     let kept = this.#database.selectFrom("executions");
     if (outcome !== undefined) kept = kept.where((builder) => (outcome === "failing" ? failed(builder) : builder.not(failed(builder))));
+    if (origin !== undefined) kept = kept.where("origin", "=", origin);
     if (since !== undefined) kept = kept.where("ran_at", ">=", instant(since));
     let shown = kept.selectAll("executions");
     let start = 0;
@@ -205,6 +216,7 @@ export class ExecutionStore implements ExecutionStorePort {
         "executions.campaign_id",
         "executions.ran_at",
         "executions.commit_sha",
+        "executions.environment",
         "executions.report",
       ])
       .where("execution_results.path", "=", path)
@@ -258,8 +270,8 @@ export class ExecutionStore implements ExecutionStorePort {
     return (await this.#database.selectFrom("executions").select("report").execute()).map(({ report }) => report);
   }
 
-  /** What came of each test of the files of an execution in the last execution before it that ran the test. */
-  async #before({ id, ran_at }: Selectable<ExecutionsTable>): Promise<Map<string, NonNullable<ExecutionResult["previous"]>>> {
+  /** What came of each test of the files of an execution in the last execution before it that ran the test against the same environment, known or not. */
+  async #before({ id, ran_at, environment }: Selectable<ExecutionsTable>): Promise<Map<string, NonNullable<ExecutionResult["previous"]>>> {
     const rows = await this.#database
       .selectFrom((builder) =>
         builder
@@ -280,6 +292,7 @@ export class ExecutionStore implements ExecutionStorePort {
           )
           .where("execution_results.path", "in", (files) => files.selectFrom("execution_results").select("path").where("execution_id", "=", id))
           .where("execution_results.verdict", "!=", "skipped")
+          .where((run) => (environment === null ? run("executions.environment", "is", null) : run("executions.environment", "=", environment)))
           .where((earlier) =>
             earlier.or([
               earlier("executions.ran_at", "<", ran_at),

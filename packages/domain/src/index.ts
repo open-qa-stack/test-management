@@ -152,6 +152,7 @@ export type {
   TestExecution,
   TestExecutionList,
 } from "./executions/execution.ts";
+export { EXECUTION_ORIGINS } from "./executions/execution.ts";
 export { versionStep, type TestVersion, type TestVersionList, type VersionStep } from "./executions/test-version.ts";
 export { UnknownExecutionError } from "./executions/unknown-execution-error.ts";
 export type { EndedLaunch, FinishedTest, LaunchProgress, LaunchRequest, LaunchState, TestLaunch } from "./executions/test-launch.ts";
