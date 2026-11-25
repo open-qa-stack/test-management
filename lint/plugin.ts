@@ -1,5 +1,4 @@
 import { confinedImports } from "./confined-imports.ts";
-import { folderBoundaries } from "./folder-boundaries.ts";
 import { packageBoundaries } from "./package-boundaries.ts";
 import { pureDomain } from "./pure-domain.ts";
 
@@ -8,7 +7,6 @@ export default {
   meta: { name: "open-qa-stack" },
   rules: {
     "confined-imports": confinedImports,
-    "folder-boundaries": folderBoundaries,
     "package-boundaries": packageBoundaries,
     "pure-domain": pureDomain,
   },

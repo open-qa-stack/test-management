@@ -95,12 +95,6 @@
           }
         ]
       }
-    },
-    {
-      "files": ["apps/cli/src/connected/**"],
-      "rules": {
-        "open-qa-stack/folder-boundaries": ["error", { "directory": "apps/cli/src/connected", "dependsOn": ["@open-qa-stack/domain"] }]
-      }
     }
   ]
 }
