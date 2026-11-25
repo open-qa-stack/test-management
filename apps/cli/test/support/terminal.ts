@@ -1,8 +1,10 @@
 import { execFile } from "node:child_process";
+import { setTimeout as pause } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { scriptedServer, type ScriptedServer } from "@open-qa-stack/testing";
 import { configText, FakeRunner, markMapped, repository, WITNESS, type RanCommand, type RanOutcome, type Script } from "@open-qa-stack/testing/test-repository";
 import type { SessionEvent } from "@open-qa-stack/domain/sessions";
+import { Database, instanceDatabaseUrl } from "@open-qa-stack/store";
 import { soloCommand, type CommandIo } from "../../src/index.ts";
 
 export * from "@open-qa-stack/testing/test-repository";
@@ -147,6 +149,31 @@ export class Terminal {
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as SessionEvent);
+  }
+
+  /**
+   * Settles once the process that hosts a session met the store, whole, after this is called: what another process
+   * posted before is in its hands. Two beats of the host dated after the call tell so: the first began after it, and
+   * the second is written only once the first meeting is over. It waits for that fact, not for a time: only the
+   * timeout of the test stops it.
+   *
+   * @param session - The identifier of the session.
+   */
+  async met(session: string): Promise<void> {
+    const database = new Database(instanceDatabaseUrl(undefined, this.root), { log: () => undefined, warn: () => undefined });
+    const seen = async () =>
+      (await database.kysely.selectFrom("sessions").select("host_seen_at").where("id", "=", session).executeTakeFirstOrThrow()).host_seen_at;
+    try {
+      let last = await seen();
+      for (let beats = 0; beats < 2;) {
+        await pause(QUICK.beatMs);
+        const now = await seen();
+        if (String(now) !== String(last)) beats++;
+        last = now;
+      }
+    } finally {
+      await database.close();
+    }
   }
 
   /** Closes the model. */

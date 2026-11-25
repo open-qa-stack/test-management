@@ -3,7 +3,7 @@ import { setTimeout as pause } from "node:timers/promises";
 import { afterEach, describe, it } from "vitest";
 import type { Session, SessionEvent } from "@open-qa-stack/domain/sessions";
 import { Interruptions } from "../src/solo/interruptions.ts";
-import { chain, QUICK, sessionOf, Terminal, type Ran } from "./support/terminal.ts";
+import { chain, sessionOf, Terminal, type Ran } from "./support/terminal.ts";
 
 const BRIEF = ["--environment", "local", "--brief", "Test the listing of the orders."];
 
@@ -118,7 +118,7 @@ describe("oqas say", () => {
     });
     assert.deepEqual(await terminal.oqas(["say", running.id, "And the returns.", "--output", "json"]), { code: 0, out: '{"number":2}\n', err: "" });
     // The command that runs the session reads what it was sent at its next beat.
-    await pause(QUICK.beatMs * 10);
+    await terminal.met(running.id);
     running.open();
     assert.equal((await running.ended).code, 0);
     const thread = await terminal.thread(running.id);
@@ -181,7 +181,7 @@ describe("oqas stop", () => {
       out: `The session ${running.id} is asked to stop: the process that runs it interrupts it.\n`,
       err: "",
     });
-    await pause(QUICK.beatMs * 10);
+    await terminal.met(running.id);
     running.open();
     const opened = await running.ended;
     assert.equal(opened.code, 5);
