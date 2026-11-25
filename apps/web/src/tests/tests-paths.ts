@@ -10,8 +10,9 @@ export const TEST_PATH = `${TESTS_PATH}/view`;
  * The link to the screen of a test.
  *
  * @param path - The path of the test, relative to the root of the test repository.
+ * @param tree - Which tests the tree beside it shows; every one by default.
  * @returns The fragment to put in an `href`.
  */
-export function testHref(path: string): string {
-  return hrefTo(TEST_PATH, { path });
+export function testHref(path: string, tree?: "failing"): string {
+  return hrefTo(TEST_PATH, { path, ...(tree === undefined ? {} : { tree }) });
 }

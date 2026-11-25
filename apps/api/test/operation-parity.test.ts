@@ -56,6 +56,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "Executions.page": "GET /executions",
   "Executions.get": "GET /executions/e",
   "Executions.ofFile": "GET /tests/executions",
+  "Executions.verdicts": "GET /tests/verdicts",
   "Executions.versions": "GET /tests/versions",
   "Campaigns.plan": "POST /campaigns",
   "Campaigns.list": "GET /campaigns",

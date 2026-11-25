@@ -46,6 +46,13 @@ describe("the operations on the executions of tests", () => {
     assert.deepEqual([read.length, read[0]?.id, read[0]?.result], [FILE_EXECUTIONS_LIMIT, `e${FILE_EXECUTIONS_LIMIT}`, search]);
   });
 
+  it("read what came of each test the last time it ran", async () => {
+    const store = new MemoryExecutionStore();
+    await store.add(execution("e1", 9, [search]));
+    await store.add(execution("e2", 10, [{ ...search, verdict: "failed" }]));
+    assert.deepEqual(await new Executions(store).verdicts(), [{ path: search.path, title: search.title, verdict: "failed" }]);
+  });
+
   it("read the versions of the tests of a file, numbered by the digest of each test, the latest first", async () => {
     const store = new MemoryExecutionStore();
     await store.add(

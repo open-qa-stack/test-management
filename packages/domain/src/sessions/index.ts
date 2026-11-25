@@ -66,6 +66,8 @@ export type {
   ExecutionVerdict,
   TestExecution,
   TestExecutionList,
+  LastVerdict,
+  LastVerdictList,
 } from "../executions/execution.ts";
 export { EXECUTION_ORIGINS } from "../executions/execution.ts";
 export { resultChange, type ResultChange } from "../executions/result-change.ts";

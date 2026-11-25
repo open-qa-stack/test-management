@@ -225,6 +225,10 @@ describe("the console", () => {
       assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
   });
 
+  it("opens the entry of the agent with the request the address writes", () => {
+    assert.match(consoleAt("#/agent?request=Repair+it", { project: PROJECT }), /<textarea [^>]*>Repair it<\/textarea>/);
+  });
+
   it("shows the execution that runs at its address", () => {
     assert.match(pageOf(consoleAt("#/executions/running", { project: PROJECT })), /Exécution en cours Lecture de l’exécution/);
     assert.equal(documentTitleOf({ route: at("#/executions/running") }), "Exécution en cours · Open QA Stack");

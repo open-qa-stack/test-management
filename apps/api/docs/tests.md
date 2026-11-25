@@ -13,6 +13,7 @@ The shape of the body is the type `RepositoryTestList` of `@open-qa-stack/domain
 | `GET /api/tests/capture?path=<path>&step=<number>[&execution=<id>]` | The capture that run attached for a step. |
 | `GET /api/tests/trace?path=<path>[&execution=<id>]` | The trace that run kept of the test. |
 | `GET /api/tests/executions?path=<path>` | What came of the tests of the file in its latest executions, the latest first. |
+| `GET /api/tests/verdicts` | What came of each test the last time an execution ran it and did not skip it, whatever the environment: `{ "items": [{ "path", "title", "verdict" }] }`. |
 | `GET /api/tests/versions?path=<path>` | The versions of the tests of the file, the latest first. |
 
 `<path>` is the path of a test, relative to the root of the test repository, as `GET /api/tests` gives it. Every answer is given with `cache-control: no-store`; every answer that is not a success is a [problem](sessions.md#problems).

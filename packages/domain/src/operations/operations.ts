@@ -19,7 +19,7 @@ export const OPERATIONS = {
   RepositoryTests: ["listed"],
   TestReadings: ["read", "trace", "capture"],
   TestSources: ["read", "change"],
-  Executions: ["page", "get", "ofFile", "versions"],
+  Executions: ["page", "get", "ofFile", "verdicts", "versions"],
   Campaigns: ["plan", "list", "progress", "choose", "ready", "launch", "close"],
 } as const;
 

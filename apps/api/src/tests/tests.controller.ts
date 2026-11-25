@@ -1,11 +1,19 @@
 import { BadRequestException, Body, Controller, Get, Header, Patch, Query, StreamableFile } from "@nestjs/common";
 import { Executions, RepositoryTests, TestReadings, TestSources } from "@open-qa-stack/engine";
 import { isRecord, type TestChange, type TestEdit } from "@open-qa-stack/domain";
-import type { RepositoryTest, RepositoryTestList, TestExecutionList, TestReading, TestSource, TestVersionList } from "@open-qa-stack/domain/sessions";
+import type {
+  RepositoryTest,
+  RepositoryTestList,
+  TestExecutionList,
+  TestReading,
+  TestSource,
+  LastVerdictList,
+  TestVersionList,
+} from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /tests`, `PATCH /tests`, `GET /tests/source`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/trace`, `GET /tests/executions` and
- * `GET /tests/versions`: the operations on the tests of the test repository, said in HTTP. A test is named by its path, relative to the root of the repository, in the
+ * `GET /tests`, `PATCH /tests`, `GET /tests/source`, `GET /tests/reading`, `GET /tests/capture`, `GET /tests/trace`, `GET /tests/executions`,
+ * `GET /tests/verdicts` and `GET /tests/versions`: the operations on the tests of the test repository, said in HTTP. A test is named by its path, relative to the root of the repository, in the
  * query; a reading, a capture and a trace come from the latest run of the test, or from the execution the query names.
  */
 @Controller("tests")
@@ -72,6 +80,13 @@ export class TestsController {
   @Header("Cache-Control", "no-store")
   async executions(@Query("path") path: unknown): Promise<TestExecutionList> {
     return { items: await this.#executions.ofFile(pathOf(path)) };
+  }
+
+  /** @returns What came of each test the last time it ran, which no cache may keep. */
+  @Get("verdicts")
+  @Header("Cache-Control", "no-store")
+  async verdicts(): Promise<LastVerdictList> {
+    return { items: await this.#executions.verdicts() };
   }
 
   /** @returns The versions of the tests of the file of the path, the latest first, which no cache may keep. */

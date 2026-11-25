@@ -166,6 +166,10 @@ export class ListedInstance {
       return execution === undefined ? { status: 404, body: JSON.stringify({ code: "unknown_execution" }) } : { status: 200, body: JSON.stringify(execution) };
     }
     if (request.path === "/api/tests/executions") return { status: 200, body: JSON.stringify({ items: this.#ofFile() }) };
+    if (request.path === "/api/tests/verdicts") {
+      const items = this.executions.flatMap(({ results }) => results.filter(({ verdict }) => verdict !== "skipped"));
+      return { status: 200, body: JSON.stringify({ items: items.map(({ path, title, verdict }) => ({ path, title, verdict })) }) };
+    }
     if (request.path === "/api/tests/versions") return { status: 200, body: JSON.stringify({ items: this.versions }) };
     if (request.path === "/api/tests/capture") return { status: 200, contentType: "image/png", body: PIXEL };
     return this.configured.api(request);

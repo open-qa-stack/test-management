@@ -8,6 +8,7 @@ import {
   type ExecutionResult,
   type ExecutionStorePort,
   type TestExecution,
+  type LastVerdict,
   type TestVersion,
 } from "@open-qa-stack/domain";
 import { instant } from "../database/stored-values.ts";
@@ -227,6 +228,37 @@ export class ExecutionStore implements ExecutionStorePort {
       .limit(limit)
       .execute();
     return rows.map((row) => ({ ...headOf(row), result: resultOf(row) }));
+  }
+
+  /** @returns What came of each test the last time an execution ran it and did not skip it, by path then title; of several projects, the last of the report. */
+  async verdicts(): Promise<LastVerdict[]> {
+    const rows = await this.#database
+      .selectFrom((builder) =>
+        builder
+          .selectFrom("execution_results")
+          .innerJoin("executions", "executions.id", "execution_results.execution_id")
+          .select(["execution_results.path", "execution_results.title", "execution_results.verdict"])
+          .select(({ fn }) =>
+            fn
+              .agg<number | string>("row_number")
+              .over((over) =>
+                over
+                  .partitionBy(["execution_results.path", "execution_results.title"])
+                  .orderBy("executions.ran_at", "desc")
+                  .orderBy("executions.id", "desc")
+                  .orderBy("execution_results.position", "desc"),
+              )
+              .as("rank"),
+          )
+          .where("execution_results.verdict", "!=", "skipped")
+          .as("ranked"),
+      )
+      .select(["path", "title", "verdict"])
+      .where("rank", "=", 1)
+      .orderBy("path")
+      .orderBy("title")
+      .execute();
+    return rows.map((row) => ({ ...row, verdict: row.verdict as LastVerdict["verdict"] }));
   }
 
   /** @returns The versions of the tests of a file, the latest first, then by their titles, each with how many executions ran it. */

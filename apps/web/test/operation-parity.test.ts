@@ -52,6 +52,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "Executions.page": { client: "executionPage" },
   "Executions.get": { client: "execution" },
   "Executions.ofFile": { client: "testExecutions" },
+  "Executions.verdicts": { client: "testVerdicts" },
   "Executions.versions": { client: "testVersions" },
   "Campaigns.plan": { client: "planCampaign" },
   "Campaigns.list": { client: "campaigns" },

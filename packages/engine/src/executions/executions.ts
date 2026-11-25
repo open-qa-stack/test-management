@@ -5,6 +5,7 @@ import {
   type ExecutionQuery,
   type ExecutionStorePort,
   type TestExecution,
+  type LastVerdict,
   type TestVersion,
 } from "@open-qa-stack/domain";
 
@@ -49,6 +50,11 @@ export class Executions {
    */
   ofFile(path: string): Promise<TestExecution[]> {
     return this.#store.ofFile(path, FILE_EXECUTIONS_LIMIT);
+  }
+
+  /** @returns What came of each test the last time an execution ran it and did not skip it, by path then title. */
+  verdicts(): Promise<LastVerdict[]> {
+    return this.#store.verdicts();
   }
 
   /**

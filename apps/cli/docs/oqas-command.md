@@ -375,7 +375,7 @@ It exits with `0` when each answers, with `4` when one does not, and with `3` wh
 
 - `oqas tests read <test>` reads it in steps, as the latest run that ran it reported it: what came of it, each step with its state and duration, what the failed assertion expected and received, and whether a trace is kept.
 - `oqas tests trace <test> <file>` writes that trace to the file, which `npx playwright show-trace` opens; `oqas tests capture <test> <step> <file>` writes the capture the run attached for the step. Both are refused with `3` when the run kept none.
-- `oqas tests executions <test>` lists what came of the tests of the file in the latest executions that ran them; `oqas tests versions <test>` lists their versions, the latest first.
+- `oqas tests verdicts` lists what came of each test the last time it ran; `oqas tests executions <test>` lists what came of the tests of the file in the latest executions that ran them; `oqas tests versions <test>` lists their versions, the latest first.
 
 `oqas executions` lists the executions of tests the instance keeps, the latest first, twenty at a time: where each comes from — a session, a campaign or a launch by hand —, when it ran and how many of its tests passed. `--outcome failing` keeps those where a test failed, `--outcome passing` those where none did, `--origin` those of an origin, and `--before <execution>` starts the page after an execution. `oqas executions show <execution>` prints one, with the verdict and the version of each test, what changed since its last run — a new failure, one that failed already, or a test fixed —, and where and why a test failed. With `--output json`, each command prints what the API answers for the same question.
 

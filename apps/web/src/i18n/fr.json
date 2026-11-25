@@ -896,7 +896,21 @@
     "uncommitted": "Version de travail",
     "uncommittedNote": "Jouée avant d’être enregistrée dans le dépôt de tests, comme pendant une conception.",
     "unknown": "Ce test n’est plus dans le dépôt",
-    "unknownNote": "Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici."
+    "unknownNote": "Son fichier a été renommé ou supprimé ; ses exécutions passées restent listées ici.",
+    "tree": {
+      "title": "Tests par domaine",
+      "all": "Tous",
+      "failing": "Échoués",
+      "none": "Aucun test n’a échoué à son dernier passage.",
+      "noDomain": "Sans domaine"
+    },
+    "todo": {
+      "title": "Que faire ?",
+      "note": "Lisez d’abord le résultat : l’échec peut venir de l’application comme du test. L’agent cherche ensuite la cause, et répare le test quand c’est lui qui est en tort.",
+      "ask": "Demander à l’agent…",
+      "atStep": " à l’étape {{number}} ({{title}})",
+      "request": "Le test « {{title}} » ({{path}}) échoue{{step}}. Cherche pourquoi. Si le test est en tort, répare-le ; si c’est l’application, dis-le et laisse le test tel quel."
+    }
   },
   "executions": {
     "title": "Exécutions",

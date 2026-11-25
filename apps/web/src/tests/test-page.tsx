@@ -21,6 +21,7 @@ export function TestPage({ project, path, route }: { readonly project: string; r
   const source = usePolled(() => api.testSource(path), `${path} source:${changes}`);
   // The executions are read again as each launch ends, which brings the one of a relaunch.
   const executions = usePolled(() => api.testExecutions(path), `${path}:${ended}`);
+  const verdicts = usePolled(() => api.testVerdicts(), `verdicts:${ended}`);
   const versions = usePolled(() => api.testVersions(path), `${path} versions:${ended}`);
   // The key presses the button, against the environment chosen: a button that waits takes neither.
   useEffect(() => hearShortcuts(document, { r: () => document.querySelector<HTMLElement>(".test-relaunch button")?.click() }), []);
@@ -42,6 +43,7 @@ export function TestPage({ project, path, route }: { readonly project: string; r
       route={route}
       tests={tests}
       executions={executions}
+      verdicts={verdicts.value ?? []}
       versions={versions}
       source={source}
       saving={saving}

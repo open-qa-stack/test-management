@@ -6,6 +6,7 @@ import {
   type ExecutionQuery,
   type ExecutionStorePort,
   type TestExecution,
+  type LastVerdict,
   type TestVersion,
 } from "@open-qa-stack/domain";
 
@@ -66,6 +67,13 @@ export class MemoryExecutionStore implements ExecutionStorePort {
       results.filter((result) => result.path === path).map((result) => ({ ...head, result })),
     );
     return Promise.resolve(found.slice(0, limit));
+  }
+
+  verdicts(): Promise<LastVerdict[]> {
+    const latest = new Map<string, LastVerdict>();
+    for (const { path, title, verdict } of this.#executions.flatMap(({ results }) => results))
+      if (verdict !== "skipped") latest.set(JSON.stringify([path, title]), { path, title, verdict });
+    return Promise.resolve([...latest.values()].toSorted((left, right) => left.path.localeCompare(right.path) || left.title.localeCompare(right.title)));
   }
 
   versions(path: string): Promise<TestVersion[]> {

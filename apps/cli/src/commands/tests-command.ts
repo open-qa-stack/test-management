@@ -2,13 +2,13 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { ExitCode, type ExitCodeValue } from "@open-qa-stack/domain";
 import type { Command } from "../arguments/command.ts";
-import { anomalyLine, readingLines, testExecutionLine, testLine, versionLine } from "../output/test-lines.ts";
+import { anomalyLine, readingLines, testExecutionLine, testLine, verdictLine, versionLine } from "../output/test-lines.ts";
 import type { Asked } from "./asked.ts";
 import type { Operations } from "./operations.ts";
 import { linesOr, print } from "./print.ts";
 
 /**
- * `oqas tests`: lists the tests of the test repository; with a test, reads it in steps, lists what came of its file in
+ * `oqas tests`: lists the tests of the test repository, or what came of each the last time it ran; with a test, reads it in steps, lists what came of its file in
  * the latest executions or the versions of its tests, or writes its trace or the capture of one of its steps to a file.
  */
 export async function tested(
@@ -22,6 +22,11 @@ export async function tested(
       const listed = await tests.listed();
       const lines = listed.items.length === 0 ? ["The test repository holds no test yet."] : listed.items.map(testLine);
       print(printing, [...lines, ...listed.anomalies.map(anomalyLine)].join("\n"), listed);
+      return ExitCode.passed;
+    }
+    case "verdicts": {
+      const items = await executions.verdicts();
+      print(printing, linesOr(items.map(verdictLine), "No test ran yet."), { items });
       return ExitCode.passed;
     }
     case "read": {

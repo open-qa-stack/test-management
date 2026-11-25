@@ -896,7 +896,21 @@
     "uncommitted": "Work in progress",
     "uncommittedNote": "Run before it was saved to the test repository, as during a design.",
     "unknown": "This test is no longer in the repository",
-    "unknownNote": "Its file was renamed or removed; its past executions stay listed here."
+    "unknownNote": "Its file was renamed or removed; its past executions stay listed here.",
+    "tree": {
+      "title": "Tests by domain",
+      "all": "All",
+      "failing": "Failed",
+      "none": "No test failed in its last run.",
+      "noDomain": "Without a domain"
+    },
+    "todo": {
+      "title": "What to do?",
+      "note": "Read the result first: the failure may come from the application as from the test. The agent then looks for the cause, and repairs the test when it is the one at fault.",
+      "ask": "Ask the agent…",
+      "atStep": " at step {{number}} ({{title}})",
+      "request": "The test “{{title}}” ({{path}}) fails{{step}}. Find why. If the test is at fault, repair it; if the application is, say so and leave the test as it is."
+    }
   },
   "executions": {
     "title": "Executions",

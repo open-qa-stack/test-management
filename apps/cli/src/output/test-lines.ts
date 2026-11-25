@@ -3,6 +3,7 @@ import type {
   Execution,
   ExecutionFailure,
   ExecutionList,
+  LastVerdict,
   QaStep,
   RepositoryTest,
   RepositoryTestAnomaly,
@@ -138,4 +139,12 @@ export function testExecutionLine({ id, ranAt, result, ...execution }: TestExecu
 export function versionLine(version: TestVersion): string {
   const committed = version.commit === undefined ? "never run committed" : `commit ${version.commit}`;
   return `version ${version.number}  ${version.title}  since ${version.since}  ${version.executions} executions  ${committed}`;
+}
+
+/**
+ * @param last - What came of a test the last time it ran.
+ * @returns The line that says it, and names the test by its file and its titles.
+ */
+export function verdictLine({ path, title, verdict }: LastVerdict): string {
+  return `${verdict.padEnd(6)}  ${path} › ${title}`;
 }

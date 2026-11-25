@@ -71,6 +71,7 @@ describe("oqas tests and oqas executions", () => {
       (await terminal.oqas(["tests", "executions", FIRST])).out,
       new RegExp(`^${id} {2}design, session \\S+, on local {2}\\S+Z {2}passed {2}the test\\n$`),
     );
+    assert.match((await terminal.oqas(["tests", "verdicts"])).out, new RegExp(`^passed  ${FIRST} › `, "m"));
     assert.equal((await terminal.oqas(["tests", "executions", "nowhere.spec.ts"])).out, "No execution the instance keeps ran nowhere.spec.ts.\n");
     assert.equal((await terminal.oqas(["tests", "versions", "nowhere.spec.ts"])).out, "The instance keeps no version of nowhere.spec.ts.\n");
     assert.equal((await terminal.oqas(["tests", "read", "nowhere.spec.ts"])).out, "nowhere.spec.ts: no run the instance keeps ran it.\n");
@@ -124,14 +125,14 @@ describe("oqas tests and oqas executions", () => {
     await refused(["tests", "capture", FIRST, "1", "step.png"], `The run read of ${FIRST} attached no capture for its step 1.`);
     await refused(
       ["tests", "bogus", FIRST],
-      "oqas tests takes nothing, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.",
+      "oqas tests takes nothing, verdicts, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.",
     );
     await refused(["tests", "capture", FIRST, "first", "step.png"], "oqas tests capture needs the number of a step, from 1.");
     await refused(["tests", "step", FIRST, "test-1", "first", "Open"], "oqas tests step needs the number of a step, from 1.");
     await refused(["tests", "source", FIRST], `The test repository holds no file of tests ${FIRST}.`);
     await refused(
       ["tests", "read"],
-      "oqas tests takes nothing, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.",
+      "oqas tests takes nothing, verdicts, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.",
     );
     await refused(["tests", "--follow"], "oqas tests acts on the tests of the test repository: it takes no --brief, --environment nor --follow.");
     await refused(["executions", "show"], "oqas executions takes nothing, to list them, or show then an execution.");
