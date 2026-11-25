@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { namedPackages, touchedLine, touchedPackages } from "../src/package-choice.ts";
 import type { WorkspacePackage } from "../src/workspace-package.ts";
 

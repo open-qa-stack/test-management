@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { commitMessageFindings } from "../src/commit-message-scan.ts";
 import { GitRepository } from "../src/git-repository.ts";
@@ -63,7 +63,7 @@ describe("the commit message rules", () => {
   });
 });
 
-describe("the scan", { concurrency: true }, () => {
+describe("the scan", { concurrent: true }, () => {
   it("criterion 5 — refuses a staged file that holds a private key in the PEM format, naming the file and the rule but not the key", async () => {
     await inRepository(async (repository) => {
       await repository.stage({ "config/deploy key.pem": `${PRIVATE_KEY}\n` });

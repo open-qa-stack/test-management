@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { DemoWorkspace } from "./demo-workspace.ts";
 
 /** The source file of the demonstration package. */
@@ -145,7 +145,7 @@ async function testedTogether(workspace: DemoWorkspace): Promise<void> {
   );
 }
 
-describe("the check", { concurrency: true }, () => {
+describe("the check", { concurrent: true }, () => {
   it("criteria 1 and 9 — ends with 0 on code that passes every step, and leaves every versioned file unchanged", async () => {
     await inDemo(async (workspace) => {
       const git = (...args: string[]): string => execFileSync("git", args, { cwd: workspace.root, encoding: "utf8" });
