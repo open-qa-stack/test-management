@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "vitest";
 import { LANGUAGES, type Session, type SessionResult, type SessionTest } from "@open-qa-stack/domain/sessions";
-import { i18n, RESOURCES } from "../../src/conversation/i18n/i18n.ts";
-import { standing, stateText } from "../../src/conversation/view/session-facts.ts";
-import { after, COMPLETED, endOf, showing } from "./fixtures.ts";
-import { screenOf } from "./screen.ts";
+import { i18n, RESOURCES } from "../../../src/conversation/i18n/i18n.ts";
+import { standing, stateText } from "../../../src/conversation/view/session-facts.ts";
+import { after, COMPLETED, endOf, showing } from "../support/fixtures.ts";
+import { screenOf } from "../support/screen.ts";
 
 /** Every word of some resources, by the path of its key. */
 function wordsOf(words: object, prefix = ""): (readonly [string, string])[] {

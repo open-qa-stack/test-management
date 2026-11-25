@@ -8,7 +8,7 @@ import {
   setupStart,
   type SetupAction,
   type SetupState,
-} from "../../src/conversation/setup/model-setup/model-setup-state.ts";
+} from "../../../../src/conversation/setup/model-setup/model-setup-state.ts";
 
 const LOCAL: Model = {
   mode: "provider-key",

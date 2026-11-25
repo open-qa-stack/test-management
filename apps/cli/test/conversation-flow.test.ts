@@ -6,7 +6,7 @@ import { afterEach, describe, it } from "vitest";
 import { DatabaseUrl } from "@open-qa-stack/store";
 import { SessionEndedError } from "@open-qa-stack/domain";
 import { contextOf, reasonOf } from "../src/conversation/converse.ts";
-import { widthOf } from "./conversation/screen.ts";
+import { widthOf } from "./conversation/support/screen.ts";
 import { FakeTerminal } from "./support/fake-terminal.ts";
 import { configText } from "@open-qa-stack/testing/test-repository";
 import { chain, program, sessionOf, Terminal, workspace, type Ran } from "./support/terminal.ts";

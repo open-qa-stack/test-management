@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { themeOf } from "../../src/conversation/view/palette.ts";
-import { identityOf } from "../../src/conversation/blocks/speakers.ts";
+import { themeOf } from "../../../src/conversation/view/palette.ts";
+import { identityOf } from "../../../src/conversation/blocks/speakers.ts";
 
 const UTF8 = { LANG: "en_US.UTF-8", TERM: "xterm-256color" };
 

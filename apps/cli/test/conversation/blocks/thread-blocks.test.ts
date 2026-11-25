@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { scriptOf, type Step } from "@open-qa-stack/domain/sessions";
-import { blocksOf, MAX_LIVE_BLOCKS, settledCount, type Block } from "../../src/conversation/blocks/thread-blocks.ts";
-import { progressOf } from "../../src/conversation/blocks/thread-progress.ts";
-import { wording } from "../../src/conversation/blocks/wording.ts";
-import { COMPLETED, numbered, RUNNING, THREAD, type EventBody, completion } from "./fixtures.ts";
+import { blocksOf, MAX_LIVE_BLOCKS, settledCount, type Block } from "../../../src/conversation/blocks/thread-blocks.ts";
+import { progressOf } from "../../../src/conversation/blocks/thread-progress.ts";
+import { wording } from "../../../src/conversation/blocks/wording.ts";
+import { COMPLETED, numbered, RUNNING, THREAD, type EventBody, completion } from "../support/fixtures.ts";
 
 /** The steps a thread shows of events. */
 const stepsOf = (bodies: readonly EventBody[]): readonly Step[] => scriptOf(RUNNING, numbered(bodies), wording()).steps;
