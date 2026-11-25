@@ -839,6 +839,7 @@
     "received": "Received",
     "noCompare": "The message of the failed assertion does not say what it received: the details tell it whole.",
     "steps": "Steps",
+    "stepKeys": "← → to change step",
     "noStep": "The run reported no step of this test.",
     "summary": {
       "failedAt": "Fails at step {{step}} of {{count}}.",
@@ -1046,6 +1047,7 @@
   },
   "relaunch": {
     "button": "Run this test again",
+    "key": "Key R",
     "pending": "Sending…",
     "running": "Running again: installing, then running…",
     "finished": "Test run, its result is coming…",

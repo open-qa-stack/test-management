@@ -48,6 +48,17 @@ describe("the code of the console is covered in full", () => {
         await page.getByText("Relance en cours").waitFor();
         instance.launches = { last: { ...instance.launches.running!, endedAt: "2026-11-20T10:02:00.000Z", execution: "e1" } };
         await page.getByRole("button", { name: "Relancer ce test" }).and(page.locator(":enabled")).waitFor();
+        // The key R presses the button, but not while the person types in a panel nor with a modifier.
+        instance.launches = {};
+        await page.getByRole("link", { name: "Modifier le titre" }).click();
+        await page.getByRole("dialog").getByLabel("Titre", { exact: true }).press("r");
+        await page.keyboard.press("Escape");
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.keyboard.press("Shift+R");
+        assert.equal(instance.launches.running, undefined);
+        await page.keyboard.press("r");
+        await page.getByText("Relance en cours").waitFor();
+        instance.launches = {};
         // Without a configuration, the test runs again in the environment of the project.
         instance.unconfigured = true;
         await page.goto("http://console.test/#/tests");
@@ -261,6 +272,16 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("link", { name: /Open the policy of the customer/ }).click();
         await page.waitForURL(/&step=1$/);
         await page.getByRole("img", { name: "Capture de l’étape 1" }).waitFor({ state: "attached" });
+        // The arrows go from a step to the next, which takes the focus, and stay at the last and at the first.
+        const entries = await page.evaluate(() => history.length);
+        await page.keyboard.press("ArrowRight");
+        await page.waitForURL(/&step=2$/);
+        await page.locator(".test-step.on:focus", { hasText: "Read its amounts" }).waitFor();
+        await page.keyboard.press("ArrowRight");
+        await page.keyboard.press("ArrowLeft");
+        await page.waitForURL(/&step=1$/);
+        await page.locator(".test-step.on:focus", { hasText: "Open the policy of the customer" }).waitFor();
+        assert.equal(await page.evaluate(() => history.length), entries, "the steps gone through leave one entry of the history");
       },
       new ListedInstance().api,
     );

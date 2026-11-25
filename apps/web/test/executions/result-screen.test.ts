@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { TestReading } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
-import { ResultScreen } from "../../src/executions/result-screen.tsx";
+import { ResultScreen, stepBeside } from "../../src/executions/result-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
 import { DETAIL, READING } from "../tests/tests-fixture.ts";
 
@@ -39,7 +39,10 @@ describe("the screen of what came of a test in an execution", () => {
       /^lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Display the detail of a policy Display the detail of a policy Fiche du test →/,
     );
     assert.match(text, /Échoué Échoue à l’étape 2 sur 2\. Attendu "1500 CHF" Obtenu "250 CHF"/);
-    assert.match(text, /Étapes · 2 étapes 1 ✓ 1\. Open the policy of the customer Fill the search 224 ms 2 ✕ 2\. Read its amounts 5,0 s/);
+    assert.match(
+      text,
+      /Étapes · 2 étapes ← → pour changer d’étape 1 ✓ 1\. Open the policy of the customer Fill the search 224 ms 2 ✕ 2\. Read its amounts 5,0 s/,
+    );
     // The step that failed is shown: the run kept no capture of it.
     assert.match(text, /Écran à l’étape 2 Aucune capture pour cette étape\. Détails techniques/);
     assert.match(
@@ -50,6 +53,19 @@ describe("the screen of what came of a test in an execution", () => {
       text,
       /Détails techniques Error: expect\(locator\)\.toHaveText\(\) at policy-detail-nominal\.spec\.ts:9 opened apps\/policy-management\/tests\/policies\/policy-detail\/policy-detail-nominal\.spec\.ts \/work\/\.oqas\/test-results\/trace\.zip$/,
     );
+  });
+
+  it("goes from the step shown to the one before or after, and no further than the first and the last", () => {
+    const view = READING.view!;
+    assert.deepEqual([stepBeside(view, undefined, -1), stepBeside(view, undefined, 1)], [1, undefined]);
+    assert.deepEqual([stepBeside(view, 1, -1), stepBeside(view, 1, 1)], [undefined, 2]);
+    assert.equal(stepBeside({ ...view, steps: [], failedStep: 1 }, undefined, 1), undefined);
+  });
+
+  it("tells the keys that change step only where there are several", () => {
+    const [first] = READING.view!.steps;
+    const one = { ...RAN, view: { ...READING.view!, steps: [first!] } };
+    assert.doesNotMatch(textOf(screen({ value: one })), /pour changer d’étape/);
   });
 
   it("leads to the trace of the test, only when its run kept one", () => {

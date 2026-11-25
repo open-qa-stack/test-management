@@ -52,6 +52,20 @@ function shownStep(view: QaView, asked: number | undefined): number | undefined 
   return view.failedStep ?? steps.findLast((step) => step.capture !== undefined)?.number ?? steps[0]?.number;
 }
 
+/**
+ * The step before or after the one the screen shows.
+ *
+ * @param view - The test read in steps.
+ * @param asked - The step the address asks to show.
+ * @param by - How far: `-1` for the step before, `1` for the one after.
+ * @returns Its number; `undefined` past the first or the last step.
+ */
+export function stepBeside(view: QaView, asked: number | undefined, by: -1 | 1): number | undefined {
+  const steps = numbered(view);
+  const shown = shownStep(view, asked);
+  return steps[steps.findIndex((step) => step.number === shown) + by]?.number;
+}
+
 /** The status of each way Playwright says a test ended, as every screen names it. */
 const STATUSES: Readonly<Record<QaView["status"], Status>> = { expected: "passed", unexpected: "failed", flaky: "flaky", skipped: "skipped" };
 
@@ -161,7 +175,11 @@ function Reading({ place, view, asked }: { readonly place: Place; readonly view:
       <Summary view={view} />
       <Comparison view={view} />
       <div className="test-reading">
-        <Card title={t("test.steps")} hint={t("tests.steps", { count: steps.length })}>
+        <Card
+          title={t("test.steps")}
+          hint={t("tests.steps", { count: steps.length })}
+          {...(steps.length > 1 ? { aside: <span className="keys small muted">{t("test.stepKeys")}</span> } : {})}
+        >
           {steps.length === 0 && <EmptyState title={t("test.noStep")} />}
           {steps.map((candidate) => (
             <StepRow key={candidate.number} step={candidate} place={place} shown={candidate.number === shown} />
