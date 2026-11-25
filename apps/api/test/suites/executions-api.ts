@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
 import { Logger } from "@nestjs/common";
 import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
@@ -48,7 +48,7 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     database = await SessionDatabase.create(engine, new Logger("Database"));
   });
   beforeEach(async () => {
@@ -61,7 +61,7 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
     await api.close();
     rmSync(repository, { recursive: true, force: true });
   });
-  after(() => database.drop());
+  afterAll(() => database.drop());
 
   describe(`the executions of tests on ${engine.name}`, () => {
     it("are none until one is kept", async () => {

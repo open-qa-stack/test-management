@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
 import { Logger } from "@nestjs/common";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
@@ -18,7 +18,7 @@ export function campaignsApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     database = await SessionDatabase.create(engine, new Logger("Database"));
   });
   beforeEach(async () => {
@@ -35,7 +35,7 @@ export function campaignsApiSuite(engine: DatabaseEngine): void {
     await api.close();
     rmSync(repository, { recursive: true, force: true });
   });
-  after(() => database.drop());
+  afterAll(() => database.drop());
 
   /** Sends a request to the API, and gives its status and its body. */
   async function call(path: string, method = "GET", body?: unknown): Promise<{ status: number; body: unknown }> {

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 
-const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const TSC = join(ROOT, "node_modules", ".bin", "tsc");
 
 /** The compiler options TypeScript applies to a package, its inherited ones included. */

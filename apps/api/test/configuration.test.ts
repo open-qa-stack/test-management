@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { closedPort } from "@open-qa-stack/testing";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
@@ -17,8 +17,8 @@ import { builtConsole, databaseUrl, nonEmptyText, portNumber, testRepository, ty
 import { childEnvironment, TEST_ENVIRONMENT } from "./support/environment.ts";
 
 const DATABASE = "postgres://oqas:secret@127.0.0.1:5432/oqas";
-const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
-const RUNNING = fileURLToPath(new URL("../../docs/running.md", import.meta.url));
+const MAIN = fileURLToPath(new URL("../dist/src/main.js", import.meta.url));
+const RUNNING = fileURLToPath(new URL("../docs/running.md", import.meta.url));
 
 /** The rows of the table of variables in the documentation, each cell trimmed. */
 function documentedVariables(): string[][] {

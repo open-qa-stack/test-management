@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
 import { Logger } from "@nestjs/common";
 import { MAX_DOCUMENT_BYTES, MAX_DOCUMENTS_PER_UPLOAD } from "@open-qa-stack/domain";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
@@ -53,7 +53,7 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     database = await SessionDatabase.create(engine, new Logger("Database"));
   });
   beforeEach(async () => {
@@ -66,7 +66,7 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
     await api.close();
     rmSync(repository, { recursive: true, force: true });
   });
-  after(() => database.drop());
+  afterAll(() => database.drop());
 
   const documents = (source = "manuals") => `${api.url}/knowledge/${encodeURIComponent(source)}/documents`;
   const get = async (path: string) => answerOf(await fetch(path));

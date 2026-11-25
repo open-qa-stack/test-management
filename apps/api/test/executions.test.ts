@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { Logger } from "@nestjs/common";
 import type { PastRuns } from "@open-qa-stack/engine";
 import { ExecutionsLifecycle } from "../src/executions/executions-lifecycle.ts";

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { InvalidConfigurationError, NoConfigurationError, StaleRevisionError, type ConfigError } from "@open-qa-stack/domain";
 import { expectedProblem } from "../src/problems/expected-problem.ts";
 import { problemOf } from "../src/problems/problem-kinds.ts";

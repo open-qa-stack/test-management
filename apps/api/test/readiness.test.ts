@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { Logger } from "@nestjs/common";
 import { DatabaseUrl, runMigrations } from "@open-qa-stack/store";
@@ -10,7 +10,7 @@ import { apiFrom } from "./support/started-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { childEnvironment } from "./support/environment.ts";
 
-const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
+const MAIN = fileURLToPath(new URL("../dist/src/main.js", import.meta.url));
 const WITNESS = "witness-9d1e7b42";
 
 async function get(port: number, path: string): Promise<{ status: number; body: string }> {
@@ -20,10 +20,10 @@ async function get(port: number, path: string): Promise<{ status: number; body: 
 
 /** One server for the file: refused passwords first, then stopped and started again. */
 let server: PostgresContainer | undefined;
-before(async () => {
+beforeAll(async () => {
   server = await PostgresContainer.start();
 });
-after(() => server?.remove());
+afterAll(() => server?.remove());
 
 function started(): PostgresContainer {
   assert.ok(server !== undefined, "the server of the file did not start");

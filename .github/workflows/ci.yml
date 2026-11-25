@@ -88,17 +88,15 @@ jobs:
           if-no-files-found: ignore
 
   own:
-    # The packages with a test script of their own, api and check, each on a machine of its own, with its coverage.
+    # The packages with a test script of their own, check alone, on a machine of its own, with its coverage.
     name: own tests (${{ matrix.package }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        package: [api, check]
+        package: [check]
         include:
-          - package: api
-            folder: apps/api
           - package: check
             folder: packages/check
     steps:

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { CampaignRefusedError, UnknownCampaignError } from "@open-qa-stack/domain";
 import { campaignPlanOf, MAX_CAMPAIGN_NAME_LENGTH } from "../src/campaigns/campaign-plan.ts";
 import { campaignTestsOf, MAX_CAMPAIGN_TESTS } from "../src/campaigns/campaign-tests.ts";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
 import { Logger } from "@nestjs/common";
 import { configurationText, type OqasConfig } from "@open-qa-stack/domain";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
@@ -42,7 +42,7 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     database = await SessionDatabase.create(engine, new Logger("Database"));
   });
   beforeEach(async () => {
@@ -55,7 +55,7 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
     await api.close();
     rmSync(repository, { recursive: true, force: true });
   });
-  after(() => database.drop());
+  afterAll(() => database.drop());
 
   const get = async (path: string, on = api) => answerOf(await fetch(`${on.url}/configuration${path}`));
   const post = async (path: string, body?: unknown, on = api) =>

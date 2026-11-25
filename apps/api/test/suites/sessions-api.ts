@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -61,7 +61,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
   let started: { close(): Promise<void> }[];
   /** The test repositories a test started, whose doors are opened before anything is closed. */
   let repositories: TestRepository[];
-  before(async () => {
+  beforeAll(async () => {
     sessions = await SessionDatabase.create(engine, new Logger("Database"));
     store = sessions.store;
     quiet = await TestRepository.create([]);
@@ -78,7 +78,7 @@ export function sessionsApiSuite(engine: DatabaseEngine): void {
     await api.close();
     for (const one of started.reverse()) await one.close();
   });
-  after(async () => {
+  afterAll(async () => {
     await quiet.close();
     await sessions.drop();
   });

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { BadRequestException, Logger, type MessageEvent, NotFoundException } from "@nestjs/common";
 import type { HttpAdapterHost } from "@nestjs/core";
 import { LaunchRefusedError, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
