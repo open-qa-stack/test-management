@@ -1,6 +1,7 @@
-import type { Campaign, Execution, Session } from "@open-qa-stack/domain/sessions";
+import type { Campaign, Execution, ExecutionOrigin, Session, TestLaunch } from "@open-qa-stack/domain/sessions";
 import { durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
+import { originName } from "../i18n/vocabulary.ts";
 
 /**
  * How long the tests of an execution took together.
@@ -37,4 +38,21 @@ export function contentText(execution: Execution, sessions: readonly Session[], 
   if (campaign !== undefined) return t("executions.campaignNamed", { name: campaign.name, count: execution.results.length });
   if (execution.campaignId !== undefined) return t("executions.campaign", { count: execution.results.length });
   return request === undefined ? t("executions.tests", { count: execution.results.length }) : t("executions.session", { request });
+}
+
+/** Where the execution a launch that runs will keep comes from, by the campaign it was launched for. */
+export function launchOrigin(campaign: string | undefined): ExecutionOrigin {
+  return campaign === undefined ? "manual" : "campaign";
+}
+
+/**
+ * What a launch of tests runs, in a few words: where it comes from, with the name of its campaign, and the environment.
+ *
+ * @param launch - The launch.
+ * @param campaigns - The campaigns of the project the console listed.
+ * @returns The words.
+ */
+export function launchText({ campaign, environment }: TestLaunch, campaigns: readonly Pick<Campaign, "id" | "name">[]): string {
+  const name = campaigns.find(({ id }) => id === campaign)?.name;
+  return [originName(launchOrigin(campaign)), name, environment].filter((part) => part !== undefined).join(" · ");
 }

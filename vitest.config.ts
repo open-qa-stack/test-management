@@ -125,6 +125,7 @@ export default defineConfig({
         "**/src/tests/test-text-panel.tsx",
         "**/src/executions/executions-page.tsx",
         "**/src/executions/execution-page.tsx",
+        "**/src/executions/launch-page.tsx",
         "**/src/executions/result-page.tsx",
         "**/src/executions/trace-page.tsx",
         "**/src/agent/agent-home-page.tsx",

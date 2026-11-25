@@ -13,8 +13,9 @@ import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
 import { EXECUTION_ORIGINS, type ExecutionOrigin } from "@open-qa-stack/domain/sessions";
 import { isExecutionView, type ExecutionView } from "./executions/execution-view.ts";
-import type { ExecutionsFilter } from "./executions/executions-paths.ts";
+import { executionsHref, isExecutionsSize, type ExecutionsFilter } from "./executions/executions-paths.ts";
 import { ExecutionsPage } from "./executions/executions-page.tsx";
+import { LaunchPage } from "./executions/launch-page.tsx";
 import { ResultPage } from "./executions/result-page.tsx";
 import { TracePage } from "./executions/trace-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
@@ -58,7 +59,7 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
+  | { readonly screen: "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "campaigns" | "running" | "no_session" | "nowhere" }
   | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string; readonly view?: ExecutionView }
@@ -103,11 +104,13 @@ function stepOf(step: string | undefined): { readonly step?: number } {
 }
 
 /** What a page of the executions is narrowed to, of what the address names that the console knows. */
-function filterOf({ outcome, origin, period }: Route["query"]): ExecutionsFilter {
+function filterOf({ outcome, origin, campaign, period, size }: Route["query"]): ExecutionsFilter {
   return {
     ...(outcome === "failing" || outcome === "passing" ? { outcome } : {}),
     ...(EXECUTION_ORIGINS.some((known) => known === origin) ? { origin: origin as ExecutionOrigin } : {}),
+    ...(given(campaign) ? { campaign } : {}),
     ...(isExecutionPeriod(period) ? { period } : {}),
+    ...(isExecutionsSize(size) ? { size } : {}),
   };
 }
 
@@ -130,6 +133,7 @@ export function isTrace(route: Route): boolean {
 function executionsShown(part: string | undefined, query: Route["query"]): Shown | undefined {
   const { id, path, before, view } = query;
   if (part === undefined) return { screen: "executions", filter: filterOf(query), ...(given(before) ? { before } : {}) };
+  if (part === "running") return { screen: "running" };
   if (part === "view" && given(id)) return { screen: "execution", id, ...(isExecutionView(view) ? { view } : {}) };
   if (part === "result" && given(id) && given(path)) return { screen: "result", id, path, ...stepOf(query["step"]) };
   if (part === "trace" && given(id) && given(path)) return { screen: "trace", id, path };
@@ -209,13 +213,15 @@ function Screen(props: ConsoleProps): ReactNode {
     case "executions":
       return (
         <ExecutionsPage
-          key={`${shown.filter.outcome}:${shown.filter.origin}:${shown.filter.period}:${shown.before}`}
+          key={executionsHref(shown.filter, shown.before)}
           project={name}
           sessions={listed}
           filter={shown.filter}
           {...(shown.before === undefined ? {} : { before: shown.before })}
         />
       );
+    case "running":
+      return <LaunchPage project={name} />;
     case "execution":
       return <ExecutionPage key={shown.id} project={name} id={shown.id} sessions={listed} {...(shown.view === undefined ? {} : { view: shown.view })} />;
     case "result":

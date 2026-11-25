@@ -42,10 +42,11 @@ export class MemoryExecutionStore implements ExecutionStorePort {
     return Promise.resolve();
   }
 
-  page({ limit, before, outcome, origin, since }: ExecutionQuery): Promise<ExecutionList> {
+  page({ limit, before, outcome, origin, campaign, since }: ExecutionQuery): Promise<ExecutionList> {
     const latest = this.#latest().filter(
-      ({ results, ranAt, origin: from }) =>
+      ({ results, ranAt, origin: from, campaignId }) =>
         (origin === undefined || from === origin) &&
+        (campaign === undefined || campaignId === campaign) &&
         (outcome === undefined || results.some(({ verdict }) => verdict === "failed") === (outcome === "failing")) &&
         (since === undefined || ranAt >= since),
     );

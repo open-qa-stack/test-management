@@ -30,7 +30,7 @@ export function VerdictBadge({ verdict }: { readonly verdict: ExecutionVerdict }
  * @param props - The results of the execution.
  * @returns The badges.
  */
-export function VerdictCounts({ results }: { readonly results: readonly ExecutionResult[] }): ReactNode {
+export function VerdictCounts({ results }: { readonly results: readonly Pick<ExecutionResult, "verdict">[] }): ReactNode {
   return VERDICTS.map(([verdict, tone]) => [verdict, tone, results.filter((result) => result.verdict === verdict).length] as const)
     .filter(([, , count]) => count > 0)
     .map(([verdict, tone, count]) => (
@@ -46,8 +46,8 @@ export function VerdictCounts({ results }: { readonly results: readonly Executio
  * @param results - The results, in the order of the report.
  * @returns The same results, reordered.
  */
-export function failuresFirst(results: readonly ExecutionResult[]): readonly ExecutionResult[] {
-  const rank = (result: ExecutionResult): number => VERDICTS.findIndex(([verdict]) => verdict === result.verdict);
+export function failuresFirst<Result extends Pick<ExecutionResult, "verdict">>(results: readonly Result[]): readonly Result[] {
+  const rank = (result: Result): number => VERDICTS.findIndex(([verdict]) => verdict === result.verdict);
   return results
     .map((result, order) => ({ result, order }))
     .toSorted((left, right) => rank(left.result) - rank(right.result) || left.order - right.order)

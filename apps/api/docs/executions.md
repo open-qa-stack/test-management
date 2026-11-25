@@ -20,7 +20,7 @@ The shapes of the bodies are the types `ExecutionList` and `Execution` of `@open
 
 | Route | Answer |
 |---|---|
-| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>&origin=<origin>&since=<date>]` | A page of the executions, the latest first, each with what came of each of its tests. |
+| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>&origin=<origin>&campaign=<id>&since=<date>]` | A page of the executions, the latest first, each with what came of each of its tests. |
 | `GET /api/executions/<id>` | One execution, with what came of each of its tests. |
 | `POST /api/launches` | Launches tests of the repository as they are; `202` with the launch, which runs. |
 | `GET /api/launches` | The launch that runs, and the last one that ended, with the execution it kept. |
@@ -74,7 +74,7 @@ GET /api/executions?limit=25
 }
 ```
 
-A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did; `origin=<origin>` those of an origin; `since=<date>`, an ISO 8601 date such as `2026-11-20` or `2026-11-20T08:00:00Z`, those kept from then on. `total` tells how many executions the query keeps, every page together, and `start` the rank of the first one of the page among them, from 0: a page shows its executions `start + 1` to `start + items.length` of `total`.
+A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did; `origin=<origin>` those of an origin; `campaign=<id>` those launched for a campaign; `since=<date>`, an ISO 8601 date such as `2026-11-20` or `2026-11-20T08:00:00Z`, those kept from then on. `total` tells how many executions the query keeps, every page together, and `start` the rank of the first one of the page among them, from 0: a page shows its executions `start + 1` to `start + items.length` of `total`.
 
 | Field | What it says |
 |---|---|

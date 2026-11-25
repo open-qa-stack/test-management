@@ -7,6 +7,7 @@ import {
   type ExecutionOutcome,
   type ExecutionResult,
   type Session,
+  type TestLaunch,
 } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
@@ -17,19 +18,23 @@ import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { campaignHref } from "../campaigns/campaigns-paths.ts";
-import { contentText, executionDuration } from "./execution-text.ts";
+import { hrefTo } from "../routing/route.ts";
+import { LaunchAdvance } from "./launch-advance.tsx";
+import { contentText, executionDuration, launchOrigin, launchText } from "./execution-text.ts";
 import { EXECUTION_PERIODS } from "./execution-period.ts";
-import { executionHref, executionsHref, resultHref, type ExecutionsFilter } from "./executions-paths.ts";
+import { EXECUTIONS_SIZES, executionHref, executionsHref, resultHref, RUNNING_PATH, type ExecutionsFilter } from "./executions-paths.ts";
 import { FailureNote } from "./failure-note.tsx";
 import { failuresFirst, VerdictBadge, VerdictBar } from "./verdicts.tsx";
 
 /** The outcomes a person narrows the executions to. */
 const OUTCOMES: readonly ExecutionOutcome[] = ["failing", "passing"];
 
-/** What the person does on the screen of the executions: narrow them to an outcome, to an origin, or to a period. */
+/** What the person does on the screen of the executions: narrow them to an outcome, to an origin, to a campaign or to a period, and choose how many a page holds. */
 export interface ExecutionsControls {
   readonly outcome: ChangeEventHandler<HTMLSelectElement>;
   readonly origin: ChangeEventHandler<HTMLSelectElement>;
+  readonly campaign: ChangeEventHandler<HTMLSelectElement>;
+  readonly size: ChangeEventHandler<HTMLSelectElement>;
   readonly period: ChangeEventHandler<HTMLSelectElement>;
 }
 
@@ -48,10 +53,44 @@ export interface ExecutionsScreenProps {
   /** What the instance told of the page. */
   readonly state: PolledState<ExecutionList>;
   readonly controls: ExecutionsControls;
+  /** The launch of tests that runs, when one does. */
+  readonly running?: TestLaunch;
 }
 
-/** The lists that narrow the executions to an outcome, to an origin and to a period, every one first, the one chosen selected. */
-function Filters({ filter, controls }: { readonly filter: ExecutionsFilter; readonly controls: ExecutionsControls }): ReactNode {
+/** Whether a page shows a launch that runs: the first one, narrowed to nothing the launch is not; what comes of its tests is not known yet. */
+function showsRunning({ campaign }: TestLaunch, filter: ExecutionsFilter, before: string | undefined): boolean {
+  return (
+    before === undefined &&
+    filter.outcome === undefined &&
+    (filter.origin ?? launchOrigin(campaign)) === launchOrigin(campaign) &&
+    (filter.campaign === undefined || filter.campaign === campaign)
+  );
+}
+
+/** The launch of tests that runs, which leads to its screen: when it started, where from, against which environment, and how far it went. */
+function Running({ launch, campaigns }: { readonly launch: TestLaunch; readonly campaigns: readonly CampaignOverview[] }): ReactNode {
+  return (
+    <a className="card row exec-running" href={hrefTo(RUNNING_PATH)}>
+      <Badge tone="info">{t("running.badge")}</Badge>
+      <div className="grow">
+        <b>{dateText(launch.startedAt)}</b>
+        <div className="small muted">{launchText(launch, campaigns)}</div>
+      </div>
+      <LaunchAdvance launch={launch} />
+    </a>
+  );
+}
+
+/** The lists that narrow the executions to an outcome, to an origin, to a campaign when there is one, and to a period, every one first, the one chosen selected, then how many a page holds. */
+function Filters({
+  filter,
+  controls,
+  campaigns,
+}: {
+  readonly filter: ExecutionsFilter;
+  readonly controls: ExecutionsControls;
+  readonly campaigns: readonly CampaignOverview[];
+}): ReactNode {
   return (
     <div className="exec-filters">
       <label className="exec-filter small">
@@ -76,6 +115,19 @@ function Filters({ filter, controls }: { readonly filter: ExecutionsFilter; read
           ))}
         </select>
       </label>
+      {campaigns.length > 0 && (
+        <label className="exec-filter small">
+          <span className="muted">{t("executions.campaignFilter")}</span>
+          <select value={filter.campaign ?? ""} onChange={controls.campaign}>
+            <option value="">{t("executions.allCampaigns")}</option>
+            {campaigns.map(({ id, name }) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="exec-filter small">
         <span className="muted">{t("executions.periodFilter")}</span>
         <select value={filter.period ?? ""} onChange={controls.period}>
@@ -83,6 +135,16 @@ function Filters({ filter, controls }: { readonly filter: ExecutionsFilter; read
           {EXECUTION_PERIODS.map((period) => (
             <option key={period} value={period}>
               {t(`executions.periods.${period}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="exec-filter small">
+        <span className="muted">{t("executions.sizeFilter")}</span>
+        <select value={filter.size ?? ""} onChange={controls.size}>
+          {EXECUTIONS_SIZES.map((size, rank) => (
+            <option key={size} value={rank === 0 ? "" : size}>
+              {size}
             </option>
           ))}
         </select>
@@ -200,15 +262,17 @@ function Table({
 
 /**
  * The screen of the executions of tests the instance keeps: a page of them, the latest first, narrowed to an outcome,
- * an origin and a period the address keeps, each a line that unfolds into its tests and leads to its screen.
+ * an origin, a campaign and a period the address keeps, the launch that runs first, each a line that unfolds into its tests and leads to its screen.
  *
  * @param props - The name of the project, the filter and the page the address asks for, the sessions, what the instance told, and what the person does.
  * @returns The screen.
  */
-export function ExecutionsScreen({ project, filter, before, sessions, campaigns = [], state, controls }: ExecutionsScreenProps): ReactNode {
+export function ExecutionsScreen({ project, filter, before, sessions, campaigns = [], state, controls, running }: ExecutionsScreenProps): ReactNode {
   const title = t("executions.title");
   const page = state.value;
-  const narrowed = filter.outcome !== undefined || filter.origin !== undefined || filter.period !== undefined || before !== undefined;
+  const narrowed =
+    filter.outcome !== undefined || filter.origin !== undefined || filter.campaign !== undefined || filter.period !== undefined || before !== undefined;
+  const launch = running !== undefined && showsRunning(running, filter, before) && <Running launch={running} campaigns={campaigns} />;
   return (
     <Page
       crumbs={[{ label: project }, { label: title }]}
@@ -220,10 +284,11 @@ export function ExecutionsScreen({ project, filter, before, sessions, campaigns 
           <span role="status">{state.unread ?? t("executions.readingNote")}</span>
         </EmptyState>
       ) : page.items.length === 0 && !narrowed ? (
-        <EmptyState title={t("executions.none")}>{t("executions.noneNote")}</EmptyState>
+        launch || <EmptyState title={t("executions.none")}>{t("executions.noneNote")}</EmptyState>
       ) : (
         <>
-          <Filters filter={filter} controls={controls} />
+          <Filters filter={filter} controls={controls} campaigns={campaigns} />
+          {launch}
           {page.items.length === 0 ? (
             <EmptyState title={t("executions.noMatch")}>{t("executions.noMatchNote")}</EmptyState>
           ) : (

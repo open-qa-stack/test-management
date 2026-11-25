@@ -343,8 +343,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screens of the executions when they are used in the browser, from a page to an execution and to a result", async () => {
     const instance = new ListedInstance();
-    const [list, one, polled] = await app().measure(
-      ["src/executions/executions-page.tsx", "src/executions/execution-page.tsx", "src/api/use-polled.ts"],
+    const [list, one, followed, polled] = await app().measure(
+      ["src/executions/executions-page.tsx", "src/executions/execution-page.tsx", "src/executions/launch-page.tsx", "src/api/use-polled.ts"],
       async (page) => {
         // An execution the instance does not keep is said so, in the words of the console.
         await page.goto("http://console.test/#/executions/view?id=gone");
@@ -368,6 +368,21 @@ describe("the code of the console is covered in full", () => {
         await page.waitForURL(/#\/executions\?period=week$/);
         await period.selectOption("");
         await page.waitForURL(/#\/executions$/);
+        await page.getByLabel(/^Campagne/).selectOption({ index: 1 });
+        await page.waitForURL(/#\/executions\?campaign=/);
+        await page.getByLabel(/^Campagne/).selectOption("");
+        await page.getByLabel("Par page").selectOption("50");
+        await page.waitForURL(/#\/executions\?size=50$/);
+        await page.getByLabel("Par page").selectOption("");
+        await page.waitForURL(/#\/executions$/);
+        // The launch that runs is followed to the execution it kept, which opens in its place.
+        const running = { startedAt: "2026-11-20T09:01:00.000Z", environment: "local", paths: [DETAIL] };
+        instance.launches = { running };
+        await page.getByRole("link", { name: /En cours/ }).click();
+        await page.getByText("Exécution en cours depuis").waitFor();
+        instance.launches = { last: { ...running, endedAt: "2026-11-20T09:02:00.000Z", execution: EXECUTIONS[0]!.id } };
+        await page.waitForURL(`**/#/executions/view?id=${EXECUTIONS[0]!.id}`);
+        await page.goto("http://console.test/#/executions");
         await page.locator(".exec-row summary").first().click();
         await page
           .getByRole("link", { name: /Ouvrir l’exécution/ })
@@ -394,7 +409,7 @@ describe("the code of the console is covered in full", () => {
       },
       instance.api,
     );
-    for (const measured of [list, one, polled]) {
+    for (const measured of [list, one, followed, polled]) {
       assert.ok(measured!.lines.length > 0, "the module is in the build");
       assert.deepEqual(measured!.uncovered, []);
     }

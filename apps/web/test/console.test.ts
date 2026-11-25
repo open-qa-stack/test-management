@@ -206,6 +206,10 @@ describe("the console", () => {
       "origin=robot",
       "period=week",
       "period=year",
+      "campaign=c1",
+      "campaign=",
+      "size=50",
+      "size=7",
       "before=e1",
       "before=",
     ])
@@ -219,6 +223,11 @@ describe("the console", () => {
       "#/executions/view/e1",
     ])
       assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
+  });
+
+  it("shows the execution that runs at its address", () => {
+    assert.match(pageOf(consoleAt("#/executions/running", { project: PROJECT })), /Exécution en cours Lecture de l’exécution/);
+    assert.equal(documentTitleOf({ route: at("#/executions/running") }), "Exécution en cours · Open QA Stack");
   });
 
   it("shows the campaigns and one campaign at their addresses, which read them from the instance", () => {

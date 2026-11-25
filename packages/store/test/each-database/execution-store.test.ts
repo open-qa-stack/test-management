@@ -125,6 +125,17 @@ describe("the executions of tests the store keeps", () => {
     assert.deepEqual(await store.page({ limit: 25, origin: "manual" }), { items: [launched], total: 1, start: 0 });
   });
 
+  it("are read by the campaign they were launched for", async () => {
+    await database.database.kysely
+      .insertInto("campaigns")
+      .values({ id: "c1", name: "Release", environment: "local", status: "planned", created_at: at(0) })
+      .execute();
+    const launched = execution("e1", 10, { origin: "campaign", campaignId: "c1" });
+    await store.add(launched);
+    await store.add(execution("e2", 20));
+    assert.deepEqual(await store.page({ limit: 25, campaign: "c1" }), { items: [launched], total: 1, start: 0 });
+  });
+
   it("are read by what came of their tests: failing when one of them failed, passing when none did", async () => {
     const failing = execution("e1", 10, { results: [result("Search an order"), result("Filter", { verdict: "failed" })] });
     const passing = execution("e2", 20, { results: [result("Search an order", { verdict: "flaky" })] });

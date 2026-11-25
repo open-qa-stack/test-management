@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import type { ExecutionList, Session } from "@open-qa-stack/domain/sessions";
+import type { ExecutionList, Session, TestLaunch } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { ExecutionsScreen, type ExecutionsControls, type ExecutionsScreenProps } from "../../src/executions/executions-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
@@ -12,7 +12,13 @@ import { DETAIL, EXECUTIONS } from "./executions-fixture.ts";
 const SESSION = { id: "8d3f1a52-0c4e-4b8a-9e61-7f2a5c9d0b13", request: "Test the policies", openedAt: "", lastEventAt: "", state: "completed" } as Session;
 
 /** What the person does on the screen, which drawing it never calls. */
-const CONTROLS: ExecutionsControls = { outcome: () => undefined, origin: () => undefined, period: () => undefined };
+const CONTROLS: ExecutionsControls = {
+  outcome: () => undefined,
+  origin: () => undefined,
+  campaign: () => undefined,
+  period: () => undefined,
+  size: () => undefined,
+};
 
 /** A page of the executions, the first of those the query keeps unless the page says otherwise. */
 const pageOf = (items: ExecutionList["items"], more: Partial<ExecutionList> = {}): ExecutionList => ({ items, total: items.length, start: 0, ...more });
@@ -32,10 +38,16 @@ describe("the executions of the tests", () => {
       textOf(screen({ value: pageOf([]) })),
       /Aucune exécution pour l’instant Les exécutions des tests apparaissent ici dès qu’une session de l’agent a lancé/,
     );
-    for (const more of [{ filter: { outcome: "failing" } }, { filter: { origin: "manual" } }, { filter: { period: "day" } }, { before: "e1" }] as const)
+    for (const more of [
+      { filter: { outcome: "failing" } },
+      { filter: { origin: "manual" } },
+      { filter: { campaign: "c1" } },
+      { filter: { period: "day" } },
+      { before: "e1" },
+    ] as const)
       assert.match(
         textOf(screen({ value: pageOf([]) }, more)),
-        /30 derniers jours Aucune exécution ne correspond Aucune exécution gardée ne correspond à ces filtres\.$/,
+        /30 derniers jours Par page 25 50 100 Aucune exécution ne correspond Aucune exécution gardée ne correspond à ces filtres\.$/,
       );
   });
 
@@ -43,7 +55,7 @@ describe("the executions of the tests", () => {
     const text = textOf(screen());
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Origine Toutes les origines Session de l’agent Lancement manuel Campagne Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
+      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Origine Toutes les origines Session de l’agent Lancement manuel Campagne Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Par page 25 50 100 Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
     );
     assert.match(text, / Session de l’agent Session « Test the policies » 1 échoué 1 instable 9 s Échoué /);
     assert.doesNotMatch(text, /4f2a9c0/);
@@ -68,6 +80,7 @@ describe("the executions of the tests", () => {
       counts: { passed: 0, failed: 0, flaky: 0, skipped: 0, not_run: 0 },
     };
     const named = screen({ value: pageOf([launched]) }, { campaigns: [campaign] });
+    assert.match(textOf(named), / Campagne Toutes les campagnes Recette 4\.2 Période /);
     assert.match(named, /<span class="exec-content small"><a href="#\/campaigns\/view\?id=c1">Campagne « Recette 4\.2 » · 5 tests<\/a><\/span>/);
   });
 
@@ -103,6 +116,20 @@ describe("the executions of the tests", () => {
       `#/executions/view?id=${second!.id}`,
       `#/executions/view?id=${second!.id}`,
     ]);
+  });
+
+  it("shows the launch that runs above the executions kept, on the first page, unless narrowed to what it is not", () => {
+    const running: TestLaunch = { startedAt: "2026-11-19T11:00:00.000Z", environment: "staging", paths: [DETAIL] };
+    const told = / En cours 19 nov\. 2026, \d\d:\d\d Lancement manuel · staging Préparation des tests…/;
+    assert.match(textOf(screen(undefined, { running })), told);
+    assert.match(textOf(screen(undefined, { running, filter: { origin: "manual", period: "day" } })), told);
+    assert.equal(linksOf(screen(undefined, { running }))[0], "#/executions/running");
+    for (const more of [{ filter: { outcome: "failing" } }, { filter: { origin: "design" } }, { filter: { campaign: "c1" } }, { before: "e1" }] as const)
+      assert.doesNotMatch(textOf(screen(undefined, { running, ...more })), /En cours/);
+    // It is there too when the instance keeps none yet, and tells how far it went.
+    const some = { ...running, campaign: "c1", progress: { total: 5, finished: [{ path: DETAIL, title: "A", verdict: "passed" as const }] } };
+    const alone = textOf(screen({ value: pageOf([]) }, { running: some, filter: {} }));
+    assert.match(alone, / Campagne · staging 1 tests sur 5$/);
   });
 
   it("selects the filter chosen, tells which executions the page shows, and leads to the older ones and back to the latest ones, keeping the filter", () => {
