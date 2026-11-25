@@ -36,6 +36,7 @@ export class CoherenceReviewer implements CoherenceJudge {
   /** {@inheritDoc CoherenceJudge.judge} */
   public async judge(scenario: PlannedScenario, test: string): Promise<readonly CoherenceFinding[]> {
     return reportedFindings(this.run, {
+      agent: "coherence-reviewer",
       instructions: COHERENCE_REVIEWER_INSTRUCTIONS,
       request: coherenceRequest(scenario, test),
       tool: FINDINGS_TOOL,

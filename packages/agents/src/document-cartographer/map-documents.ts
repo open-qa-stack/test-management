@@ -55,6 +55,7 @@ export async function mapDocuments(options: MapDocumentsOptions): Promise<Sessio
   const sections = new Map(await Promise.all(listing.files.map(async ({ path }) => [path, await documents.sections(path)] as const)));
   const map = new DocumentMap({ sourceId: source.id, documents, files: listing.files, sections, watch, secrets: options.secrets, journal });
   const task = {
+    agent: "document-cartographer" as const,
     instructions: documentCartographerInstructions(source.id),
     tools: [...watch.watched(documentTools(source.id, documents)), ...options.notes, ...map.tools()],
     request: documentMapRequest(source.id, listing.files),

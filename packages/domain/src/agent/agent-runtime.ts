@@ -1,9 +1,12 @@
+import type { AgentKey } from "./agent-key.ts";
 import type { AgentSession } from "./agent-session.ts";
 import type { TaskLimits } from "./task-limits.ts";
 import type { ToolDefinition } from "./tool-definition.ts";
 
 /** What a session starts with. */
 export interface SessionOptions {
+  /** The agent the session is of, which the team may give instructions to; left out for none of those. */
+  readonly agent?: AgentKey;
   /** System instructions for the agent, replacing any default. */
   readonly instructions: string;
   /** The only tools the agent may call. */

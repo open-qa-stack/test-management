@@ -5,7 +5,7 @@ import type { AddressTest, ConfigurationAction } from "./configuration-state.ts"
 /** What the fields of the configuration share: what reads what the person did, and the errors the instance found. */
 export interface ConfigurationEdit {
   /** Reads a change of a field, named by its pointer, and applies it. */
-  readonly change: ChangeEventHandler<HTMLInputElement | HTMLSelectElement>;
+  readonly change: ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
   /** Reads a press of a button that adds or removes an item, and applies it. */
   readonly click: MouseEventHandler<HTMLButtonElement>;
   /** The errors of the draft, each where it is. */

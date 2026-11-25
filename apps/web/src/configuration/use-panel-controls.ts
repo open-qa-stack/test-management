@@ -18,7 +18,8 @@ export function usePanelControls(controls: ConfigurationControls, route: Route, 
   useEffect(() => {
     if (saved === lastSaved.current) return;
     lastSaved.current = saved;
-    if (panel !== undefined && closesOnSave) window.location.hash = withPanel(route);
+    // A change made after a save clears what was saved: only a new save closes the panel.
+    if (saved !== undefined && panel !== undefined && closesOnSave) window.location.hash = withPanel(route);
   }, [saved, panel, closesOnSave, route]);
   return {
     ...controls,

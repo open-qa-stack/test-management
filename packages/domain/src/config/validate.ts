@@ -137,6 +137,7 @@ export function resolvedConfig(data: OqasConfig): ResolvedConfig {
       testLanguage: data.design?.testLanguage ?? DEFAULT_LANGUAGE,
     },
     model: data.model,
+    agents: data.agents ?? {},
     autonomy: { level: (data.autonomy ?? DEFAULT_AUTONOMY).level, limits: resolveLimits(data.autonomy ?? DEFAULT_AUTONOMY) },
   };
 }

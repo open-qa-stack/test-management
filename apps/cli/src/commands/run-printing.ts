@@ -2,6 +2,7 @@ import type { ExitCodeValue } from "@open-qa-stack/domain";
 import { playwrightVersion } from "@open-qa-stack/tools";
 import type { Arguments } from "../arguments/arguments.ts";
 import { RepositoryInit } from "../project/repository-init.ts";
+import { instructed } from "./agents-command.ts";
 import { addressesChecked } from "./applications-command.ts";
 import { campaigned } from "./campaigns-command.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -49,6 +50,8 @@ export async function runPrinting(
       if (command.action === "history") return historied(await configuration.revisions(), { options, io });
       if (command.action === "check") return await fileChecked(configuration, repository, { options, io });
       return await configured({ configuration, command, options, io });
+    case "agents":
+      return await instructed({ configuration, command, options, io });
     case "project":
       return projected(await sessions.project(), { options, io });
     case "repository":

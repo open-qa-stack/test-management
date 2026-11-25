@@ -86,6 +86,35 @@ export function InputField({ pointer, label, hint, value, kind, numeric = false,
   );
 }
 
+/**
+ * A field that takes a text of several lines, with the errors the instance found there.
+ *
+ * @param props - Where it is, its label, what it holds, and how long it may be.
+ * @returns The field.
+ */
+export function TextField({ pointer, label, hint, value, max }: FieldBase & { readonly value: string | undefined; readonly max: number }): ReactNode {
+  const { change } = useContext(EditContext);
+  const { texts, described } = useDescription(pointer, hint);
+  const id = idOf(pointer);
+  return (
+    <div className="config-field">
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        id={id}
+        name={pointer}
+        data-kind="text"
+        rows={10}
+        maxLength={max}
+        value={value ?? ""}
+        onChange={change}
+        aria-invalid={texts.length > 0}
+        aria-describedby={described}
+      />
+      <FieldNotes pointer={pointer} hint={hint} texts={texts} />
+    </div>
+  );
+}
+
 /** What a list of choices shows. */
 export interface ChoiceFieldProps extends FieldBase {
   readonly value: string | undefined;

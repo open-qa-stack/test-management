@@ -109,6 +109,7 @@
     "stop": "Stop the session on screen, after a confirmation",
     "ui": "Serve the web console from this process and print its address",
     "model": "Set the connection to the model step by step; followed by status or set, as oqas model does",
+    "agents": "instruct or clear: what the team asks of each agent, as oqas agents does",
     "config": "show, import or export: the configuration in force and oqas.json, as oqas config does",
     "knowledge": "list, mapping, check, remap or add-document: the knowledge sources, as oqas knowledge does",
     "applications": "check: test that each address of the environments answers, as oqas applications does",

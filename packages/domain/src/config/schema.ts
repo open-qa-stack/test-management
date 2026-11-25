@@ -1,3 +1,5 @@
+import { AGENT_KEYS } from "../agent/agent-key.ts";
+import { MAX_TEAM_INSTRUCTIONS } from "../agent/team-instructions.ts";
 import { LANGUAGES } from "./language.ts";
 
 /** Pattern every environment variable name must match. */
@@ -62,6 +64,20 @@ const ownModel = {
   },
 } as const;
 
+/** What the team asks of one agent. */
+const agentSettings = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    instructions: {
+      type: "string",
+      minLength: 1,
+      maxLength: MAX_TEAM_INSTRUCTIONS,
+      description: "What is added at the end of the prompt of the agent, which stays as it is.",
+    },
+  },
+} as const;
+
 /** The models of the roles that have one of their own. */
 const roleModels = {
   type: "object",
@@ -99,6 +115,12 @@ export const configSchema = {
     cartography: { $ref: "#/$defs/cartography" },
     design: { $ref: "#/$defs/design" },
     model: { $ref: "#/$defs/model" },
+    agents: {
+      type: "object",
+      additionalProperties: false,
+      description: "What the team asks of each agent, added at the end of its prompt.",
+      properties: Object.fromEntries(AGENT_KEYS.map((agent) => [agent, agentSettings])),
+    },
     autonomy: { $ref: "#/$defs/autonomy" },
   },
   $defs: {

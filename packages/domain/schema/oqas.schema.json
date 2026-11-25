@@ -52,6 +52,145 @@
     "model": {
       "$ref": "#/$defs/model"
     },
+    "agents": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the team asks of each agent, added at the end of its prompt.",
+      "properties": {
+        "source-cartographer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "source-grouping": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "domain-writer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "document-cartographer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "application-explorer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "cartography-orchestrator": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "planner": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "plan-reviewer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "writer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "coherence-reviewer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        },
+        "code-reviewer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+            }
+          }
+        }
+      }
+    },
     "autonomy": {
       "$ref": "#/$defs/autonomy"
     }

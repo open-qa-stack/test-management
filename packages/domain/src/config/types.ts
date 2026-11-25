@@ -1,3 +1,4 @@
+import type { AgentsSettings } from "../agent/team-instructions.ts";
 /** Version of the configuration file format, independent of the product version. */
 export type FormatVersion = 1;
 
@@ -244,6 +245,8 @@ export interface OqasConfig {
   cartography?: CartographySettings;
   design?: DesignSettings;
   model: Model;
+  /** What the team asks of each agent. */
+  agents?: AgentsSettings;
   /** `autonomous` when absent. */
   autonomy?: Autonomy;
 }
@@ -311,6 +314,7 @@ export interface ResolvedConfig {
   cartography: Required<CartographySettings>;
   design: Required<DesignSettings>;
   model: Model;
+  agents: AgentsSettings;
   autonomy: { level: Autonomy["level"]; limits: ResolvedLimits };
 }
 

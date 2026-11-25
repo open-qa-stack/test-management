@@ -11,6 +11,8 @@ import {
   NoConfigurationError,
   roleConfig,
   scopedConfig,
+  type AgentKey,
+  type AgentRuntime,
   type ModelRole,
   type DomainSetting,
   validateConfig,
@@ -38,6 +40,7 @@ import { GuardedRuntime } from "../runtime/guarded-runtime.ts";
 import { RunStoppedError } from "../runtime/run-stopped-error.ts";
 import { SpokenRuntime } from "../runtime/spoken-runtime.ts";
 import { StoppableRuntime } from "../runtime/stoppable-runtime.ts";
+import { TeamRuntime } from "../runtime/team-runtime.ts";
 import { exitCodeOf } from "./exit-code.ts";
 import { missingPrerequisites } from "./prerequisites.ts";
 import { RunJournal } from "./run-journal.ts";
@@ -225,12 +228,20 @@ export class Run {
       });
       return exitCode;
     };
+    // What the team asks of an agent is told once a run, in the step its role works in.
+    const followed = new Set<AgentKey>();
+    const asked = (runtime: AgentRuntime, role: ModelRole): AgentRuntime =>
+      new TeamRuntime(runtime, config.agents, (agent, digest) => {
+        if (!followed.has(agent))
+          journal.record(role === "cartographer" ? "cartography" : "design", "info", `The ${agent} follows the instructions of the team (${digest}).`);
+        followed.add(agent);
+      });
     // The runtime of a role is opened by the first step that calls its model; roles on the same model share it.
-    const agents = async (role: ModelRole): Promise<CountedRuntime> => {
+    const agents = async (role: ModelRole): Promise<AgentRuntime> => {
       const own = roleConfig(config, role);
       const key = JSON.stringify(own.model);
       const known = opened.get(key);
-      if (known !== undefined) return known.counted;
+      if (known !== undefined) return asked(known.counted, role);
       const open = await this.options.openRuntime(own);
       const { guardrailMinutes } = config.autonomy.limits;
       // Every session of the run speaks to the person in their language.
@@ -238,7 +249,7 @@ export class Run {
       const stoppable = this.options.stop === undefined ? spoken : new StoppableRuntime(spoken, this.options.stop);
       const counted = new CountedRuntime(new GuardedRuntime(stoppable, started.getTime() + guardrailMinutes * 60_000, () => now().getTime()));
       opened.set(key, { counted, open });
-      return counted;
+      return asked(counted, role);
     };
     const observed = { inbox, ...(this.options.follow === undefined ? {} : { observe: this.options.follow }) };
     /** Tells the model a role works with, when the configuration gives some role one of its own. */
