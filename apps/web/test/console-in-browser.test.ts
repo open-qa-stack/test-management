@@ -39,7 +39,8 @@ describe("the console in a browser", () => {
       assert.deepEqual(instance.resumed.slice(0, 2), [undefined, "6"]);
       instance.complete();
       await page.getByText("Verdict de l’exécution : 1 test").waitFor();
-      assert.equal(await page.getByRole("status").filter({ hasText: "travaille" }).count(), 0);
+      // The verdict and the end of the work are two renders: the sign that the agents work goes a moment after the verdict shows.
+      await page.getByRole("status").filter({ hasText: "travaille" }).waitFor({ state: "detached" });
       assert.equal(instance.resumed.at(-1), String(EVENTS.length));
     } finally {
       await page.close();
