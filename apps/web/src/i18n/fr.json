@@ -965,6 +965,15 @@
       "fixed_other": "{{count}} corrigés"
     },
     "since": "Depuis le dernier passage de chaque test : {{changes}}",
+    "views": {
+      "label": "Tests à montrer",
+      "attention": "À regarder",
+      "all": "Tous",
+      "new_failures": "Nouveaux échecs",
+      "fixed": "Corrigés",
+      "flaky": "Instables"
+    },
+    "noneInView": "Aucun test dans cette vue.",
     "duration": "Durée {{duration}}",
     "launchedBy": "Lancée par la session « {{request}} »",
     "bySession": "Lancée par une session de l’agent",

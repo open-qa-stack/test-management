@@ -2,6 +2,7 @@ import type { ExecutionOrigin, ExecutionOutcome } from "@open-qa-stack/domain/se
 import { API_BASE } from "../api/api-client.ts";
 import { hrefTo } from "../routing/route.ts";
 import type { ExecutionPeriod } from "./execution-period.ts";
+import type { ExecutionView } from "./execution-view.ts";
 
 /** What a page of the executions is narrowed to: what came of their tests, where they come from, how far back they go. */
 export interface ExecutionsFilter {
@@ -45,10 +46,11 @@ export function executionsHref({ outcome, origin, period }: ExecutionsFilter = {
  * The link to the screen of an execution.
  *
  * @param id - The identifier of the execution.
+ * @param view - Which of its tests it shows; those it opens on by default.
  * @returns The fragment to put in an `href`.
  */
-export function executionHref(id: string): string {
-  return hrefTo(EXECUTION_PATH, { id });
+export function executionHref(id: string, view?: ExecutionView): string {
+  return hrefTo(EXECUTION_PATH, { id, ...(view === undefined ? {} : { view }) });
 }
 
 /**

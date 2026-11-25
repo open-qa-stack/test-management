@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { ExecutionFailure, Execution, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
+import { EXECUTION_VIEWS, type ExecutionView } from "../../src/executions/execution-view.ts";
 import { ExecutionScreen, failedPaths } from "../../src/executions/execution-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
 import { nameApplications } from "../../src/applications/application-names.ts";
@@ -14,9 +15,10 @@ const [LATEST, PAST] = EXECUTIONS as [Execution, Execution];
 const SESSION = { id: LATEST.sessionId, request: "Test the policies", openedAt: "", lastEventAt: "", state: "completed" } as Session;
 
 /** The screen of an execution in a state, with the sessions the console knows, as HTML. */
-const screen = (state: PolledState<Execution>, sessions: readonly Session[] = [SESSION], id = LATEST.id): string =>
+const screen = (state: PolledState<Execution>, sessions: readonly Session[] = [SESSION], id = LATEST.id, view: ExecutionView = "all"): string =>
   render(
     createElement(ExecutionScreen, {
+      view,
       project: "lakeside-tests",
       id,
       sessions,
@@ -38,7 +40,7 @@ describe("the screen of an execution", () => {
     nameApplications([]);
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec 1 échoué 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Voir la session → Policy Management · 5 tests /,
+      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec 1 échoué 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Voir la session → À regarder · 1 Tous · 5 Nouveaux échecs · 0 Corrigés · 0 Instables · 1 Policy Management · 5 tests /,
     );
     assert.match(text, / Détails techniques Version du dépôt de tests : 4f2a9c0$/);
     assert.match(
@@ -46,7 +48,16 @@ describe("the screen of an execution", () => {
       /Policy Management · 5 tests Échoué Policies › Edit a policy Étape 3 · Save the policy Attendu "Saved", obtenu "Refused" 5 s Instable Policies › Filter the policies 1 s Réussi Display the detail/,
     );
     const result = `#/executions/result?id=${LATEST.id}&path=${encodeURIComponent(DETAIL)}`;
-    assert.deepEqual(linksOf(screen({ value: LATEST })), ["#/executions", `#/agent/sessions/${LATEST.sessionId}`, result, result, result, result, result]);
+    assert.deepEqual(linksOf(screen({ value: LATEST })), [
+      "#/executions",
+      `#/agent/sessions/${LATEST.sessionId}`,
+      ...EXECUTION_VIEWS.map((view) => `#/executions/view?id=${LATEST.id}&view=${view}`),
+      result,
+      result,
+      result,
+      result,
+      result,
+    ]);
     // A session the console did not list is named as a session of design all the same.
     assert.match(textOf(screen({ value: LATEST }, [])), /Lancée par une session de l’agent /);
   });
@@ -95,6 +106,28 @@ describe("the screen of an execution", () => {
     );
     assert.match(html, /<option value="staging" selected="">staging<\/option><option value="local">/);
     assert.match(textOf(html), /1 ignoré staging Durée/);
+  });
+
+  it("opens on the tests to look at, shows those of another view, and says a view holds none", () => {
+    const told = (view?: ExecutionView, value: Execution = LATEST) =>
+      textOf(
+        render(
+          createElement(ExecutionScreen, {
+            ...(view === undefined ? {} : { view }),
+            project: "lakeside-tests",
+            id: LATEST.id,
+            sessions: [],
+            state: { value },
+            relaunch: { environments: [], pending: false },
+            onRelaunch: () => undefined,
+          }),
+        ),
+      );
+    assert.match(told(), / · 1 test Échoué Policies › Edit a policy/);
+    assert.match(told("flaky"), / · 1 test Instable Policies › Filter the policies/);
+    assert.match(told("fixed"), /Instables · 1 Aucun test dans cette vue\./);
+    const passed = { ...LATEST, results: LATEST.results.filter(({ verdict }) => verdict === "passed") };
+    assert.match(told(undefined, passed), / · 2 tests Réussi Display/);
   });
 
   it("runs the files of its failures again, each once, but not for a campaign nor without a failure", () => {

@@ -12,7 +12,8 @@ import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { executionDuration, requestOf } from "./execution-text.ts";
-import { EXECUTIONS_PATH, resultHref } from "./executions-paths.ts";
+import { EXECUTION_VIEWS, openingView, shownIn, type ExecutionView } from "./execution-view.ts";
+import { EXECUTIONS_PATH, executionHref, resultHref } from "./executions-paths.ts";
 import { FailureNote } from "./failure-note.tsx";
 import { failuresFirst, VerdictBadge, VerdictCounts } from "./verdicts.tsx";
 import { campaignHref } from "../campaigns/campaigns-paths.ts";
@@ -25,6 +26,8 @@ export interface ExecutionScreenProps {
   readonly id: string;
   /** The sessions of the project the console listed, which name the one that ran the execution. */
   readonly sessions: readonly Session[];
+  /** Which of its tests the address asks to show; those it opens on by default. */
+  readonly view?: ExecutionView;
   /** What the instance told of the execution. */
   readonly state: PolledState<Execution>;
   /** Where the relaunch of its failures stands. */
@@ -104,12 +107,32 @@ function ResultRow({ execution, result }: { readonly execution: Execution; reado
   );
 }
 
-/** The tests of the execution, application by application in the order they first came, the failures first in each. */
-function Results({ execution }: { readonly execution: Execution }): ReactNode {
+/** The views of the execution, each with how many tests it shows, the one shown marked. */
+function Views({ execution, shown }: { readonly execution: Execution; readonly shown: ExecutionView }): ReactNode {
+  return (
+    <nav className="exec-views" aria-label={t("execution.views.label")}>
+      {EXECUTION_VIEWS.map((view) => (
+        <a
+          key={view}
+          className={view === shown ? "chip on" : "chip"}
+          href={executionHref(execution.id, view)}
+          aria-current={view === shown ? "page" : undefined}
+        >
+          {t(`execution.views.${view}`)} · {shownIn(execution.results, view).length}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
+/** The tests of the execution a view shows, application by application in the order they first came, the failures first in each. */
+function Results({ execution, view }: { readonly execution: Execution; readonly view: ExecutionView }): ReactNode {
   if (execution.results.length === 0) return <EmptyState title={t("execution.noTest")} />;
-  const projects = [...new Set(execution.results.map((result) => result.project))];
+  const shown = shownIn(execution.results, view);
+  if (shown.length === 0) return <EmptyState title={t("execution.noneInView")} />;
+  const projects = [...new Set(shown.map((result) => result.project))];
   return projects.map((project) => {
-    const results = failuresFirst(execution.results.filter((result) => result.project === project));
+    const results = failuresFirst(shown.filter((result) => result.project === project));
     return (
       <Card key={project} title={applicationName(project)} hint={t("tests.count", { count: results.length })}>
         {results.map((result, rank) => (
@@ -122,13 +145,14 @@ function Results({ execution }: { readonly execution: Execution }): ReactNode {
 
 /**
  * The screen of an execution: what came of its tests, against which environment, what changed since the last run of each, how long it took, where it comes from and at which version,
- * then its tests, each leading to what came of it; the files of those that failed run again on demand.
+ * then its tests, those to look at first, or those of another view, each leading to what came of it; the files of those that failed run again on demand.
  *
  * @param props - The name of the project, the identifier of the execution, the sessions, and what the instance told.
  * @returns The screen.
  */
-export function ExecutionScreen({ project, id, sessions, state, relaunch, onRelaunch }: ExecutionScreenProps): ReactNode {
+export function ExecutionScreen({ project, id, sessions, view, state, relaunch, onRelaunch }: ExecutionScreenProps): ReactNode {
   const execution = state.value;
+  const shown = view ?? openingView(execution?.results ?? []);
   // The failures of a campaign are launched from it, so that their execution belongs to it.
   const failures = execution === undefined || execution.campaignId !== undefined ? 0 : failuresOf(execution).length;
   const several = { label: t("execution.relaunch", { count: failures }), note: t("execution.relaunchNote") };
@@ -170,7 +194,8 @@ export function ExecutionScreen({ project, id, sessions, state, relaunch, onRela
               <Origin execution={execution} sessions={sessions} />
             </div>
           </Card>
-          <Results execution={execution} />
+          {execution.results.length > 0 && <Views execution={execution} shown={shown} />}
+          <Results execution={execution} view={shown} />
           <TechnicalDetails>
             {execution.commit === undefined ? t("execution.noVersion") : t("execution.version", { commit: execution.commit.slice(0, 7) })}
           </TechnicalDetails>

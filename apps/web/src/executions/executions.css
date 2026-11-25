@@ -92,6 +92,13 @@
 }
 
 /* The lists that narrow the executions, side by side, each under its name. */
+.exec-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
 .exec-filters {
   display: flex;
   flex-wrap: wrap;

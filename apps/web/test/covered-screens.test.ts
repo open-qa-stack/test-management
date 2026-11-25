@@ -374,6 +374,10 @@ describe("the code of the console is covered in full", () => {
           .first()
           .click();
         await page.waitForURL(/#\/executions\/view\?id=/);
+        // A view shows its tests, and the address keeps it.
+        await page.getByRole("link", { name: "Tous · 5" }).click();
+        await page.waitForURL(/&view=all$/);
+        await page.getByRole("link", { name: /Print a policy/ }).waitFor();
         // Its failures run again: a refusal is said, then the launch is followed to the execution it kept.
         instance.refusal = "launch_refused";
         await page.getByRole("button", { name: "Relancer l’échec" }).click();

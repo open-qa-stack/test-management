@@ -12,6 +12,7 @@ import { DiscoveryPage } from "./discovery/discovery-page.tsx";
 import { isExecutionPeriod } from "./executions/execution-period.ts";
 import { ExecutionPage } from "./executions/execution-page.tsx";
 import { EXECUTION_ORIGINS, type ExecutionOrigin } from "@open-qa-stack/domain/sessions";
+import { isExecutionView, type ExecutionView } from "./executions/execution-view.ts";
 import type { ExecutionsFilter } from "./executions/executions-paths.ts";
 import { ExecutionsPage } from "./executions/executions-page.tsx";
 import { ResultPage } from "./executions/result-page.tsx";
@@ -60,7 +61,7 @@ type Shown =
   | { readonly screen: "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "campaigns" | "no_session" | "nowhere" }
   | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
-  | { readonly screen: "execution"; readonly id: string }
+  | { readonly screen: "execution"; readonly id: string; readonly view?: ExecutionView }
   | { readonly screen: "result"; readonly id: string; readonly path: string; readonly step?: number }
   | { readonly screen: "trace"; readonly id: string; readonly path: string }
   | { readonly screen: "test"; readonly path: string }
@@ -127,9 +128,9 @@ export function isTrace(route: Route): boolean {
 
 /** The screen of the executions an address under `/executions` opens: their list, one of them, what came of a test in one, or its trace. */
 function executionsShown(part: string | undefined, query: Route["query"]): Shown | undefined {
-  const { id, path, before } = query;
+  const { id, path, before, view } = query;
   if (part === undefined) return { screen: "executions", filter: filterOf(query), ...(given(before) ? { before } : {}) };
-  if (part === "view" && given(id)) return { screen: "execution", id };
+  if (part === "view" && given(id)) return { screen: "execution", id, ...(isExecutionView(view) ? { view } : {}) };
   if (part === "result" && given(id) && given(path)) return { screen: "result", id, path, ...stepOf(query["step"]) };
   if (part === "trace" && given(id) && given(path)) return { screen: "trace", id, path };
   return undefined;
@@ -216,7 +217,7 @@ function Screen(props: ConsoleProps): ReactNode {
         />
       );
     case "execution":
-      return <ExecutionPage key={shown.id} project={name} id={shown.id} sessions={listed} />;
+      return <ExecutionPage key={shown.id} project={name} id={shown.id} sessions={listed} {...(shown.view === undefined ? {} : { view: shown.view })} />;
     case "result":
       return (
         <ResultPage
