@@ -947,6 +947,9 @@
     "title": "Exécution du {{date}}",
     "reading": "Lecture de l’exécution",
     "readingNote": "Elle apparaît dès que l’instance a répondu.",
+    "relaunch_one": "Relancer l’échec",
+    "relaunch_other": "Relancer les {{count}} échecs",
+    "relaunchNote": "Les fichiers de ces tests sont rejoués en entier, avec les autres tests qu’ils contiennent.",
     "duration": "Durée {{duration}}",
     "launchedBy": "Lancée par la session « {{request}} »",
     "bySession": "Lancée par une session de l’agent",
@@ -1051,6 +1054,9 @@
     "pending": "Envoi…",
     "running": "Relance en cours : installation, puis exécution…",
     "finished": "Test joué, son résultat arrive…",
+    "finishedSome_one": "{{count}} test joué…",
+    "finishedSome_other": "{{count}} tests joués…",
+    "see": "Voir le résultat",
     "environment": "Environnement de la relance"
   },
   "campaignComposer": {

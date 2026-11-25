@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { ExecutionFailure, Execution, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
-import { ExecutionScreen } from "../../src/executions/execution-screen.tsx";
+import { ExecutionScreen, failedPaths } from "../../src/executions/execution-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
 import { nameApplications } from "../../src/applications/application-names.ts";
 import { DETAIL, EXECUTIONS } from "./executions-fixture.ts";
@@ -15,7 +15,16 @@ const SESSION = { id: LATEST.sessionId, request: "Test the policies", openedAt: 
 
 /** The screen of an execution in a state, with the sessions the console knows, as HTML. */
 const screen = (state: PolledState<Execution>, sessions: readonly Session[] = [SESSION], id = LATEST.id): string =>
-  render(createElement(ExecutionScreen, { project: "lakeside-tests", id, sessions, state }));
+  render(
+    createElement(ExecutionScreen, {
+      project: "lakeside-tests",
+      id,
+      sessions,
+      state,
+      relaunch: { environments: [], pending: false },
+      onRelaunch: () => undefined,
+    }),
+  );
 
 describe("the screen of an execution", () => {
   it("says it reads the execution until the instance read it, and why it could not", () => {
@@ -29,7 +38,7 @@ describe("the screen of an execution", () => {
     nameApplications([]);
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 1 échoué 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Voir la session → Policy Management · 5 tests /,
+      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec 1 échoué 1 instable 2 réussis 1 ignoré Durée 9 s Lancée par la session « Test the policies » Voir la session → Policy Management · 5 tests /,
     );
     assert.match(text, / Détails techniques Version du dépôt de tests : 4f2a9c0$/);
     assert.match(
@@ -57,6 +66,15 @@ describe("the screen of an execution", () => {
     assert.match(textOf(screen({ value: { ...PAST, origin: "manual" } })), /Lancée à la main, sans agent\./);
     const html = screen({ value: { ...PAST, origin: "campaign", campaignId: "c1" } });
     assert.match(html, /<a href="#\/campaigns\/view\?id=c1">Lancée pour une campagne →<\/a>/);
+  });
+
+  it("runs the files of its failures again, each once, but not for a campaign nor without a failure", () => {
+    const failed = LATEST.results.find((result) => result.verdict === "failed")!;
+    const two = { ...LATEST, results: [failed, failed, ...LATEST.results] };
+    assert.match(textOf(screen({ value: two })), /Relancer les 3 échecs/);
+    assert.deepEqual(failedPaths(two), [DETAIL]);
+    assert.deepEqual(failedPaths(undefined), []);
+    for (const value of [{ ...LATEST, campaignId: "c1" }, PAST]) assert.doesNotMatch(textOf(screen({ value })), /Relancer/);
   });
 
   it("says a past run belongs to no session it keeps, kept no version, and ran no test", () => {
