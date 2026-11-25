@@ -5,7 +5,7 @@ import { setTimeout as pause } from "node:timers/promises";
 import { afterEach, describe, it } from "vitest";
 import { DatabaseUrl } from "@open-qa-stack/store";
 import { SessionEndedError } from "@open-qa-stack/domain";
-import { contextOf, reasonOf } from "../src/solo/conversation/converse.ts";
+import { contextOf, reasonOf } from "../src/conversation/converse.ts";
 import { widthOf } from "./conversation/screen.ts";
 import { FakeTerminal } from "./support/fake-terminal.ts";
 import { configText } from "@open-qa-stack/testing/test-repository";

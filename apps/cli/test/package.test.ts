@@ -12,7 +12,7 @@ describe("the package of the command", () => {
       );
 
   const SOURCES = new URL("../src/", import.meta.url);
-  const CONVERSATION = "solo/conversation/";
+  const CONVERSATION = "conversation/";
   const allowed = /^(node:|\.\.?\/|@open-qa-stack\/(api|engine|store|harness|tools|domain(\/sessions)?)$)/;
 
   it("imports the engine, the store, the harness, the tools, the domain and, to serve the console, the API, no other package, and never the SDK of the agents", () => {
@@ -31,13 +31,13 @@ describe("the package of the command", () => {
     // Nothing reaches the conversation but three imports, made when it is opened, when a project is set up and when the model is set step by step: no other command loads what draws them.
     const reaching = importedUnder(SOURCES, (file) => !file.startsWith(CONVERSATION)).filter(([, module]) => module.includes("/conversation/"));
     assert.deepEqual(reaching, [
-      ["solo/solo-command.ts", "./conversation/project-setup/setup-project.ts"],
-      ["solo/solo-command.ts", "./conversation/converse.ts"],
-      ["solo/solo-command.ts", "./conversation/model-setup/setup-command.ts"],
+      ["run-oqas.ts", "./conversation/setup/project-setup/setup-project.ts"],
+      ["run-oqas.ts", "./conversation/converse.ts"],
+      ["run-oqas.ts", "./conversation/setup/model-setup/setup-command.ts"],
     ]);
-    const command = readFileSync(new URL("solo/solo-command.ts", SOURCES), "utf8");
+    const command = readFileSync(new URL("run-oqas.ts", SOURCES), "utf8");
     assert.match(command, /await import\("\.\/conversation\/converse\.ts"\)/);
-    assert.match(command, /await import\("\.\/conversation\/model-setup\/setup-command\.ts"\)/);
+    assert.match(command, /await import\("\.\/conversation\/setup\/model-setup\/setup-command\.ts"\)/);
   });
 
   it("depends on what it imports, and on the console for its built files alone", () => {

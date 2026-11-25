@@ -11,7 +11,7 @@ From the root of the workspace:
 | Command                                  | What it does                                                                                                                     |
 | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm --filter @open-qa-stack/web dev`   | Serves the console with Vite's development server; what it asks under `/api` goes to the API of an instance on `127.0.0.1:8080`. |
-| `oqas --ui`                              | Serves the built console and the API of a test repository on one address, in one process: see [the command](../cli/docs/solo-command.md#the-console). |
+| `oqas --ui`                              | Serves the built console and the API of a test repository on one address, in one process: see [the command](../cli/docs/oqas-command.md#the-console). |
 | `pnpm --filter @open-qa-stack/web build` | Builds the console into `apps/web/dist/`.                                                                                        |
 | `pnpm check`                             | Type-checks, builds every package, the console included, and runs the tests; it fails if the console does not build.             |
 

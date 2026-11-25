@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { afterEach, describe, it } from "vitest";
 import { SessionEndedError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { Model, ModelConnectionCheck, Session } from "@open-qa-stack/domain/sessions";
-import { Conversation, type ConversationModel, type ConversationProps, type Leaving } from "../../src/solo/conversation/conversation.ts";
+import { Conversation, type ConversationModel, type ConversationProps, type Leaving } from "../../src/conversation/conversation.ts";
 import { FakeSessions } from "./fake-sessions.ts";
 import { COMPLETED, CONTEXT, FAILED, NOW, numbered, RUNNING, THREAD, completion } from "./fixtures.ts";
 import { UNICODE, staging, until } from "./screen.ts";

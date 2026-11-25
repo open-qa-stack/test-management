@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { Session } from "@open-qa-stack/domain/sessions";
-import { conversationReducer } from "../../src/solo/conversation/conversation-reducer.ts";
-import { initialState, PICKED_SESSIONS, RECENT_SESSIONS, type ConversationState, type Printed } from "../../src/solo/conversation/conversation-state.ts";
+import { conversationReducer } from "../../src/conversation/state/conversation-reducer.ts";
+import { initialState, PICKED_SESSIONS, RECENT_SESSIONS, type ConversationState, type Printed } from "../../src/conversation/state/conversation-state.ts";
 import { after, COMPLETED, FAILED, NOW, numbered, RUNNING, showing, THREAD, endOf } from "./fixtures.ts";
 
 const HOME = after([]);

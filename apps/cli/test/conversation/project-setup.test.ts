@@ -3,8 +3,8 @@ import { cleanup, render } from "ink-testing-library";
 import { createElement } from "react";
 import { afterEach, describe, it } from "vitest";
 import type { Knowledge, ModelConnectionCheck, RepositoryPreparation, SourceCheck } from "@open-qa-stack/domain";
-import { ProjectSetup, summaryLines, type ProjectSetupEnd } from "../../src/solo/conversation/project-setup/project-setup.ts";
-import type { ProjectDraft } from "../../src/solo/conversation/project-setup/project-draft.ts";
+import { ProjectSetup, summaryLines, type ProjectSetupEnd } from "../../src/conversation/setup/project-setup/project-setup.ts";
+import type { ProjectDraft } from "../../src/conversation/setup/project-setup/project-draft.ts";
 import { PLAIN, UNICODE, staging, until } from "./screen.ts";
 
 const ENTER = "\r";

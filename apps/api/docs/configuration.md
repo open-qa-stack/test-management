@@ -206,7 +206,7 @@ POST /api/repository/preparation
 { "created": ["package.json", "playwright.config.ts"], "kept": [], "committed": true }
 ```
 
-It does what [`oqas --init`](../../cli/docs/solo-command.md#initialising-a-test-repository) does, from the revision in force: it writes the files of a Playwright project that are missing, keeps those the repository has, and, in a folder that was no git repository, makes one and commits what it created, with `oqas.json` when the repository holds one — `committed` says so. The console calls it once the first revision is saved. An instance without a configuration is answered `404` `no_configuration`, and one given no test repository `503` `unavailable`.
+It does what [`oqas --init`](../../cli/docs/oqas-command.md#initialising-a-test-repository) does, from the revision in force: it writes the files of a Playwright project that are missing, keeps those the repository has, and, in a folder that was no git repository, makes one and commits what it created, with `oqas.json` when the repository holds one — `committed` says so. The console calls it once the first revision is saved. An instance without a configuration is answered `404` `no_configuration`, and one given no test repository `503` `unavailable`.
 
 ## Problems
 

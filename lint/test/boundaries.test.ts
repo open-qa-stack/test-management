@@ -48,8 +48,8 @@ const COUPLES = SHORTS.flatMap((source) => SHORTS.filter((target) => target !== 
 const REFUSED = COUPLES.filter(([source, target]) => !ALLOWED.some(([s, t]) => s === source && t === target));
 
 const name = (short: Short): string => `@open-qa-stack/${short}`;
-/** The folder of the demonstration sources of a package; the solo mode for the command line. */
-const sources = (short: Short): string => `${PACKAGES[short]}/src${short === "cli" ? "/solo" : ""}`;
+/** The folder of the demonstration sources of a package; the command line has them at its root. */
+const sources = (short: Short): string => `${PACKAGES[short]}/src`;
 const coupleFile = (source: Short, target: Short): string => `${sources(source)}/imports-${target}.ts`;
 /** The entry of a package a source imports: the web console reads the domain by its contract of sessions only. */
 const entry = (source: Short, target: Short): string => `${name(target)}${source === "web" && target === "domain" ? "/sessions" : ""}`;
@@ -198,7 +198,7 @@ describe("criterion 6 — the domain holds no decorator, whatever its kind", () 
 
 describe("criterion 7 — the SDK of the agents is imported by the implementation of the agent runtime only", () => {
   const sdk = 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n';
-  const refused = ["packages/harness/src/runner/session.ts", "packages/engine/src/run/session.ts", "apps/cli/src/solo/session.ts", "apps/api/src/session.ts"];
+  const refused = ["packages/harness/src/runner/session.ts", "packages/engine/src/run/session.ts", "apps/cli/src/session.ts", "apps/api/src/session.ts"];
   const implementation = "packages/harness/src/copilot/session.ts";
   const dynamic = "packages/engine/src/dynamic.ts";
   const installed = "packages/engine/src/installed.ts";
@@ -223,15 +223,15 @@ describe("criterion 7 — the SDK of the agents is imported by the implementatio
 
 describe("criterion 8 — the connected mode of the command line imports only the domain", () => {
   const connected = (file: string): string => `apps/cli/src/connected/${file}`;
-  const solo = (file: string): string => `apps/cli/src/solo/${file}`;
+  const command = (file: string): string => `apps/cli/src/${file}`;
   const refused = ["harness", "store", "tools"] as const;
   const of = linted({
     ...Object.fromEntries(refused.map((target) => [connected(`${target}.ts`), byName(name(target))])),
     [connected("sdk.ts")]: 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n',
     [connected("domain.ts")]: byName(name("domain")),
-    [connected("solo.ts")]: 'import { soloCommand } from "../solo/solo-command.ts";\nexport const command = soloCommand;\n',
+    [connected("command.ts")]: 'import { runOqas } from "../run-oqas.ts";\nexport const command = runOqas;\n',
     [connected("installed.ts")]: 'import { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";\nexport const used = runner;\n',
-    ...Object.fromEntries(refused.map((target) => [solo(`${target}.ts`), byName(name(target))])),
+    ...Object.fromEntries(refused.map((target) => [command(`${target}.ts`), byName(name(target))])),
   });
   it("is set by an override of the lint configuration on the folder of the connected mode", async () => {
     const configuration = (await import(join(ROOT, ".oxlintrc.json"), { with: { type: "json" } })) as { default: { overrides: { files: string[] }[] } };
@@ -249,9 +249,9 @@ describe("criterion 8 — the connected mode of the command line imports only th
   it("accepts the domain in connected/", () => {
     assert.deepEqual(of(connected("domain.ts")), []);
   });
-  it("refuses a file of solo/ imported by a relative path in connected/", () => {
-    assert.deepEqual(of(connected("solo.ts")), [
-      `${connected("solo.ts")}:1:1: apps/cli/src/connected may not import ${solo("solo-command.ts")} by a relative path that leaves its folder. [Error/open-qa-stack(folder-boundaries)]`,
+  it("refuses a file of the command line outside connected/ imported by a relative path in connected/", () => {
+    assert.deepEqual(of(connected("command.ts")), [
+      `${connected("command.ts")}:1:1: apps/cli/src/connected may not import ${command("run-oqas.ts")} by a relative path that leaves its folder. [Error/open-qa-stack(folder-boundaries)]`,
     ]);
   });
   it("refuses harness reached by a path through the installed packages in connected/", () => {
@@ -259,8 +259,8 @@ describe("criterion 8 — the connected mode of the command line imports only th
     assert.deepEqual(of(file), [forbidden(file, 1, "apps/cli/src/connected", name("harness"), name("domain"), "folder-boundaries")]);
   });
   for (const target of refused) {
-    it(`accepts ${target} in solo/`, () => {
-      assert.deepEqual(of(solo(`${target}.ts`)), []);
+    it(`accepts ${target} outside connected/`, () => {
+      assert.deepEqual(of(command(`${target}.ts`)), []);
     });
   }
 });

@@ -124,7 +124,7 @@ describe("the rule that keeps a folder to fewer packages than its package", () =
   const connected = at("apps/cli/src/connected/rule.ts");
   tester.run("folder-boundaries", folderBoundaries, {
     valid: [
-      { filename: at("apps/cli/src/solo/rule.ts"), options, code: 'import { run } from "@open-qa-stack/harness";\nimport { a } from "../connected/a.ts";' },
+      { filename: at("apps/cli/src/rule.ts"), options, code: 'import { run } from "@open-qa-stack/harness";\nimport { a } from "../connected/a.ts";' },
       {
         filename: connected,
         options,
@@ -135,10 +135,10 @@ describe("the rule that keeps a folder to fewer packages than its package", () =
       {
         filename: connected,
         options,
-        code: 'import { run } from "@open-qa-stack/harness";\nimport { solo } from "../solo/solo.ts";\nimport { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";',
+        code: 'import { run } from "@open-qa-stack/harness";\nimport { command } from "../command.ts";\nimport { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";',
         errors: [
           { messageId: "forbidden", data: { source: "apps/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
-          { messageId: "relative", data: { source: "apps/cli/src/connected", target: "apps/cli/src/solo/solo.ts", allowed: "@open-qa-stack/domain" } },
+          { messageId: "relative", data: { source: "apps/cli/src/connected", target: "apps/cli/src/command.ts", allowed: "@open-qa-stack/domain" } },
           { messageId: "forbidden", data: { source: "apps/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
         ],
       },

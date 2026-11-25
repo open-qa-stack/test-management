@@ -1,8 +1,8 @@
 import { cleanup, render } from "ink-testing-library";
 import { createElement } from "react";
-import { ConversationView } from "../../src/solo/conversation/conversation-view.ts";
-import { themeOf, type Theme } from "../../src/solo/conversation/palette.ts";
-import type { ConversationState } from "../../src/solo/conversation/conversation-state.ts";
+import { ConversationView } from "../../src/conversation/view/conversation-view.ts";
+import { themeOf, type Theme } from "../../src/conversation/view/palette.ts";
+import type { ConversationState } from "../../src/conversation/state/conversation-state.ts";
 import { CONTEXT } from "./fixtures.ts";
 
 /** A terminal that reads UTF-8 and draws colours. */
