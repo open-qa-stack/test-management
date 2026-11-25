@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
-import { CONFIG_FILE_NAME, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
+import { CONFIG_FILE_NAME, DomainRefusedError, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { SessionEvent, SessionOpening } from "@open-qa-stack/domain/sessions";
 import { chain, ended, git, planned, read } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
 import { KeptMemories } from "@open-qa-stack/testing";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
+import { MemoryDomainSettingStore } from "./support/memory-domain-setting-store.ts";
 import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
@@ -137,6 +138,40 @@ describe("a session that is opened", () => {
     ]);
   });
 
+  it("is refused when it is kept to a domain a person excluded, and opens when it is kept to others", async () => {
+    hosted = await Hosted.create([]);
+    await hosted.domainSettings.set({ id: "billing", excluded: true });
+    await assert.rejects(
+      hosted.sessions.open({ request: REQUEST, environment: "local", scope: { domains: ["billing"] } }),
+      (error) => error instanceof DomainRefusedError && /excluded, billing: take it back/.test(error.message),
+    );
+  });
+
+  it("tells, in the log, that what was set of the domains that are gone could not be forgotten, and changes nothing of the session", async () => {
+    hosted = await Hosted.create([]);
+    const index = {
+      formatVersion: 1,
+      producedAt: "2026-11-20T09:00:00.000Z",
+      environment: "local",
+      model: { provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model" },
+      run: { iterations: 1, actions: 0, durationMs: 1 },
+      status: "complete",
+      sources: [{ id: "shop", type: "web", state: "read" }],
+      domains: [{ id: "orders", label: "Orders", description: "Orders.", references: [{ source: "shop", items: ["/orders"] }] }],
+      unassigned: [],
+    };
+    mkdirSync(join(hosted.root, ".oqas", "index"), { recursive: true });
+    writeFileSync(join(hosted.root, ".oqas", "index", "domain-index.json"), JSON.stringify(index));
+    await hosted.domainSettings.set({ id: "gone", excluded: true });
+    hosted.domainSettings.refusal = new Error("Down.");
+    const opened = await hosted.sessions.open({ request: REQUEST, environment: "nowhere" });
+    assert.equal((await hosted.ended(opened.id)).state, "interrupted");
+    assert.ok(
+      hosted.logger.lines.includes("warn The settings of the domains that are gone could not be forgotten: Error: Down."),
+      hosted.logger.lines.join("\n"),
+    );
+  });
+
   it("gives the domains of its scope to the design, which designs nothing for a domain the knowledge does not have", async () => {
     hosted = await Hosted.create(chain());
     const opened = await hosted.sessions.open({ request: REQUEST, environment: "local", scope: { domains: ["billing"] } });
@@ -158,6 +193,7 @@ describe("a session that is opened", () => {
     await store.release(GONE);
     const sessions = new Sessions({
       memory: new KeptMemories(),
+      domainSettings: new MemoryDomainSettingStore(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
       documents: new MemoryDocumentStore(),
@@ -185,6 +221,7 @@ describe("a session that is opened", () => {
     hosted = await Hosted.create([]);
     const reading = new Sessions({
       memory: new KeptMemories(),
+      domainSettings: new MemoryDomainSettingStore(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),
@@ -311,6 +348,7 @@ describe("a session a person resumes once it ended", () => {
     await store.interrupt(kept.id);
     const reading = new Sessions({
       memory: new KeptMemories(),
+      domainSettings: new MemoryDomainSettingStore(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),

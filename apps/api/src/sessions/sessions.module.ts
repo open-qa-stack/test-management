@@ -1,6 +1,6 @@
 import { Logger, Module } from "@nestjs/common";
 import { Configuration, Secrets, Sessions } from "@open-qa-stack/engine";
-import { DocumentStore, ExecutionStore, MemoryStore, SessionStore } from "@open-qa-stack/store";
+import { DocumentStore, DomainSettingStore, ExecutionStore, MemoryStore, SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
 import { RepositoryConfigurationModule } from "../repository-configuration/repository-configuration.module.ts";
@@ -29,12 +29,13 @@ import { StreamPace } from "./stream-pace.ts";
     StreamPace,
     {
       provide: Sessions,
-      inject: [SessionStore, Configuration, DocumentStore, MemoryStore, ExecutionStore, ApiConfiguration, RunEnvironment, Secrets],
+      inject: [SessionStore, Configuration, DocumentStore, MemoryStore, DomainSettingStore, ExecutionStore, ApiConfiguration, RunEnvironment, Secrets],
       useFactory: (
         store: SessionStore,
         configuration: Configuration,
         documents: DocumentStore,
         memory: MemoryStore,
+        domainSettings: DomainSettingStore,
         executions: ExecutionStore,
         { repository }: ApiConfiguration,
         { runs }: RunEnvironment,
@@ -49,6 +50,7 @@ import { StreamPace } from "./stream-pace.ts";
           configuration,
           documents,
           memory,
+          domainSettings,
           executions,
           repository,
           takesOver: true,

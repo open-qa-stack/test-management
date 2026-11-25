@@ -19,6 +19,8 @@ import {
   UnknownDocumentSourceError,
   UnknownExecutionError,
   UnknownSessionError,
+  DomainRefusedError,
+  UnknownDomainError,
   UnknownSecretError,
   SecretRefusedError,
 } from "@open-qa-stack/domain";
@@ -66,6 +68,9 @@ const NO_CAMPAIGN = "List the campaigns it keeps with GET /campaigns.";
 /** What a client is told of an execution the instance does not keep. */
 const NO_EXECUTION = "List the executions it keeps with GET /executions.";
 
+/** What a client is told of a domain the knowledge does not hold. */
+const NO_DOMAIN = "List its domains with GET /knowledge/domains.";
+
 /** What a client is told of a variable the configuration in force does not name. */
 const NO_SECRET = "List the variables it names with GET /secrets.";
 
@@ -84,7 +89,7 @@ function refusalOf(status: number, detail: string): Problem {
  * configuration that is not valid, none at all — and on documents — a source that takes none, a document it does
  * not hold, an upload that is refused — and on the tests — a capture their run did not attach, a test the repository does not hold, a change that cannot be written — and on the executions
  * — one the instance does not keep, tests that cannot be launched now — and on the campaigns — one the instance does
- * not keep, a change its state does not allow — and on the values of the variables — a variable the configuration does
+ * not keep, a change its state does not allow — and on the domains of the knowledge — one it does not hold, a change or a session it refuses — and on the values of the variables — a variable the configuration does
  * not name, a value refused — a database that cannot be reached, those the framework raises for a request it refuses — an unknown
  * route, a method that is not allowed — and those the HTTP server raises with a client status before a route
  * is reached — a body that is not JSON, a media type it does not read. Their messages are written for the
@@ -115,6 +120,8 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof LaunchRefusedError) return problemOf("launch_refused", error.message);
   if (error instanceof UnknownCampaignError) return problemOf("unknown_campaign", `${error.message} ${NO_CAMPAIGN}`);
   if (error instanceof CampaignRefusedError) return problemOf("campaign_refused", error.message);
+  if (error instanceof UnknownDomainError) return problemOf("unknown_domain", `${error.message} ${NO_DOMAIN}`);
+  if (error instanceof DomainRefusedError) return problemOf("domain_refused", error.message);
   if (error instanceof UnknownSecretError) return problemOf("unknown_secret", `${error.message} ${NO_SECRET}`);
   if (error instanceof SecretRefusedError) return problemOf("secret_refused", error.message);
   if (error instanceof DatabaseUnavailableError) return problemOf("unavailable", DATABASE_UNAVAILABLE);

@@ -10,7 +10,7 @@ import type { ConfigError } from "../config/types.ts";
  * does not declare as one whose documents the instance keeps, a document the source does not hold, or documents an
  * upload brought that are refused; for the tests of the repository, a capture a run of a test did not attach, a test it does not hold, or a change to a test that cannot be written; for
  * the executions, one the instance does not keep, or tests that cannot be launched now; for the campaigns, one the instance does not keep, or a change its
- * state does not allow; `error` for anything else.
+ * state does not allow; for the domains of the knowledge, one it does not hold, or a change or a session it refuses; `error` for anything else.
  */
 export type ProblemCode =
   | "unknown_session"
@@ -34,6 +34,8 @@ export type ProblemCode =
   | "launch_refused"
   | "unknown_campaign"
   | "campaign_refused"
+  | "unknown_domain"
+  | "domain_refused"
   | "unknown_secret"
   | "secret_refused"
   | "error";

@@ -1,5 +1,6 @@
 import { journalLine, RunThread, traceLine, type RunLine } from "@open-qa-stack/domain";
 import type { Session, SessionResult } from "@open-qa-stack/domain/sessions";
+import { KnowledgeDomains } from "../knowledge/knowledge-domains.ts";
 import { Run } from "../run/run.ts";
 import { liveRuntime } from "../runtime/live-runtime.ts";
 import { environmentOf } from "../secrets/environment-of.ts";
@@ -88,6 +89,7 @@ export class SessionExecution {
         configuration: this.#host.configuration,
         documents: this.#host.documents,
         memory: this.#host.memory,
+        domainSettings: await this.#host.domainSettings.list(),
         ...(brief === undefined ? {} : { brief }),
         ...(branch === undefined ? {} : { branch }),
         ...(environment === undefined ? {} : { environment }),
@@ -107,6 +109,7 @@ export class SessionExecution {
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
     }
+    await this.#forget();
     // A run the configuration or the prerequisites stopped never had its journal kept: what it wrote is all that says why.
     journal.release();
     const report = kept.report;
@@ -122,6 +125,13 @@ export class SessionExecution {
       writer.tell([{ at: now().toISOString(), type: "refusal", phase: "summary", text: `The session stopped on a failure, and is interrupted: ${failure}` }]);
     }
     await writer.end(stop.signal.aborted ? undefined : result);
+  }
+
+  /** Forgets what was set of the domains the cartography of the session no longer found: what fails is logged, and changes nothing of the session. */
+  async #forget(): Promise<void> {
+    const { configuration, domainSettings, logger } = this.#host;
+    const domains = new KnowledgeDomains(this.#options.repository, configuration, domainSettings);
+    await domains.forget().catch((error: unknown) => logger.warn(`The settings of the domains that are gone could not be forgotten: ${String(error)}`));
   }
 
   /** Keeps the execution of the tests the session ran; @returns why it could not be kept, `undefined` once it is. */

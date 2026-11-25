@@ -381,7 +381,9 @@
     "unreachable": "The instance does not answer.",
     "unreadable": "The answer of the instance cannot be read.",
     "unknown_secret": "The configuration saved does not name this variable: save the configuration that names it first.",
-    "secret_refused": "This value cannot be saved: it is empty, or the environment of the tool sets the variable already, and wins."
+    "secret_refused": "This value cannot be saved: it is empty, or the environment of the tool sets the variable already, and wins.",
+    "unknown_domain": "The knowledge no longer holds this domain.",
+    "domain_refused": "The instance refuses it: a domain is excluded, or its name is empty or too long."
   },
   "configuration": {
     "rules": {
@@ -1229,7 +1231,18 @@
     "domainSources_other": "Where it comes from: {{count}} sources",
     "picked_zero": "No domain picked out of {{total}}",
     "picked_one": "1 domain picked out of {{total}}",
-    "picked_other": "{{count}} domains picked out of {{total}}"
+    "picked_other": "{{count}} domains picked out of {{total}}",
+    "rename": "Rename",
+    "renameOne": "Rename {{label}}",
+    "renameTitle": "Name of the domain",
+    "renameLabel": "Name",
+    "foundLabel": "The cartography named it “{{label}}”.",
+    "exclude": "Exclude",
+    "excludeOne": "Exclude {{label}}",
+    "restore": "Take back",
+    "excluded": "Excluded domains",
+    "excludedNote": "The agents do not work on them.",
+    "allExcluded": "Every domain is excluded"
   },
   "harness": {
     "configurationValid": "The configuration is valid; the session targets the environment {{environment}}.",

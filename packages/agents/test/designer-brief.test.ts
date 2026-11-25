@@ -176,6 +176,23 @@ describe("the domains a design is kept to", () => {
     assert.match(requestText((await design(replies(valid(3)), { domains: [] })).server), /- orders \(Orders\).*- customers \(Customers\)/s);
   });
 
+  it("are served to the agent that plans without those a person excluded, and under the names they gave", async () => {
+    const domainSettings = [
+      { id: "orders", excluded: true },
+      { id: "customers", label: "Clients", excluded: false },
+    ];
+    const request = requestText((await design(replies(valid(3)), { domainSettings })).server);
+    assert.match(request, /by domain:\\n- customers \(Clients\)/);
+    assert.ok(!request.includes("- orders (Orders)"), request);
+  });
+
+  it("design nothing, and say why, when one is excluded, or every one is", async () => {
+    const orders = { id: "orders", excluded: true };
+    const told = async (setup: Parameters<typeof design>[1]) => messages((await design(replies(valid(3)), setup)).outcome);
+    assert.match(await told({ domains: ["orders"], domainSettings: [orders] }), /^No test was designed: the domain orders is excluded: take it back/);
+    assert.match(await told({ domainSettings: [orders, { id: "customers", excluded: true }] }), /: every domain of the knowledge is excluded: take one back/);
+  });
+
   it("design nothing, and say which, when one is not in the knowledge", async () => {
     const { outcome, server } = await design(replies(valid(3)), { domains: ["orders", "billing"] });
     assert.equal(messages(outcome), "No test was designed: the knowledge has no domain billing; its domains are orders, customers.");

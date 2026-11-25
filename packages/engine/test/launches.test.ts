@@ -6,6 +6,7 @@ import { chain } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
 import { KeptMemories } from "@open-qa-stack/testing";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
+import { MemoryDomainSettingStore } from "./support/memory-domain-setting-store.ts";
 import { eventually } from "./support/eventually.ts";
 import { designDoor, ENV, Hosted } from "./support/hosted.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
@@ -142,6 +143,7 @@ describe("tests launched as they are, with no agent", () => {
     }
     const none = new Sessions({
       memory: new KeptMemories(),
+      domainSettings: new MemoryDomainSettingStore(),
       store: new MemorySessionStore(),
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
       documents: new MemoryDocumentStore(),
@@ -170,6 +172,7 @@ describe("tests launched as they are, with no agent", () => {
     const logger = new RecordingLogger();
     const local = new Sessions({
       memory: new KeptMemories(),
+      domainSettings: new MemoryDomainSettingStore(),
       store: new MemorySessionStore(),
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
       documents: new MemoryDocumentStore(),

@@ -108,6 +108,7 @@ export async function openOperations(
     configuration,
     documents: instance.documents,
     memory: instance.memory,
+    domainSettings: instance.domainSettings,
     executions: instance.executions,
     repository: hosts ? repository : undefined,
     takesOver: false,
@@ -128,7 +129,7 @@ export async function openOperations(
   return {
     sessions,
     configuration,
-    domains: new KnowledgeDomains(repository, instance.configuration),
+    domains: new KnowledgeDomains(repository, instance.configuration, instance.domainSettings),
     setup: new RepositorySetup(repository, configuration),
     campaigns: new Campaigns({ store: instance.campaigns, executions: instance.executions, tests, launcher: sessions }),
     documents: new KnowledgeDocuments(instance.documents, instance.configuration),

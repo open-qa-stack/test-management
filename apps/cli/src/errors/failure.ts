@@ -1,4 +1,6 @@
 import {
+  DomainRefusedError,
+  UnknownDomainError,
   CampaignRefusedError,
   LaunchRefusedError,
   SecretRefusedError,
@@ -25,6 +27,8 @@ const REFUSALS = [
   UnknownSessionError,
   SessionEndedError,
   PendingMigrationsError,
+  UnknownDomainError,
+  DomainRefusedError,
   UnknownSecretError,
   SecretRefusedError,
   UnknownExecutionError,

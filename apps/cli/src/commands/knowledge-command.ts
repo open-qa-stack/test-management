@@ -3,7 +3,7 @@ import type { Configuration, KnowledgeDocuments, KnowledgeSources } from "@open-
 import type { Arguments } from "../arguments/arguments.ts";
 import type { Command } from "../arguments/command.ts";
 import { UsageError } from "../errors/usage-error.ts";
-import { checkLine, documentLine, documentsRefusal, mappingLines, receivedFiles, sourceLine } from "../output/knowledge-lines.ts";
+import { checkLine, documentLine, domainLine, documentsRefusal, mappingLines, receivedFiles, sourceLine } from "../output/knowledge-lines.ts";
 import type { Asked } from "./asked.ts";
 import type { CommandIo } from "./command-io.ts";
 import type { Operations } from "./operations.ts";
@@ -13,14 +13,18 @@ import { linesOr, print } from "./print.ts";
 export async function domained({ domains }: Pick<Operations, "domains">, printing: Pick<Asked<"knowledge">, "options" | "io">): Promise<ExitCodeValue> {
   const items = await domains.list();
   const none = "The cartography found no domain yet: oqas knowledge mapping tells where it stands.";
-  print(
-    printing,
-    linesOr(
-      items.map(({ id, label, description }) => `${id}: ${label}. ${description}`),
-      none,
-    ),
-    { items },
-  );
+  print(printing, linesOr(items.map(domainLine), none), { items });
+  return ExitCode.passed;
+}
+
+/** `oqas knowledge exclude`, `restore` and `rename`: changes what is set of a domain, and prints it. */
+export async function domainChanged(
+  { domains }: Pick<Operations, "domains">,
+  { domain, change }: Extract<Command, { action: "domain" }>,
+  printing: Pick<Asked<"knowledge">, "options" | "io">,
+): Promise<ExitCodeValue> {
+  const changed = await domains.change(domain, change);
+  print(printing, domainLine(changed), changed);
   return ExitCode.passed;
 }
 

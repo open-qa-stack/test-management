@@ -3,10 +3,16 @@ import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { CartographyState } from "@open-qa-stack/domain/sessions";
 import { DiscoveryScreen, type DiscoveryControls, type DiscoveryScreenProps } from "../../src/discovery/discovery-screen.tsx";
-import { linksOf, render, textOf } from "../render.ts";
+import { at, linksOf, render, textOf } from "../render.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
-const CONTROLS: DiscoveryControls = { toggle: () => assert.fail("nothing is picked"), generate: () => assert.fail("nothing is opened") };
+const CONTROLS: DiscoveryControls = {
+  toggle: () => assert.fail("nothing is picked"),
+  generate: () => assert.fail("nothing is opened"),
+  exclude: () => assert.fail("nothing is excluded"),
+  restore: () => assert.fail("nothing is taken back"),
+  rename: () => assert.fail("nothing is renamed"),
+};
 
 /** Two sources, one mapped and one being mapped, put together by domain. */
 const MAPPING: CartographyState = {
@@ -47,6 +53,8 @@ const screen = (props: Partial<DiscoveryScreenProps> = {}): string =>
       domains: DOMAINS,
       chosen: new Set<string>(),
       opening: { state: "idle" },
+      route: at("#/discovery"),
+      changing: { pending: false },
       controls: CONTROLS,
       ...props,
     }),
@@ -58,14 +66,32 @@ describe("the discovery of the project", () => {
     assert.equal(
       textOf(
         render(
-          createElement(DiscoveryScreen, { project: "shop-tests", chosen: new Set<string>(), opening: { state: "idle" }, controls: CONTROLS, ...reading }),
+          createElement(DiscoveryScreen, {
+            project: "shop-tests",
+            chosen: new Set<string>(),
+            opening: { state: "idle" },
+            route: at("#/discovery"),
+            changing: { pending: false },
+            controls: CONTROLS,
+            ...reading,
+          }),
         ),
       ),
       "shop-tests / Découverte Découverte Lecture de la cartographie Elle apparaît dès que l’instance a répondu.",
     );
     assert.match(
       textOf(
-        render(createElement(DiscoveryScreen, { project: "p", unread: "Down.", chosen: new Set<string>(), opening: { state: "idle" }, controls: CONTROLS })),
+        render(
+          createElement(DiscoveryScreen, {
+            project: "p",
+            unread: "Down.",
+            chosen: new Set<string>(),
+            opening: { state: "idle" },
+            route: at("#/discovery"),
+            changing: { pending: false },
+            controls: CONTROLS,
+          }),
+        ),
       ),
       /Lecture de la cartographie Down\.$/,
     );
@@ -76,7 +102,7 @@ describe("the discovery of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Domaines Clients La recherche et la fiche d’un client\. shop D’où il vient : 1 source contract · shop — customers Commandes La commande et son suivi\. shop warehouse Tout le projet D’où il vient : 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Connaissances mises en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
+      /Domaines Clients La recherche et la fiche d’un client\. shop D’où il vient : 1 source contract · shop — customers Renommer Exclure Commandes La commande et son suivi\. shop warehouse Tout le projet D’où il vient : 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Renommer Exclure Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Connaissances mises en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
     );
     assert.match(html, /<input id="domain-customers" type="checkbox" name="domain" value="customers"\/>/);
     assert.match(html, /<button type="submit" class="btn primary" disabled="">Générer les tests<\/button>/);
@@ -90,6 +116,28 @@ describe("the discovery of the project", () => {
     );
     // What the domain comes from sits apart from what picks it.
     assert.match(html, /<label class="tile-pick" for="domain-orders"><span class="tile-head"><b>Commandes<\/b>.*?<\/label><div class="domain-sources small">/s);
+  });
+
+  it("sets the domains a person excluded apart, to take back, and says it when every one is, and why a change was refused", () => {
+    const [customers, orders] = DOMAINS as [(typeof DOMAINS)[0], (typeof DOMAINS)[0]];
+    const html = screen({ domains: [{ ...customers, excluded: true }, orders] });
+    assert.match(
+      textOf(html),
+      /sur 1 Générer les tests Domaines exclus · Les agents n’y travaillent pas\. Clients La recherche et la fiche d’un client\. Réintégrer Sources/,
+    );
+    assert.doesNotMatch(html, /id="domain-customers"/);
+    assert.match(
+      textOf(screen({ domains: [{ ...customers, excluded: true }], changing: { pending: false, refusal: "Refusé." } })),
+      /Tous les domaines sont exclus Refusé\. Domaines exclus/,
+    );
+  });
+
+  it("renames a domain in a panel, which tells the name the cartography gave, and why a name was refused", () => {
+    const named = DOMAINS.map((domain) => (domain.id === "orders" ? { ...domain, label: "Ventes", foundLabel: "Commandes" } : domain));
+    const html = screen({ domains: named, route: at("#/discovery?panel=rename%3Aorders"), changing: { pending: false, refusal: "Refusé." } });
+    assert.match(textOf(html), /Nom du domaine Nom La cartographie l’a nommé « Commandes »\. Refusé\. Annuler Enregistrer Sources/);
+    assert.match(html, /name="label" value="Ventes"|value="Ventes"/);
+    assert.doesNotMatch(textOf(screen({ route: at("#/discovery?panel=rename%3Aorders") })), /La cartographie l’a nommé/);
   });
 
   it("writes the tests of the domains picked, says the session opens, and why it was refused", () => {

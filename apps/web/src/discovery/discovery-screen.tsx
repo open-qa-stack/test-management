@@ -1,20 +1,33 @@
-import type { ChangeEventHandler, FormEventHandler, ReactNode } from "react";
+import type { ChangeEventHandler, FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { CartographyState, KnowledgeDomain, MappingState } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { IndexLine, MAPPING_TONES } from "../knowledge/knowledge-screen.tsx";
-import { hrefTo } from "../routing/route.ts";
+import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
+import { RenamePanel } from "./rename-panel.tsx";
 
 /** Where the opening of the session the person asked for is. */
 export type DiscoveryOpening = { readonly state: "idle" } | { readonly state: "opening" } | { readonly state: "refused"; readonly text: string };
+
+/** Where a change of a domain is: going on, or refused with why. */
+export interface DomainChanging {
+  readonly pending: boolean;
+  readonly refusal?: string;
+}
 
 /** What the person does on the screen. */
 export interface DiscoveryControls {
   /** Picks or leaves a domain, which its box names. */
   readonly toggle: ChangeEventHandler<HTMLInputElement>;
+  /** Excludes the domain the button names. */
+  readonly exclude: MouseEventHandler<HTMLButtonElement>;
+  /** Takes back the domain the button names. */
+  readonly restore: MouseEventHandler<HTMLButtonElement>;
+  /** Renames the domain of the panel. */
+  readonly rename: FormEventHandler<HTMLFormElement>;
   /** Opens a session that writes the tests of the domains picked. */
   readonly generate: FormEventHandler<HTMLFormElement>;
 }
@@ -31,6 +44,9 @@ export interface DiscoveryScreenProps {
   /** The identifiers of the domains the person picked. */
   readonly chosen: ReadonlySet<string>;
   readonly opening: DiscoveryOpening;
+  /** Where the console is, which tells the domain being renamed. */
+  readonly route: Route;
+  readonly changing: DomainChanging;
   readonly controls: DiscoveryControls;
 }
 
@@ -104,14 +120,42 @@ function DomainSources({ domain }: { readonly domain: KnowledgeDomain }): ReactN
   );
 }
 
+/** The domains a person excluded, apart, each to take back. */
+function Excluded({
+  domains,
+  changing,
+  restore,
+}: {
+  readonly domains: readonly KnowledgeDomain[];
+  readonly changing: DomainChanging;
+  readonly restore: DiscoveryControls["restore"];
+}): ReactNode {
+  if (domains.length === 0) return null;
+  return (
+    <Card title={t("discovery.excluded")} hint={t("discovery.excludedNote")}>
+      {domains.map(({ id, label, description }) => (
+        <div key={id} className="row">
+          <div className="grow">
+            <b>{label}</b>
+            <div className="small muted">{description}</div>
+          </div>
+          <button type="button" className="btn" value={id} disabled={changing.pending} onClick={restore}>
+            {t("discovery.restore")}
+          </button>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 /**
  * The discovery of the project: what the cartography found in its knowledge — the sources and where each stands, the
- * domains — and what writes the tests of the domains the person picks, a session kept to them.
+ * domains, which the person may rename or exclude — and what writes the tests of the domains the person picks, a session kept to them.
  *
  * @param props - The project, what the instance told, what the person picked and what they do.
  * @returns The screen.
  */
-export function DiscoveryScreen({ project, mapping, domains, unread, chosen, opening, controls }: DiscoveryScreenProps): ReactNode {
+export function DiscoveryScreen({ project, mapping, domains, unread, chosen, opening, route, changing, controls }: DiscoveryScreenProps): ReactNode {
   const title = t("discovery.title");
   const crumbs = [{ label: project }, { label: title }];
   if (mapping === undefined || domains === undefined)
@@ -122,6 +166,8 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
         </EmptyState>
       </Page>
     );
+  const kept = domains.filter(({ excluded }) => excluded !== true);
+  const renamed = domains.find(({ id }) => `rename:${id}` === route.query["panel"]);
   return (
     <Page crumbs={crumbs} title={title} hint={t("discovery.lead")}>
       {domains.length === 0 ? (
@@ -135,11 +181,13 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
         >
           {t("discovery.noDomainNote")}
         </EmptyState>
+      ) : kept.length === 0 ? (
+        <EmptyState title={t("discovery.allExcluded")} />
       ) : (
         <form className="discovery-form" onSubmit={controls.generate}>
           <fieldset className="tiles">
             <legend className="sr-only">{t("discovery.domains")}</legend>
-            {domains.map((domain) => (
+            {kept.map((domain) => (
               <div key={domain.id} className="tile">
                 <label className="tile-pick" htmlFor={`domain-${domain.id}`}>
                   <span className="tile-head">
@@ -156,6 +204,21 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
                   <span className="tile-text">{domain.description}</span>
                 </label>
                 <DomainSources domain={domain} />
+                <div className="domain-actions">
+                  <a className="btn sm" href={withPanel(route, `rename:${domain.id}`)} aria-label={t("discovery.renameOne", { label: domain.label })}>
+                    {t("discovery.rename")}
+                  </a>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    value={domain.id}
+                    disabled={changing.pending}
+                    onClick={controls.exclude}
+                    aria-label={t("discovery.excludeOne", { label: domain.label })}
+                  >
+                    {t("discovery.exclude")}
+                  </button>
+                </div>
               </div>
             ))}
           </fieldset>
@@ -166,7 +229,7 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
           )}
           <div className="action-bar">
             <span className="small muted" role="status">
-              {t("discovery.picked", { count: chosen.size, total: domains.length })}
+              {t("discovery.picked", { count: chosen.size, total: kept.length })}
             </span>
             <button type="submit" className="btn primary" disabled={chosen.size === 0 || opening.state === "opening"}>
               {opening.state === "opening" ? t("discovery.opening") : t("discovery.generate", { count: chosen.size })}
@@ -174,6 +237,13 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
           </div>
         </form>
       )}
+      {renamed === undefined && changing.refusal !== undefined && (
+        <p className="config-note ko" role="alert">
+          {changing.refusal}
+        </p>
+      )}
+      <Excluded domains={domains.filter(({ excluded }) => excluded === true)} changing={changing} restore={controls.restore} />
+      {renamed !== undefined && <RenamePanel key={renamed.id} domain={renamed} close={withPanel(route)} changing={changing} onRename={controls.rename} />}
       {/* What the person decides comes first; where each source stands follows, as what the domains come from. */}
       <Sources mapping={mapping} />
     </Page>

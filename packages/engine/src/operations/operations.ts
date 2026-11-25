@@ -50,6 +50,7 @@ export const ENGINE_OPERATIONS: MethodsOf = OPERATIONS;
  *   instance that keeps none takes from the configuration file.
  * - `Configuration.whenRecorded`: the operations on sessions map the knowledge of a source added once its revision is recorded.
  * - `Secrets.current`: the operations on sessions read the environment of the runs through it.
+ * - `KnowledgeDomains.forget`: the execution of a session forgets what was set of the domains its cartography no longer found.
  * - `PastRuns.take`: a host keeps the runs of the repository as executions as it starts.
  * - `RepositoryTests.list`: the campaigns check the tests they choose against it.
  */
@@ -57,6 +58,7 @@ export const HOST_METHODS = {
   Sessions: ["start", "stop"],
   Configuration: ["current", "inForce", "whenRecorded"],
   Secrets: ["current"],
+  KnowledgeDomains: ["forget"],
   PastRuns: ["take"],
   RepositoryTests: ["list"],
 } as const satisfies MethodsOf;

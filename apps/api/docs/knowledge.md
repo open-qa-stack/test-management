@@ -11,6 +11,7 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`. A cl
 | `GET /api/knowledge/:source/documents/:name` | A document, with its text. |
 | `DELETE /api/knowledge/:source/documents/:name` | Removes a document. |
 | `GET /api/knowledge/domains` | [The domains of the knowledge](#the-domains-of-the-knowledge), as the cartography named them. |
+| `PATCH /api/knowledge/domains/<id>` | Renames a domain, excludes it, or takes it back. |
 | `GET /api/knowledge/mapping` | [Where the cartography stands](#where-the-cartography-stands), source by source. |
 | `POST /api/knowledge/mapping` | [Maps the knowledge again](#mapping-the-knowledge-again), one source or every source. |
 | `POST /api/knowledge/check` | [Tests a source](#testing-a-source) as it is drafted, without the model, indexing nothing. |
@@ -84,6 +85,19 @@ GET /api/knowledge/domains
 ```
 
 The answer lists the domains of the index the last cartography wrote in the test repository, in its order, each with its `id`, its `label` and its `description`: what [a session may be kept to](sessions.md#opening-a-session). It lists none before a cartography, without a test repository, or when the index cannot be read. It is answered with `cache-control: no-store`.
+
+Each domain may carry what a person set of it: `excluded` when they excluded it, and `foundLabel`, the name the cartography gave it, when they gave it another, which `label` then is.
+
+```http
+PATCH /api/knowledge/domains/orders
+content-type: application/json
+
+{ "label": "Ventes", "excluded": true }
+```
+
+The body holds `label`, `excluded`, or both, and the answer is the domain. An excluded domain is proposed to no session and served to no agent: a session kept to it is refused with `422 domain_refused`, and one kept to nothing designs without it. Its knowledge sources stay readable by their own tools, which read a whole source, and the notes of the agents are not sorted. A name takes its place in the console, in `oqas` and in what the agents are told; the name the cartography gave takes it back. A name that is empty, or longer than 100 characters, is refused with `422 domain_refused`, and a domain the index does not hold with `404 unknown_domain`.
+
+What is set is kept in the database of the instance, apart from the index: it holds when the cartography writes the index again, for a domain of the same identifier, and is forgotten at the end of a session whose index no longer has the domain.
 
 ## A source of documents
 

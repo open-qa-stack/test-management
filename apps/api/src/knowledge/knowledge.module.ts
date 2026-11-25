@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { Configuration, KnowledgeDocuments, KnowledgeDomains, KnowledgeMapping, KnowledgeSources, Secrets } from "@open-qa-stack/engine";
-import { ConfigurationStore, DocumentStore, SessionStore } from "@open-qa-stack/store";
+import { ConfigurationStore, DocumentStore, DomainSettingStore, SessionStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
 import { RepositoryConfigurationModule } from "../repository-configuration/repository-configuration.module.ts";
@@ -25,8 +25,9 @@ import { SourcesController } from "./sources.controller.ts";
     },
     {
       provide: KnowledgeDomains,
-      inject: [ApiConfiguration, ConfigurationStore],
-      useFactory: ({ repository }: ApiConfiguration, configuration: ConfigurationStore) => new KnowledgeDomains(repository, configuration),
+      inject: [ApiConfiguration, ConfigurationStore, DomainSettingStore],
+      useFactory: ({ repository }: ApiConfiguration, configuration: ConfigurationStore, settings: DomainSettingStore) =>
+        new KnowledgeDomains(repository, configuration, settings),
     },
     {
       provide: KnowledgeMapping,

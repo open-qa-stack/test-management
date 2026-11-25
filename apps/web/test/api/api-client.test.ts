@@ -158,6 +158,10 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const listed = clientOf(() => json({ items: [domain] }));
     assert.deepEqual(await listed.client.domains(), [domain]);
     assert.deepEqual(listed.calls, [["/api/knowledge/domains", undefined]]);
+    const changed = clientOf(() => json({ id: "a b", label: "Ventes" }));
+    await changed.client.changeDomain("a b", { label: "Ventes" });
+    assert.equal(changed.calls[0]![0], "/api/knowledge/domains/a%20b");
+    assert.deepEqual([changed.calls[0]![1]?.method, changed.calls[0]![1]?.body], ["PATCH", '{"label":"Ventes"}']);
   });
 
   it("reads the campaigns and the launches, plans a campaign and changes it by posting to its routes, its identifier encoded", async () => {

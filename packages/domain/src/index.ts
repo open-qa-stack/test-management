@@ -214,6 +214,10 @@ export {
   type UploadedFile,
   type UploadReading,
 } from "./knowledge-documents/uploaded-documents.ts";
+export { settledIndex, type DomainChange, type DomainSetting } from "./domain-index/domain-setting.ts";
+export type { DomainSettingStorePort } from "./domain-index/domain-setting-store-port.ts";
+export { DomainRefusedError } from "./domain-index/domain-refused-error.ts";
+export { UnknownDomainError } from "./domain-index/unknown-domain-error.ts";
 export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./domain-index/knowledge-domain.ts";
 export {
   GENERAL_DOMAIN,

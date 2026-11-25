@@ -30,6 +30,8 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   launch_refused: { status: HttpStatus.CONFLICT, title: "Launch refused" },
   unknown_campaign: { status: HttpStatus.NOT_FOUND, title: "Unknown campaign" },
   campaign_refused: { status: HttpStatus.CONFLICT, title: "Campaign refused" },
+  unknown_domain: { status: HttpStatus.NOT_FOUND, title: "Unknown domain" },
+  domain_refused: { status: HttpStatus.UNPROCESSABLE_ENTITY, title: "Domain refused" },
   unknown_secret: { status: HttpStatus.NOT_FOUND, title: "Unknown variable" },
   secret_refused: { status: HttpStatus.CONFLICT, title: "Value refused" },
   error: { status: HttpStatus.INTERNAL_SERVER_ERROR, title: "Request not answered" },

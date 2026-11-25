@@ -1,4 +1,4 @@
-import type { CampaignDetails, CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
+import type { DomainChange, CampaignDetails, CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
 
 /** What the command is asked to do, with what that takes. */
 export type Command =
@@ -36,6 +36,8 @@ export type Command =
   | { readonly name: "knowledge"; readonly action: "mapping" }
   /** List the domains the cartography found in the knowledge. */
   | { readonly name: "knowledge"; readonly action: "domains" }
+  /** Exclude a domain from the sessions and the agents, take it back, or rename it. */
+  | { readonly name: "knowledge"; readonly action: "domain"; readonly domain: string; readonly change: DomainChange }
   /** Print a document a source of the instance keeps. */
   | { readonly name: "knowledge"; readonly action: "read"; readonly source: string; readonly document: string }
   /** Remove a document from a source of the instance. */

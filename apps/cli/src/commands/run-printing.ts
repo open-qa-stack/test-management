@@ -7,7 +7,7 @@ import { campaigned } from "./campaigns-command.ts";
 import type { CommandIo } from "./command-io.ts";
 import { configured, fileChecked, historied } from "./config-command.ts";
 import { executed } from "./executions-command.ts";
-import { checked, documented, domained, known, mapped } from "./knowledge-command.ts";
+import { checked, documented, domainChanged, domained, known, mapped } from "./knowledge-command.ts";
 import { launched } from "./launch-command.ts";
 import { modelled } from "./model-command.ts";
 import type { Operations } from "./operations.ts";
@@ -58,6 +58,7 @@ export async function runPrinting(
     case "knowledge":
       if (command.action === "check") return await checked({ configuration, sources, command, options, io });
       if (command.action === "mapping") return mapped(await mapping.state(), options, io);
+      if (command.action === "domain") return await domainChanged(operations, command, { options, io });
       if (command.action === "domains") return await domained(operations, { options, io });
       if (command.action === "read" || command.action === "remove") return await documented(documents, command, { options, io });
       return await known({ configuration, documents, command, options, io });

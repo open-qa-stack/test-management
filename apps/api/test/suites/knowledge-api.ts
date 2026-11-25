@@ -7,7 +7,7 @@ import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testi
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { apiOverDatabase } from "../support/api-over-database.ts";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { DocumentList, KnowledgeDomainList, Problem, StoredDocument } from "@open-qa-stack/domain/sessions";
+import type { DocumentList, KnowledgeDomain, KnowledgeDomainList, Problem, StoredDocument } from "@open-qa-stack/domain/sessions";
 
 /** The configuration of the test repository: a source of documents the instance keeps, `manuals`, and one of documents of the repository, `order-specs`. */
 const TEXT = fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/", {
@@ -88,6 +88,39 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(await domains(), [
         { id: "orders", label: "Commandes", description: "Passer une commande.", sources: [{ id: "shop", applications: ["shop"], items: ["/orders"] }] },
       ]);
+      // A domain is renamed, excluded and taken back; what the cartography writes again keeps it.
+      const change = async (id: string, body: unknown) => {
+        const response = await fetch(`${api.url}/knowledge/domains/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        return { status: response.status, body: (await response.json()) as KnowledgeDomain & Problem };
+      };
+      const changed = await change("orders", { label: " Ventes ", excluded: true });
+      assert.deepEqual([changed.status, changed.body.label, changed.body.foundLabel, changed.body.excluded], [200, "Ventes", "Commandes", true]);
+      writeFileSync(join(repository, ".oqas", "index", "domain-index.json"), JSON.stringify({ ...index, producedAt: "2026-11-21T09:00:00.000Z" }));
+      assert.deepEqual(
+        (await domains()).map(({ label, excluded }) => [label, excluded]),
+        [["Ventes", true]],
+      );
+      const opened = await fetch(`${api.url}/sessions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ request: "Test", scope: { domains: ["orders"] } }),
+      });
+      assert.deepEqual([opened.status, ((await opened.json()) as Problem).code], [422, "domain_refused"]);
+      assert.equal((await change("orders", { excluded: false, label: "Commandes" })).body.excluded, undefined);
+      for (const [id, body, status, code] of [
+        ["gone", { excluded: true }, 404, "unknown_domain"],
+        ["orders", { label: " " }, 422, "domain_refused"],
+        ["orders", {}, 400, "invalid_request"],
+        ["orders", { label: 1 }, 400, "invalid_request"],
+        ["orders", { excluded: "yes" }, 400, "invalid_request"],
+      ] as const) {
+        const refused = await change(id, body);
+        assert.deepEqual([body, refused.status, refused.body.code], [body, status, code]);
+      }
     });
   });
 

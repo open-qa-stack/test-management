@@ -13,7 +13,7 @@ export const OPERATIONS = {
   Secrets: ["list", "save"],
   RepositorySetup: ["state", "prepare"],
   KnowledgeDocuments: ["list", "read", "upload", "remove"],
-  KnowledgeDomains: ["list"],
+  KnowledgeDomains: ["list", "change"],
   KnowledgeSources: ["check"],
   KnowledgeMapping: ["state"],
   RepositoryTests: ["listed"],

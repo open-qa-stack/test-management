@@ -7,6 +7,7 @@ import { Configuration, Sessions, type SessionsHost } from "../../src/index.ts";
 import { eventually } from "./eventually.ts";
 import { held } from "./held.ts";
 import { MemoryConfigurationStore } from "./memory-configuration-store.ts";
+import { MemoryDomainSettingStore } from "./memory-domain-setting-store.ts";
 import { MemoryDocumentStore } from "./memory-document-store.ts";
 import { MemoryExecutionStore } from "./memory-execution-store.ts";
 import { MemorySessionStore } from "./memory-session-store.ts";
@@ -73,6 +74,8 @@ export class Hosted {
   readonly documents = new MemoryDocumentStore();
   /** The memories of the agents of the sessions. */
   readonly memory = new KeptMemories();
+  /** What a person set of the domains of the knowledge. */
+  readonly domainSettings = new MemoryDomainSettingStore();
   /** The store of the executions of tests the sessions ran. */
   readonly executions = new MemoryExecutionStore();
   readonly logger = new RecordingLogger();
@@ -100,6 +103,7 @@ export class Hosted {
       configuration: this.settings,
       documents: this.documents,
       memory: this.memory,
+      domainSettings: this.domainSettings,
       executions: this.executions,
       repository: this.root,
       env: ENV,

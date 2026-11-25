@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { CARDS_FOLDER, runSources } from "@open-qa-stack/agents";
 import { setTimeout as pause } from "node:timers/promises";
 import {
+  DomainRefusedError,
   LaunchRefusedError,
   resolvedConfig,
   UnknownSessionError,
@@ -278,9 +279,16 @@ export class Sessions {
    * @param opening - What to test, and where.
    * @returns The session: `running` when it started at once, `queued` when it waits.
    * @throws {@link NoRepositoryError} when the host has no test repository to run it in.
+   * @throws `DomainRefusedError` when it is kept to a domain that is excluded.
    * @throws What the store raises when it cannot take the session.
    */
-  open(opening: SessionOpening): Promise<Session> {
+  async open(opening: SessionOpening): Promise<Session> {
+    const asked = opening.scope?.domains ?? [];
+    const excluded = asked.length === 0 ? [] : (await this.#host.domainSettings.list()).filter((setting) => setting.excluded && asked.includes(setting.id));
+    if (excluded.length > 0)
+      throw new DomainRefusedError(
+        `The session is kept to what is excluded, ${excluded.map(({ id }) => id).join(", ")}: take it back in the discovery, or leave it out.`,
+      );
     return this.#line((store) => store.ask(opening, this.#identity));
   }
 

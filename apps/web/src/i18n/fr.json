@@ -381,7 +381,9 @@
     "unreachable": "L’instance ne répond pas.",
     "unreadable": "La réponse de l’instance est illisible.",
     "unknown_secret": "La configuration enregistrée ne nomme pas cette variable : enregistrez d’abord la configuration qui la nomme.",
-    "secret_refused": "Cette valeur ne peut pas être enregistrée : elle est vide, ou l’environnement de l’outil définit déjà la variable, et l’emporte."
+    "secret_refused": "Cette valeur ne peut pas être enregistrée : elle est vide, ou l’environnement de l’outil définit déjà la variable, et l’emporte.",
+    "unknown_domain": "Les connaissances ne contiennent plus ce domaine.",
+    "domain_refused": "L’instance refuse : un domaine est exclu, ou son nom est vide ou trop long."
   },
   "configuration": {
     "rules": {
@@ -1229,7 +1231,18 @@
     "domainSources_other": "D’où il vient : {{count}} sources",
     "picked_zero": "Aucun domaine choisi sur {{total}}",
     "picked_one": "1 domaine choisi sur {{total}}",
-    "picked_other": "{{count}} domaines choisis sur {{total}}"
+    "picked_other": "{{count}} domaines choisis sur {{total}}",
+    "rename": "Renommer",
+    "renameOne": "Renommer {{label}}",
+    "renameTitle": "Nom du domaine",
+    "renameLabel": "Nom",
+    "foundLabel": "La cartographie l’a nommé « {{label}} ».",
+    "exclude": "Exclure",
+    "excludeOne": "Exclure {{label}}",
+    "restore": "Réintégrer",
+    "excluded": "Domaines exclus",
+    "excludedNote": "Les agents n’y travaillent pas.",
+    "allExcluded": "Tous les domaines sont exclus"
   },
   "harness": {
     "configurationValid": "La configuration est valide ; la session vise l’environnement {{environment}}.",

@@ -3,12 +3,14 @@ import { dirname, join, posix } from "node:path";
 import {
   CONFIG_FILE_NAME,
   isReadIn,
+  settledIndex,
   validateDomainIndex,
   validateSourceCard,
   validateSourceManifest,
   type AgentEvent,
   type AgentRuntime,
   type DomainIndex,
+  type DomainSetting,
   type Knowledge,
   type PlanReview,
   type PlannedScenario,
@@ -103,6 +105,8 @@ export interface DesignerOptions {
    * scenario of another domain is refused; every domain of the index when left out or empty.
    */
   readonly domains?: readonly string[];
+  /** What a person set of the domains: those excluded are served to no agent, and those renamed are told by their name; nothing by default. */
+  readonly domainSettings?: readonly DomainSetting[];
   /**
    * Whether the plan is of visual tests alone: the agent that plans says which states of the screens to compare, and the harness adds
    * the comparison of each with its reference.
@@ -601,10 +605,14 @@ export class Designer {
     if (content === undefined) return `the domain index ${path} cannot be read.`;
     const validation = validateDomainIndex(content);
     if (!validation.ok) return `the domain index ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
-    const index = validation.value;
+    const settings = this.options.domainSettings ?? [];
+    const index = settledIndex(validation.value, settings);
+    if (index.domains.length === 0) return "every domain of the knowledge is excluded: take one back in the discovery, or with oqas knowledge restore.";
     const asked = this.options.domains ?? [];
     if (asked.length === 0) return index;
     const known = index.domains.map((domain) => domain.id);
+    const excluded = settings.filter((setting) => setting.excluded && asked.includes(setting.id)).map(({ id }) => id);
+    if (excluded.length > 0) return `the domain ${excluded.join(", ")} is excluded: take it back in the discovery, or with oqas knowledge restore.`;
     const unknown = asked.filter((domain) => !known.includes(domain));
     if (unknown.length > 0) return `the knowledge has no domain ${unknown.join(", ")}; its domains are ${known.join(", ")}.`;
     return { ...index, domains: index.domains.filter((domain) => asked.includes(domain.id)) };

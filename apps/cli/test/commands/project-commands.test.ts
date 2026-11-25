@@ -114,5 +114,10 @@ describe("oqas knowledge read, remove and domains", () => {
       "customers: Customers. The customers of the shop.",
       "",
     ]);
+    assert.equal((await oqas("knowledge", "exclude", "orders")).out, "orders: Orders. Place and follow an order. (excluded)\n");
+    assert.equal((await oqas("knowledge", "rename", "orders", "Sales")).out, "orders: Sales. Place and follow an order. (excluded)\n");
+    assert.equal((await oqas("knowledge", "restore", "orders")).out, "orders: Sales. Place and follow an order.\n");
+    assert.deepEqual(await oqas("knowledge", "exclude", "gone"), { code: 3, out: "", err: "The knowledge has no domain gone.\n" });
+    assert.equal((await oqas("knowledge", "rename", "orders")).code, 3);
   });
 });
