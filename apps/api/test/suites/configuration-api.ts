@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
-import { Logger } from "@nestjs/common";
+import { describe, it } from "vitest";
 import { configurationText, type OqasConfig } from "@open-qa-stack/domain";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { closedPort } from "@open-qa-stack/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
+import { apiOverDatabase } from "../support/api-over-database.ts";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
 import type { ConfigurationCheck, ConfigurationView, Problem, RevisionList } from "@open-qa-stack/domain/sessions";
 
@@ -42,20 +41,9 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  beforeAll(async () => {
-    database = await SessionDatabase.create(engine, new Logger("Database"));
+  apiOverDatabase(engine, "configuration", TEXT, (started) => {
+    ({ api, repository, database } = started);
   });
-  beforeEach(async () => {
-    await database.clear();
-    repository = mkdtempSync(join(tmpdir(), "oqas-api-configuration-"));
-    writeFileSync(join(repository, "oqas.json"), TEXT);
-    api = await sessionsApi({ database: database.url, repository });
-  });
-  afterEach(async () => {
-    await api.close();
-    rmSync(repository, { recursive: true, force: true });
-  });
-  afterAll(() => database.drop());
 
   const get = async (path: string, on = api) => answerOf(await fetch(`${on.url}/configuration${path}`));
   const post = async (path: string, body?: unknown, on = api) =>

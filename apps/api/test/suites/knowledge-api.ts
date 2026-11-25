@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
-import { Logger } from "@nestjs/common";
+import { describe, it } from "vitest";
 import { MAX_DOCUMENT_BYTES, MAX_DOCUMENTS_PER_UPLOAD } from "@open-qa-stack/domain";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
+import { apiOverDatabase } from "../support/api-over-database.ts";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
 import type { DocumentList, KnowledgeDomainList, Problem, StoredDocument } from "@open-qa-stack/domain/sessions";
 
@@ -53,20 +52,9 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  beforeAll(async () => {
-    database = await SessionDatabase.create(engine, new Logger("Database"));
+  apiOverDatabase(engine, "knowledge", TEXT, (started) => {
+    ({ api, repository, database } = started);
   });
-  beforeEach(async () => {
-    await database.clear();
-    repository = mkdtempSync(join(tmpdir(), "oqas-api-knowledge-"));
-    writeFileSync(join(repository, "oqas.json"), TEXT);
-    api = await sessionsApi({ database: database.url, repository });
-  });
-  afterEach(async () => {
-    await api.close();
-    rmSync(repository, { recursive: true, force: true });
-  });
-  afterAll(() => database.drop());
 
   const documents = (source = "manuals") => `${api.url}/knowledge/${encodeURIComponent(source)}/documents`;
   const get = async (path: string) => answerOf(await fetch(path));
