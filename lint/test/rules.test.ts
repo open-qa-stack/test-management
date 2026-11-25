@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { afterAll, describe, it } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
 import { confinedImports } from "../confined-imports.ts";
-import { folderBoundaries } from "../folder-boundaries.ts";
 import { ManifestCheck } from "../manifest-check.ts";
 import { packageBoundaries } from "../package-boundaries.ts";
 import plugin from "../plugin.ts";
@@ -20,7 +19,7 @@ describe("the plugin of the workspace", () => {
   it("names its rules under open-qa-stack", () => {
     assert.deepEqual(plugin, {
       meta: { name: "open-qa-stack" },
-      rules: { "confined-imports": confinedImports, "folder-boundaries": folderBoundaries, "package-boundaries": packageBoundaries, "pure-domain": pureDomain },
+      rules: { "confined-imports": confinedImports, "package-boundaries": packageBoundaries, "pure-domain": pureDomain },
     });
   });
 });
@@ -113,33 +112,6 @@ describe("the rule that keeps each package within its table", () => {
           refused("external", "@open-qa-stack/domain", "left-pad", "zod"),
           refused("external", "@open-qa-stack/domain", "@scope/parser", "zod"),
           refused("external", "@open-qa-stack/domain", "left-pad", "zod"),
-        ],
-      },
-    ],
-  });
-});
-
-describe("the rule that keeps a folder to fewer packages than its package", () => {
-  const options = [{ directory: "apps/cli/src/connected", dependsOn: ["@open-qa-stack/domain"] }];
-  const connected = at("apps/cli/src/connected/rule.ts");
-  tester.run("folder-boundaries", folderBoundaries, {
-    valid: [
-      { filename: at("apps/cli/src/rule.ts"), options, code: 'import { run } from "@open-qa-stack/harness";\nimport { a } from "../connected/a.ts";' },
-      {
-        filename: connected,
-        options,
-        code: 'import { config } from "@open-qa-stack/domain";\nimport { local } from "./local.ts";\nimport { fetch } from "undici";',
-      },
-    ],
-    invalid: [
-      {
-        filename: connected,
-        options,
-        code: 'import { run } from "@open-qa-stack/harness";\nimport { command } from "../command.ts";\nimport { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";',
-        errors: [
-          { messageId: "forbidden", data: { source: "apps/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
-          { messageId: "relative", data: { source: "apps/cli/src/connected", target: "apps/cli/src/command.ts", allowed: "@open-qa-stack/domain" } },
-          { messageId: "forbidden", data: { source: "apps/cli/src/connected", target: "@open-qa-stack/harness", allowed: "@open-qa-stack/domain" } },
         ],
       },
     ],

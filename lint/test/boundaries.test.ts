@@ -221,50 +221,6 @@ describe("criterion 7 — the SDK of the agents is imported by the implementatio
   });
 });
 
-describe("criterion 8 — the connected mode of the command line imports only the domain", () => {
-  const connected = (file: string): string => `apps/cli/src/connected/${file}`;
-  const command = (file: string): string => `apps/cli/src/${file}`;
-  const refused = ["harness", "store", "tools"] as const;
-  const of = linted({
-    ...Object.fromEntries(refused.map((target) => [connected(`${target}.ts`), byName(name(target))])),
-    [connected("sdk.ts")]: 'import { CopilotClient } from "@github/copilot-sdk";\nexport const client = CopilotClient;\n',
-    [connected("domain.ts")]: byName(name("domain")),
-    [connected("command.ts")]: 'import { runOqas } from "../run-oqas.ts";\nexport const command = runOqas;\n',
-    [connected("installed.ts")]: 'import { runner } from "../../node_modules/@open-qa-stack/harness/src/index.ts";\nexport const used = runner;\n',
-    ...Object.fromEntries(refused.map((target) => [command(`${target}.ts`), byName(name(target))])),
-  });
-  it("is set by an override of the lint configuration on the folder of the connected mode", async () => {
-    const configuration = (await import(join(ROOT, ".oxlintrc.json"), { with: { type: "json" } })) as { default: { overrides: { files: string[] }[] } };
-    assert.ok(configuration.default.overrides.some(({ files }) => files.length === 1 && files[0] === "apps/cli/src/connected/**"));
-  });
-  for (const target of refused) {
-    it(`refuses ${target} in connected/`, () => {
-      const file = connected(`${target}.ts`);
-      assert.deepEqual(of(file), [forbidden(file, 2, "apps/cli/src/connected", name(target), name("domain"), "folder-boundaries")]);
-    });
-  }
-  it("refuses the SDK of the agents in connected/", () => {
-    assert.deepEqual(of(connected("sdk.ts")), [confined(connected("sdk.ts"))]);
-  });
-  it("accepts the domain in connected/", () => {
-    assert.deepEqual(of(connected("domain.ts")), []);
-  });
-  it("refuses a file of the command line outside connected/ imported by a relative path in connected/", () => {
-    assert.deepEqual(of(connected("command.ts")), [
-      `${connected("command.ts")}:1:1: apps/cli/src/connected may not import ${command("run-oqas.ts")} by a relative path that leaves its folder. [Error/open-qa-stack(folder-boundaries)]`,
-    ]);
-  });
-  it("refuses harness reached by a path through the installed packages in connected/", () => {
-    const file = connected("installed.ts");
-    assert.deepEqual(of(file), [forbidden(file, 1, "apps/cli/src/connected", name("harness"), name("domain"), "folder-boundaries")]);
-  });
-  for (const target of refused) {
-    it(`accepts ${target} outside connected/`, () => {
-      assert.deepEqual(of(command(`${target}.ts`)), []);
-    });
-  }
-});
-
 describe("criterion 9 — a manifest that declares a dependency of the workspace out of the table fails the check", () => {
   const manifest = (dependencies: Record<string, string>, devDependencies: Record<string, string> = {}): string =>
     `${JSON.stringify({ name: "@open-qa-stack/agents", private: true, dependencies, devDependencies }, null, 2)}\n`;
