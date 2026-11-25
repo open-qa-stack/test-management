@@ -21,6 +21,7 @@ export type { CommandOutcome, CommandRunner, StepCommand } from "./test/command-
 export { lockedPlaywrightVersion } from "./test/playwright-version.ts";
 export type { AttemptStatus, ListedTest, ReportedAttempt, ReportedStatus, ReportedTest } from "./test/reported-test.ts";
 export {
+  attemptErrors,
   reportEntries,
   type JsonAttachment,
   type JsonError,

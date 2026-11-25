@@ -1,4 +1,4 @@
-import { reportEntries, type JsonResult, type JsonStep, type ListedTest, type ReportedAttempt, type ReportedTest } from "@open-qa-stack/domain";
+import { attemptErrors, reportEntries, type JsonResult, type JsonStep, type ListedTest, type ReportedAttempt, type ReportedTest } from "@open-qa-stack/domain";
 
 /**
  * The tests a JSON of the Playwright reporter lists, as `--list --reporter=json` prints it.
@@ -27,7 +27,7 @@ export function reportedTests(json: string): ReportedTest[] | undefined {
 
 /** An attempt, with the step that failed, its trace and the context of its error when the report gives them. */
 function attemptOf(result: JsonResult): ReportedAttempt {
-  const errors = (result.errors ?? []).flatMap((error) => (error.message === undefined ? [] : [error.message]));
+  const errors = attemptErrors(result).flatMap((error) => (error.message === undefined ? [] : [error.message]));
   const failedStep = failedStepOf(result.steps ?? []);
   const attached = (name: string) => result.attachments?.find((attachment) => attachment.name === name)?.path;
   const trace = attached("trace");
