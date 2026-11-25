@@ -2,7 +2,7 @@ import type { ChangeEvent, ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { api } from "../api/instance-api.ts";
 import { usePolled } from "../api/use-polled.ts";
-import { isExecutionPeriod, periodStart } from "./execution-period.ts";
+import { periodStart } from "./execution-period.ts";
 import { executionsHref, type ExecutionsFilter } from "./executions-paths.ts";
 import { ExecutionsScreen, type ExecutionsControls } from "./executions-screen.tsx";
 
@@ -29,28 +29,33 @@ export function ExecutionsPage({
   readonly before?: string;
   readonly sessions: readonly Session[];
 }): ReactNode {
-  const { outcome, period } = filter;
+  const { outcome, origin, period } = filter;
   const state = usePolled(
     () =>
       api.executionPage({
         ...(outcome === undefined ? {} : { outcome }),
+        ...(origin === undefined ? {} : { origin }),
         ...(period === undefined ? {} : { since: periodStart(period, new Date()) }),
         ...(before === undefined ? {} : { before }),
       }),
-    `${outcome}:${period}:${before}`,
+    `${outcome}:${origin}:${period}:${before}`,
   );
   // The campaigns name the one an execution was launched for.
   const campaigns = usePolled(() => api.campaigns(), "campaigns");
-  const open = (next: ExecutionsFilter) => (window.location.hash = executionsHref(next));
+  // A filter chosen opens its first page, and keeps the others.
+  const open = (changed: { readonly [Name in keyof ExecutionsFilter]: ExecutionsFilter[Name] | undefined }) => {
+    const { outcome: what, origin: where, period: when } = { ...filter, ...changed };
+    window.location.hash = executionsHref({
+      ...(what === undefined ? {} : { outcome: what }),
+      ...(where === undefined ? {} : { origin: where }),
+      ...(when === undefined ? {} : { period: when }),
+    });
+  };
+  // Each list offers the values its filter takes, and none.
   const controls: ExecutionsControls = {
-    outcome: (event) => {
-      const value = chosen(event);
-      open({ ...(value === "failing" || value === "passing" ? { outcome: value } : {}), ...(period === undefined ? {} : { period }) });
-    },
-    period: (event) => {
-      const value = chosen(event);
-      open({ ...(outcome === undefined ? {} : { outcome }), ...(isExecutionPeriod(value) ? { period: value } : {}) });
-    },
+    outcome: (event) => open({ outcome: chosen(event) as ExecutionsFilter["outcome"] }),
+    origin: (event) => open({ origin: chosen(event) as ExecutionsFilter["origin"] }),
+    period: (event) => open({ period: chosen(event) as ExecutionsFilter["period"] }),
   };
   return (
     <ExecutionsScreen

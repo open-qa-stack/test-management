@@ -71,6 +71,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     campaign_id: "text, or nothing",
     ran_at: "instant",
     commit_sha: "text, or nothing",
+    environment: "text, or nothing",
     report: "text",
   },
   execution_results: {

@@ -11,6 +11,7 @@ import { campaignSelections } from "./0010-campaign-selections.ts";
 import { memories } from "./0011-memories.ts";
 import { sessionPurposes } from "./0012-session-purposes.ts";
 import { tests } from "./0013-tests.ts";
+import { executionEnvironments } from "./0014-execution-environments.ts";
 import type { Migration } from "kysely/migration";
 
 /**
@@ -31,4 +32,5 @@ export const MIGRATIONS: Readonly<Record<string, Migration>> = {
   "0011_memories": memories,
   "0012_session_purposes": sessionPurposes,
   "0013_tests": tests,
+  "0014_execution_environments": executionEnvironments,
 };

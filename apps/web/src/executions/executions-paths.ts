@@ -1,11 +1,12 @@
-import type { ExecutionOutcome } from "@open-qa-stack/domain/sessions";
+import type { ExecutionOrigin, ExecutionOutcome } from "@open-qa-stack/domain/sessions";
 import { API_BASE } from "../api/api-client.ts";
 import { hrefTo } from "../routing/route.ts";
 import type { ExecutionPeriod } from "./execution-period.ts";
 
-/** What a page of the executions is narrowed to: what came of their tests, how far back they go. */
+/** What a page of the executions is narrowed to: what came of their tests, where they come from, how far back they go. */
 export interface ExecutionsFilter {
   readonly outcome?: ExecutionOutcome;
+  readonly origin?: ExecutionOrigin;
   readonly period?: ExecutionPeriod;
 }
 
@@ -31,9 +32,10 @@ export const TRACE_VIEWER = "/trace-viewer/index.html";
  * @param before - The execution the page starts after; the latest ones when none is given.
  * @returns The fragment to put in an `href`.
  */
-export function executionsHref({ outcome, period }: ExecutionsFilter = {}, before?: string): string {
+export function executionsHref({ outcome, origin, period }: ExecutionsFilter = {}, before?: string): string {
   return hrefTo(EXECUTIONS_PATH, {
     ...(outcome === undefined ? {} : { outcome }),
+    ...(origin === undefined ? {} : { origin }),
     ...(period === undefined ? {} : { period }),
     ...(before === undefined ? {} : { before }),
   });

@@ -19,8 +19,8 @@ describe("the period of a page of the executions", () => {
 
   it("is kept by the address of a page, with its outcome and the execution it starts after", () => {
     assert.deepEqual(
-      [executionsHref(), executionsHref({ period: "day" }), executionsHref({ outcome: "passing", period: "month" }, "e1")],
-      ["#/executions", "#/executions?period=day", "#/executions?outcome=passing&period=month&before=e1"],
+      [executionsHref(), executionsHref({ period: "day" }), executionsHref({ outcome: "passing", origin: "manual", period: "month" }, "e1")],
+      ["#/executions", "#/executions?period=day", "#/executions?outcome=passing&origin=manual&period=month&before=e1"],
     );
   });
 });

@@ -72,7 +72,10 @@ describe("the tests and the executions, as a command writes them", () => {
     } = CAMPAIGN;
     assert.equal(testExecutionLine({ ...execution, result: result! }), `e2  campaign, campaign c1  ${AT}  failed  search, version 2`);
     const { version: _version, ...unversioned } = result!;
-    assert.equal(testExecutionLine({ id: "e3", origin: "manual", ranAt: AT, result: unversioned }), `e3  manual  ${AT}  failed  search`);
+    assert.equal(
+      testExecutionLine({ id: "e3", origin: "manual", ranAt: AT, environment: "local", result: unversioned }),
+      `e3  manual, on local  ${AT}  failed  search`,
+    );
   });
 
   it("say what an execution changed for a test since its last run", () => {

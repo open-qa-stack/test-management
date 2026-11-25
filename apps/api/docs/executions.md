@@ -20,7 +20,7 @@ The shapes of the bodies are the types `ExecutionList` and `Execution` of `@open
 
 | Route | Answer |
 |---|---|
-| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>&since=<date>]` | A page of the executions, the latest first, each with what came of each of its tests. |
+| `GET /api/executions[?limit=<n>&before=<id>&outcome=<outcome>&origin=<origin>&since=<date>]` | A page of the executions, the latest first, each with what came of each of its tests. |
 | `GET /api/executions/<id>` | One execution, with what came of each of its tests. |
 | `POST /api/launches` | Launches tests of the repository as they are; `202` with the launch, which runs. |
 | `GET /api/launches` | The launch that runs, and the last one that ended, with the execution it kept. |
@@ -74,12 +74,13 @@ GET /api/executions?limit=25
 }
 ```
 
-A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did; `since=<date>`, an ISO 8601 date such as `2026-11-20` or `2026-11-20T08:00:00Z`, those kept from then on. `total` tells how many executions the query keeps, every page together, and `start` the rank of the first one of the page among them, from 0: a page shows its executions `start + 1` to `start + items.length` of `total`.
+A page holds `limit` executions, 25 when the query does not say, 100 at most. The executions are ordered by date, then by identifier for the same date; `next` names the last one of a page, and the page after it is asked with `before=<next>`: a page starts after that execution, whatever was kept since, so that no execution is told twice nor skipped. The last page has no `next`. `outcome=failing` keeps the executions where a test failed, `outcome=passing` those where none did; `origin=<origin>` those of an origin; `since=<date>`, an ISO 8601 date such as `2026-11-20` or `2026-11-20T08:00:00Z`, those kept from then on. `total` tells how many executions the query keeps, every page together, and `start` the rank of the first one of the page among them, from 0: a page shows its executions `start + 1` to `start + items.length` of `total`.
 
 | Field | What it says |
 |---|---|
-| `origin` | Where the execution comes from: `design` for the tests a session of design ran. |
+| `origin` | Where the execution comes from: `design` for the tests a session of design ran, `manual` for tests a person launched, `campaign` for those of a campaign. |
 | `sessionId` | The session that ran it; left out once that session is gone, or for an execution no session ran. |
+| `environment` | The environment its tests ran against; left out for an execution kept before the instance kept it. |
 | `commit` | The commit the test repository was at; left out for a folder without one. |
 | `report` | The report of the runner, relative to the test repository. |
 | `results[].verdict` | `passed`, `failed`, `flaky` when the test passed only on a retry, or `skipped`. |
@@ -96,7 +97,7 @@ A page holds `limit` executions, 25 when the query does not say, 100 at most. Th
 GET /api/executions/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
 ```
 
-The answer is the execution, as a page tells it, with one more field: `results[].previous` is the verdict of the test in the last execution before this one that ran it, in the same project of the runner — `passed`, `failed` or `flaky`. It is left out when none ran it before. A test is compared with its own last run, so that an execution of a few files compares as well as one of them all; the environment is not told apart.
+The answer is the execution, as a page tells it, with one more field: `results[].previous` is the verdict of the test in the last execution before this one that ran it, against the same environment and in the same project of the runner — `passed`, `failed` or `flaky`. It is left out when none ran it before. A test is compared with its own last run, so that an execution of a few files compares as well as one of them all.
 
 ## Launching tests
 

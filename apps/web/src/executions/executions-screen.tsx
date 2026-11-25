@@ -1,5 +1,13 @@
 import type { ChangeEventHandler, ReactNode } from "react";
-import type { CampaignOverview, Execution, ExecutionList, ExecutionOutcome, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
+import {
+  EXECUTION_ORIGINS,
+  type CampaignOverview,
+  type Execution,
+  type ExecutionList,
+  type ExecutionOutcome,
+  type ExecutionResult,
+  type Session,
+} from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
@@ -18,9 +26,10 @@ import { failuresFirst, VerdictBadge, VerdictBar } from "./verdicts.tsx";
 /** The outcomes a person narrows the executions to. */
 const OUTCOMES: readonly ExecutionOutcome[] = ["failing", "passing"];
 
-/** What the person does on the screen of the executions: narrow them to an outcome, or to a period. */
+/** What the person does on the screen of the executions: narrow them to an outcome, to an origin, or to a period. */
 export interface ExecutionsControls {
   readonly outcome: ChangeEventHandler<HTMLSelectElement>;
+  readonly origin: ChangeEventHandler<HTMLSelectElement>;
   readonly period: ChangeEventHandler<HTMLSelectElement>;
 }
 
@@ -41,7 +50,7 @@ export interface ExecutionsScreenProps {
   readonly controls: ExecutionsControls;
 }
 
-/** The lists that narrow the executions to an outcome and to a period, every one first, the one chosen selected. */
+/** The lists that narrow the executions to an outcome, to an origin and to a period, every one first, the one chosen selected. */
 function Filters({ filter, controls }: { readonly filter: ExecutionsFilter; readonly controls: ExecutionsControls }): ReactNode {
   return (
     <div className="exec-filters">
@@ -52,6 +61,17 @@ function Filters({ filter, controls }: { readonly filter: ExecutionsFilter; read
           {OUTCOMES.map((outcome) => (
             <option key={outcome} value={outcome}>
               {t(`executions.outcomes.${outcome}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="exec-filter small">
+        <span className="muted">{t("executions.columns.origin")}</span>
+        <select value={filter.origin ?? ""} onChange={controls.origin}>
+          <option value="">{t("executions.allOrigins")}</option>
+          {EXECUTION_ORIGINS.map((origin) => (
+            <option key={origin} value={origin}>
+              {originName(origin)}
             </option>
           ))}
         </select>
@@ -86,7 +106,7 @@ function ResultRow({ execution, result }: { readonly execution: Execution; reado
   );
 }
 
-/** An execution, as a line that unfolds into its tests: when it ran, where from, what it ran, what came of it, how long, at which version. */
+/** An execution, as a line that unfolds into its tests: when it ran, where from, what it ran and against which environment, what came of it, how long, at which version. */
 function ExecutionRow({
   execution,
   sessions,
@@ -107,7 +127,10 @@ function ExecutionRow({
         <span className="exec-origin">
           <Badge tone="neutral">{originName(execution.origin)}</Badge>
         </span>
-        <span className="exec-content small">{execution.campaignId === undefined ? content : <a href={campaignHref(execution.campaignId)}>{content}</a>}</span>
+        <span className="exec-content small">
+          {execution.campaignId === undefined ? content : <a href={campaignHref(execution.campaignId)}>{content}</a>}
+          {execution.environment !== undefined && <span className="muted"> · {execution.environment}</span>}
+        </span>
         <span className="exec-result small">
           <VerdictBar results={execution.results} />
         </span>
@@ -176,8 +199,8 @@ function Table({
 }
 
 /**
- * The screen of the executions of tests the instance keeps: a page of them, the latest first, narrowed to an outcome
- * and a period the address keeps, each a line that unfolds into its tests and leads to its screen.
+ * The screen of the executions of tests the instance keeps: a page of them, the latest first, narrowed to an outcome,
+ * an origin and a period the address keeps, each a line that unfolds into its tests and leads to its screen.
  *
  * @param props - The name of the project, the filter and the page the address asks for, the sessions, what the instance told, and what the person does.
  * @returns The screen.
@@ -185,7 +208,7 @@ function Table({
 export function ExecutionsScreen({ project, filter, before, sessions, campaigns = [], state, controls }: ExecutionsScreenProps): ReactNode {
   const title = t("executions.title");
   const page = state.value;
-  const narrowed = filter.outcome !== undefined || filter.period !== undefined || before !== undefined;
+  const narrowed = filter.outcome !== undefined || filter.origin !== undefined || filter.period !== undefined || before !== undefined;
   return (
     <Page
       crumbs={[{ label: project }, { label: title }]}

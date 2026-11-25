@@ -113,6 +113,7 @@ function History({ path, title, executions }: { readonly path: string; readonly 
             {execution.result.title !== title && <span className="small"> · {execution.result.title}</span>}
             <div className="small muted">
               {originName(execution.origin)}
+              {execution.environment !== undefined && ` · ${execution.environment}`}
               {execution.result.version !== undefined && (
                 <>
                   {" · "}

@@ -67,6 +67,7 @@ export type {
   TestExecution,
   TestExecutionList,
 } from "../executions/execution.ts";
+export { EXECUTION_ORIGINS } from "../executions/execution.ts";
 export { resultChange, type ResultChange } from "../executions/result-change.ts";
 export type { TestVersion, TestVersionList } from "../executions/test-version.ts";
 export type { EndedLaunch, FinishedTest, LaunchProgress, LaunchRequest, LaunchState, TestLaunch } from "../executions/test-launch.ts";

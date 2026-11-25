@@ -56,8 +56,10 @@ describe("oqas tests and oqas executions", () => {
 
     const page = await terminal.oqas(["executions"]);
     const [id = ""] = page.out.split(" ");
-    assert.match(page.out, new RegExp(`^${id} {2}design, session session-\\S+ {2}\\S+Z {2}3 of 3 tests passed\\nExecutions 1 to 1 of 1\\.\\n$`));
+    assert.match(page.out, new RegExp(`^${id} {2}design, session session-\\S+, on local {2}\\S+Z {2}3 of 3 tests passed\\nExecutions 1 to 1 of 1\\.\\n$`));
     assert.equal((JSON.parse((await terminal.oqas(["executions", "--outcome", "passing", "--output", "json"])).out) as ExecutionList).total, 1);
+    assert.equal((JSON.parse((await terminal.oqas(["executions", "--origin", "design", "--output", "json"])).out) as ExecutionList).total, 1);
+    assert.equal((await terminal.oqas(["executions", "--origin", "campaign"])).out, "No execution of tests to list.\n");
     assert.equal((await terminal.oqas(["executions", "--outcome", "failing"])).out, "No execution of tests to list.\n");
     assert.equal((await terminal.oqas(["executions", "--before", id])).out, "No execution of tests to list.\n");
 
@@ -65,7 +67,10 @@ describe("oqas tests and oqas executions", () => {
     assert.match(shown.out, new RegExp(`^${id} .* 3 of 3 tests passed, at the commit [0-9a-f]{40}\\.\\npassed {2}${FIRST} › the test\\n`));
     assert.equal((JSON.parse((await terminal.oqas(["executions", "show", id, "--output", "json"])).out) as Execution).results.length, 3);
 
-    assert.match((await terminal.oqas(["tests", "executions", FIRST])).out, new RegExp(`^${id} {2}design, session \\S+ {2}\\S+Z {2}passed {2}the test\\n$`));
+    assert.match(
+      (await terminal.oqas(["tests", "executions", FIRST])).out,
+      new RegExp(`^${id} {2}design, session \\S+, on local {2}\\S+Z {2}passed {2}the test\\n$`),
+    );
     assert.equal((await terminal.oqas(["tests", "executions", "nowhere.spec.ts"])).out, "No execution the instance keeps ran nowhere.spec.ts.\n");
     assert.equal((await terminal.oqas(["tests", "versions", "nowhere.spec.ts"])).out, "The instance keeps no version of nowhere.spec.ts.\n");
     assert.equal((await terminal.oqas(["tests", "read", "nowhere.spec.ts"])).out, "nowhere.spec.ts: no run the instance keeps ran it.\n");
@@ -132,6 +137,7 @@ describe("oqas tests and oqas executions", () => {
     await refused(["executions", "show"], "oqas executions takes nothing, to list them, or show then an execution.");
     await refused(["executions", "--follow"], "oqas executions acts on the executions of tests: it takes no --brief, --environment nor --follow.");
     await refused(["executions", "--outcome", "red"], "--outcome needs failing or passing.");
-    await refused(["tests", "--before", "e1"], "--outcome and --before choose the executions oqas executions lists: they go with it alone.");
+    await refused(["executions", "--origin", "robot"], "--origin needs design or manual or campaign.");
+    await refused(["tests", "--before", "e1"], "--outcome, --origin and --before choose the executions oqas executions lists: they go with it alone.");
   });
 });

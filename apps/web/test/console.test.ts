@@ -198,7 +198,17 @@ describe("the console", () => {
     );
     assert.equal(documentTitleOf({ route: at("#/executions") }), "Exécutions · Open QA Stack");
     // A page is narrowed to an outcome and a period the console knows, and starts after the execution the address names.
-    for (const query of ["outcome=failing", "outcome=passing", "outcome=other", "period=week", "period=year", "before=e1", "before="])
+    for (const query of [
+      "outcome=failing",
+      "outcome=passing",
+      "outcome=other",
+      "origin=manual",
+      "origin=robot",
+      "period=week",
+      "period=year",
+      "before=e1",
+      "before=",
+    ])
       assert.match(pageOf(consoleAt(`#/executions?${query}`)), /Lecture des exécutions/);
     for (const hash of [
       "#/executions/more",

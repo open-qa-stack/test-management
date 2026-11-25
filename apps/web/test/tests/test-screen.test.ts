@@ -61,6 +61,11 @@ const screen = (
   );
 
 describe("the card of a test", () => {
+  it("says the environment each execution ran against, when it is kept", () => {
+    const text = textOf(screen({ value: [{ ...ran("e9", 11, "passed"), environment: "staging" }, ran("e8", 10, "passed")] }));
+    assert.match(text, /Session de l’agent · staging 2 s .*Session de l’agent 2 s/);
+  });
+
   it("says it reads the test until the instance told both the tests and its executions, and why it could not", () => {
     assert.equal(
       textOf(screen({}, {})),

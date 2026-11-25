@@ -70,7 +70,7 @@ describe("the executions of tests the store keeps", () => {
         result("Orders › Filter by shop", { verdict: "skipped", durationMs: 0 }),
       ],
     });
-    const second = execution("e2", 20, { results: [result("Search an order", { verdict: "flaky" })] });
+    const second = execution("e2", 20, { environment: "staging", results: [result("Search an order", { verdict: "flaky" })] });
     await store.add(first);
     await store.add(second);
     await store.add(execution("e0", 20));
@@ -95,6 +95,11 @@ describe("the executions of tests the store keeps", () => {
       [[undefined, undefined], ["failed", undefined], ["failed", undefined], ["flaky"]],
     );
     // A page tells what each execution kept, and no more.
+    // Each environment has its own last run; those of an execution that does not say its own are compared together.
+    await store.add(execution("e5", 40, { environment: "staging", results: [run("failed")] }));
+    await store.add(execution("e6", 50, { environment: "local", results: [run("passed")] }));
+    await store.add(execution("e7", 60, { environment: "staging", results: [run("passed")] }));
+    assert.deepEqual([await previous("e5"), await previous("e6"), await previous("e7")], [[undefined], [undefined], ["failed"]]);
     assert.ok((await store.page({ limit: 25 })).items.every(({ results }) => results.every((kept) => !("previous" in kept))));
   });
 
@@ -111,6 +116,13 @@ describe("the executions of tests the store keeps", () => {
     assert.deepEqual(await store.page({ limit: 2, before: "e3" }), { items: [execution("e2", 20), execution("e1", 10)], total: 4, start: 2 });
     assert.deepEqual(await store.page({ limit: 1, before: "e2" }), { items: [execution("e1", 10)], total: 4, start: 3 });
     await assert.rejects(store.page({ limit: 2, before: "gone" }), UnknownExecutionError);
+  });
+
+  it("are read by where they come from", async () => {
+    const launched = execution("e1", 10, { origin: "manual" });
+    await store.add(launched);
+    await store.add(execution("e2", 20));
+    assert.deepEqual(await store.page({ limit: 25, origin: "manual" }), { items: [launched], total: 1, start: 0 });
   });
 
   it("are read by what came of their tests: failing when one of them failed, passing when none did", async () => {

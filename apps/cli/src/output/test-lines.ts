@@ -76,11 +76,10 @@ function changeNote(result: Execution["results"][number]): string {
   return change === undefined ? "" : `, ${CHANGES[change]}`;
 }
 
-/** What an execution belongs to, in a few words. */
-function owner(execution: Pick<Execution, "origin" | "sessionId" | "campaignId">): string {
-  if (execution.sessionId !== undefined) return `${execution.origin}, session ${execution.sessionId}`;
-  if (execution.campaignId !== undefined) return `${execution.origin}, campaign ${execution.campaignId}`;
-  return execution.origin;
+/** What an execution belongs to, and the environment its tests ran against, in a few words. */
+function owner({ origin, sessionId, campaignId, environment }: Pick<Execution, "origin" | "sessionId" | "campaignId" | "environment">): string {
+  const of = sessionId !== undefined ? `, session ${sessionId}` : campaignId !== undefined ? `, campaign ${campaignId}` : "";
+  return `${origin}${of}${environment === undefined ? "" : `, on ${environment}`}`;
 }
 
 /**
