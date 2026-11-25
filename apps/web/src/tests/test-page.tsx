@@ -5,14 +5,15 @@ import { api } from "../api/instance-api.ts";
 import { usePolled } from "../api/use-polled.ts";
 import { scopeChoicesOf } from "../agent/scope-choices.ts";
 import { withPanel, type Route } from "../routing/route.ts";
+import { hearShortcuts } from "../ui/shortcuts.ts";
 import { TestScreen } from "./test-screen.tsx";
 
 /** How often the launch that runs is read again, in milliseconds. */
 const LAUNCH_PAUSE_MS = 1500;
 
 /**
- * The card of a test of the repository, read again at the pace of the console, which runs it again on demand, and
- * changes its title or a step: once saved, the panel closes and the test and its file are read again at once.
+ * The card of a test of the repository, read again at the pace of the console, which runs it again on demand — its
+ * button, or the key R —, and changes its title or a step: once saved, the panel closes and the test and its file are read again at once.
  */
 export function TestPage({ project, path, route }: { readonly project: string; readonly path: string; readonly route: Route }): ReactNode {
   const launches = usePolled(() => api.launches(), "launches", LAUNCH_PAUSE_MS);
@@ -32,6 +33,8 @@ export function TestPage({ project, path, route }: { readonly project: string; r
       () => setEnvironments([]),
     );
   }, []);
+  // The key presses the button, against the environment chosen: a button that waits takes neither.
+  useEffect(() => hearShortcuts(document, { r: () => document.querySelector<HTMLElement>(".test-relaunch button")?.click() }), []);
   const running = launches.value?.running;
   const launch = running?.paths.includes(path) === true ? running : undefined;
   const onRelaunch = (where: Pick<LaunchRequest, "environment">): void => {

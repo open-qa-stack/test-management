@@ -50,7 +50,7 @@ export function TestRelaunch({
           </select>
         </label>
       )}
-      <button type="submit" className="btn" disabled={running || pending}>
+      <button type="submit" className="btn" aria-keyshortcuts="R" title={t("relaunch.key")} disabled={running || pending}>
         {pending ? t("relaunch.pending") : t("relaunch.button")}
       </button>
       <span className="small" role="status">

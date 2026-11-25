@@ -839,6 +839,7 @@
     "received": "Obtenu",
     "noCompare": "Le message de l’assertion en échec ne dit pas ce qu’elle a obtenu : les détails le donnent en entier.",
     "steps": "Étapes",
+    "stepKeys": "← → pour changer d’étape",
     "noStep": "L’exécution n’a rapporté aucune étape de ce test.",
     "summary": {
       "failedAt": "Échoue à l’étape {{step}} sur {{count}}.",
@@ -1046,6 +1047,7 @@
   },
   "relaunch": {
     "button": "Relancer ce test",
+    "key": "Touche R",
     "pending": "Envoi…",
     "running": "Relance en cours : installation, puis exécution…",
     "finished": "Test joué, son résultat arrive…",
