@@ -62,7 +62,7 @@ type Shown =
   | { readonly screen: "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "campaigns" | "running" | "no_session" | "nowhere" }
   | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
-  | { readonly screen: "execution"; readonly id: string; readonly view?: ExecutionView }
+  | { readonly screen: "execution"; readonly id: string; readonly view?: ExecutionView; readonly search?: string }
   | { readonly screen: "result"; readonly id: string; readonly path: string; readonly step?: number }
   | { readonly screen: "trace"; readonly id: string; readonly path: string }
   | { readonly screen: "test"; readonly path: string }
@@ -131,10 +131,10 @@ export function isTrace(route: Route): boolean {
 
 /** The screen of the executions an address under `/executions` opens: their list, one of them, what came of a test in one, or its trace. */
 function executionsShown(part: string | undefined, query: Route["query"]): Shown | undefined {
-  const { id, path, before, view } = query;
+  const { id, path, before, view, q: search } = query;
   if (part === undefined) return { screen: "executions", filter: filterOf(query), ...(given(before) ? { before } : {}) };
   if (part === "running") return { screen: "running" };
-  if (part === "view" && given(id)) return { screen: "execution", id, ...(isExecutionView(view) ? { view } : {}) };
+  if (part === "view" && given(id)) return { screen: "execution", id, ...(isExecutionView(view) ? { view } : {}), ...(given(search) ? { search } : {}) };
   if (part === "result" && given(id) && given(path)) return { screen: "result", id, path, ...stepOf(query["step"]) };
   if (part === "trace" && given(id) && given(path)) return { screen: "trace", id, path };
   return undefined;
@@ -223,7 +223,16 @@ function Screen(props: ConsoleProps): ReactNode {
     case "running":
       return <LaunchPage project={name} />;
     case "execution":
-      return <ExecutionPage key={shown.id} project={name} id={shown.id} sessions={listed} {...(shown.view === undefined ? {} : { view: shown.view })} />;
+      return (
+        <ExecutionPage
+          key={shown.id}
+          project={name}
+          id={shown.id}
+          sessions={listed}
+          {...(shown.view === undefined ? {} : { view: shown.view })}
+          {...(shown.search === undefined ? {} : { search: shown.search })}
+        />
+      );
     case "result":
       return (
         <ResultPage

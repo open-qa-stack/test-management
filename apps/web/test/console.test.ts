@@ -252,6 +252,7 @@ describe("the console", () => {
     );
     for (const view of ["fixed", "other"])
       assert.match(pageOf(consoleAt(`#/executions/view?id=e1&view=${view}`, { project: PROJECT })), /Lecture de l’exécution/);
+    assert.match(pageOf(consoleAt("#/executions/view?id=e1&q=save", { project: PROJECT })), /Lecture de l’exécution/);
     assert.equal(documentTitleOf({ route: at("#/executions/view?id=e1") }), "Exécution · Open QA Stack");
     assert.match(
       pageOf(consoleAt("#/executions/result?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),

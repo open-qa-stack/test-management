@@ -63,10 +63,11 @@ export function executionsHref({ outcome, origin, campaign, period, size }: Chan
  *
  * @param id - The identifier of the execution.
  * @param view - Which of its tests it shows; those it opens on by default.
+ * @param search - The words its tests are narrowed to; none when they are empty.
  * @returns The fragment to put in an `href`.
  */
-export function executionHref(id: string, view?: ExecutionView): string {
-  return hrefTo(EXECUTION_PATH, { id, ...(view === undefined ? {} : { view }) });
+export function executionHref(id: string, view?: ExecutionView, search = ""): string {
+  return hrefTo(EXECUTION_PATH, { id, ...(view === undefined ? {} : { view }), ...(search === "" ? {} : { q: search }) });
 }
 
 /**
