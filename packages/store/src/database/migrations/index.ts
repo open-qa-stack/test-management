@@ -13,6 +13,7 @@ import { sessionPurposes } from "./0012-session-purposes.ts";
 import { tests } from "./0013-tests.ts";
 import { executionEnvironments } from "./0014-execution-environments.ts";
 import { campaignDetails } from "./0015-campaign-details.ts";
+import { domainSettings } from "./0016-domain-settings.ts";
 import type { Migration } from "kysely/migration";
 
 /**
@@ -35,4 +36,5 @@ export const MIGRATIONS: Readonly<Record<string, Migration>> = {
   "0013_tests": tests,
   "0014_execution_environments": executionEnvironments,
   "0015_campaign_details": campaignDetails,
+  "0016_domain_settings": domainSettings,
 };

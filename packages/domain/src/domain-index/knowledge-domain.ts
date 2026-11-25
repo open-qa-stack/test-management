@@ -13,6 +13,10 @@ export interface KnowledgeDomain {
   /** Its identifier, which a scope names it by. */
   readonly id: string;
   readonly label: string;
+  /** The name the cartography gave it, when a person gave it another, which `label` then is. */
+  readonly foundLabel?: string;
+  /** Set for a domain a person excluded: it is proposed to no session, and served to no agent. */
+  readonly excluded?: true;
   readonly description: string;
   /** The sources that hold it, in the order of the index. */
   readonly sources: readonly KnowledgeDomainSource[];

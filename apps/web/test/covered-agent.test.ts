@@ -117,6 +117,19 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("checkbox", { name: /^Devis/ }).check({ timeout: 15_000 });
         await page.getByRole("checkbox", { name: /^Polices/ }).check();
         await page.getByRole("checkbox", { name: /^Polices/ }).uncheck();
+        // A domain is excluded, which leaves what is picked, taken back, then renamed: once refused, then taken.
+        await page.getByRole("checkbox", { name: /^Polices/ }).check();
+        await page.getByRole("button", { name: "Exclure Polices" }).click();
+        await page.getByText("Domaines exclus").waitFor();
+        await page.getByRole("button", { name: "Réintégrer" }).click();
+        await page.getByRole("link", { name: "Renommer Polices" }).click();
+        await page.getByRole("dialog").getByLabel("Nom").fill("Contrats");
+        instance.domainRefused = true;
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("alert").waitFor();
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("checkbox", { name: /^Contrats/ }).waitFor();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
         // A session the instance refuses says why, and the person may ask again.
         instance.refusal = "error";
         await page.getByRole("button", { name: "Générer les tests de ce domaine" }).click();

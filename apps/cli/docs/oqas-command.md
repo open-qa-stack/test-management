@@ -352,7 +352,7 @@ server-log  not tested: logs are read while a session runs
 
 It exits with `0` when each answers, with `4` when one does not, and with `3` when the configuration declares no source, or not the one named. With `--output json`, it prints `{"checks":[{"source":…,"check":…}]}`.
 
-`oqas knowledge read <source> <document>` prints a document the instance keeps, and `oqas knowledge remove <source> <document>` removes it; both are refused with `3` for a source or a document the instance does not keep. `oqas knowledge domains` lists the domains the cartography found, each with what it covers.
+`oqas knowledge read <source> <document>` prints a document the instance keeps, and `oqas knowledge remove <source> <document>` removes it; both are refused with `3` for a source or a document the instance does not keep. `oqas knowledge exclude <domain>` keeps a domain from the sessions and the agents, `oqas knowledge restore <domain>` takes it back, and `oqas knowledge rename <domain> <name>` gives it another name, as [the API does](../../api/docs/knowledge.md#the-domains-of-the-knowledge). `oqas knowledge domains` lists the domains the cartography found, each with what it covers.
 
 `oqas applications check` tests that each address of the environments of the applications of the configuration in force answers — that of the interface, those of the APIs —, or of the application it names, as [the API tests one](../../api/docs/configuration.md#testing-an-address-of-an-environment): any HTTP answer within ten seconds, whatever its status, is one. Each line says what is wrong, in words that say what to correct.
 

@@ -326,6 +326,7 @@ content-type: application/problem+json; charset=utf-8
 | `unknown_test`, `test_change_refused` | `404`, `422` | `/problems/unknown-test`, … | A test the repository does not hold, and a change to a test that cannot be written: see [the tests](tests.md#problems). |
 | `unknown_execution` | `404` | `/problems/unknown-execution` | An execution the instance does not keep: see [the executions](executions.md#problems). |
 | `launch_refused` | `409` | `/problems/launch-refused` | Tests that cannot be launched now: see [launching tests](executions.md#launching-tests). |
+| `unknown_domain`, `domain_refused` | `404`, `422` | `/problems/unknown-domain`, … | The refusals of [the domains of the knowledge](knowledge.md#the-domains-of-the-knowledge): among them, a session kept to a domain that is excluded. |
 | `unknown_campaign`, `campaign_refused` | `404`, `409` | `/problems/unknown-campaign`, … | The refusals of [the campaigns](campaigns.md#problems). |
 | `error` | any other | `/problems/error` | Anything else: a route that does not exist (`404`), a media type the API does not read (`415`), or a failure of the API (`500`). |
 

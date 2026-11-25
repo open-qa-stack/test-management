@@ -42,6 +42,9 @@ export class PlayedInstance {
   public language: Language = "fr";
   /** The domains of its knowledge; none is served, as before a cartography, when left out. */
   public domains: readonly KnowledgeDomain[] | undefined;
+
+  /** Whether the instance refuses the next change of a domain, once. */
+  public domainRefused = false;
   /** Where the cartography of its knowledge stands: one source mapped, another waiting, the index not written yet. */
   public mapping: CartographyState = {
     environment: "local",
@@ -138,6 +141,19 @@ export class PlayedInstance {
     if (path === "/api/knowledge/mapping") return { body: JSON.stringify(this.mapping) };
     if (path === "/api/knowledge/domains")
       return this.domains === undefined ? problem("error", 404, "No such route.") : { body: JSON.stringify({ items: this.domains }) };
+    const domain = /^\/api\/knowledge\/domains\/([^/]+)$/.exec(path)?.[1];
+    if (domain !== undefined) {
+      if (this.domainRefused) {
+        this.domainRefused = false;
+        return problem("domain_refused", 422, "No.");
+      }
+      const { label, excluded } = JSON.parse(body!) as { label?: string; excluded?: boolean };
+      this.domains = this.domains!.map(({ excluded: was, ...kept }) => {
+        if (kept.id !== domain) return was === undefined ? kept : { ...kept, excluded: was };
+        return { ...kept, ...(label === undefined ? {} : { label }), ...((excluded ?? was) === true ? { excluded: true as const } : {}) };
+      });
+      return { body: JSON.stringify(this.domains.find(({ id }) => id === domain)) };
+    }
     if (path === "/api/project")
       return { body: JSON.stringify({ name: "lakeside", applications: [{ id: "customer-management", name: "Customer Management" }] }) };
     if (path === "/api/sessions" && method === "POST") {

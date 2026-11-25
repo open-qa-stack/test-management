@@ -198,7 +198,7 @@ function Screen(props: ConsoleProps): ReactNode {
     case "configuration":
       return <ConfigurationPage project={name} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "discovery":
-      return <DiscoveryPage project={name} />;
+      return <DiscoveryPage project={name} route={route} />;
     case "applications":
       return <ApplicationsPage project={name} route={route} {...(onConfigured === undefined ? {} : { onSaved: onConfigured })} />;
     case "knowledge":

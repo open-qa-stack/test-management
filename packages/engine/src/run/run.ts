@@ -10,6 +10,7 @@ import {
   InvalidConfigurationError,
   NoConfigurationError,
   scopedConfig,
+  type DomainSetting,
   validateConfig,
   type ConfigurationRevision,
   type CommandRunner,
@@ -70,6 +71,8 @@ export interface RunOptions {
   readonly documents: Pick<DocumentStorePort, "documents">;
   /** Where the memories of the agents are kept, which they recall and add to. */
   readonly memory: MemoryStorePort;
+  /** What a person set of the domains of the knowledge, which the design follows; nothing by default. */
+  readonly domainSettings?: readonly DomainSetting[];
   /** The environment of the process: the secrets and the accounts the configuration names. */
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Receives the journal, an entry at a time, and keeps it. */
@@ -281,6 +284,7 @@ export class Run {
             reviewerCharter: reviewerCharter(rules, config.repository),
             levels: config.design.levels,
             ...(this.options.scope?.domains === undefined ? {} : { domains: this.options.scope.domains }),
+            ...(this.options.domainSettings === undefined ? {} : { domainSettings: this.options.domainSettings }),
             ...observed,
             ...(brief === undefined ? {} : { brief }),
             ...(this.options.branch === undefined ? {} : { continuedBranch: this.options.branch }),

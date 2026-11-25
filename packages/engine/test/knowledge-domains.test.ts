@@ -3,8 +3,10 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import type { OqasConfig } from "@open-qa-stack/domain";
+import { DomainRefusedError, UnknownDomainError, type OqasConfig } from "@open-qa-stack/domain";
 import { KnowledgeDomains } from "../src/index.ts";
+import { MAX_DOMAIN_LABEL } from "../src/knowledge/knowledge-domains.ts";
+import { MemoryDomainSettingStore } from "./support/memory-domain-setting-store.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 
 /** A configuration of two applications and a source of each, beside one of the whole project, whose index may be in a folder of its own. */
@@ -66,9 +68,53 @@ async function configured(document: OqasConfig = DOCUMENT): Promise<MemoryConfig
   return configuration;
 }
 
+/** The domains of a test repository, with what a person set of them; nothing by default. */
+const domainsOf = (root: string | undefined, configuration: MemoryConfigurationStore, settings = new MemoryDomainSettingStore()): KnowledgeDomains =>
+  new KnowledgeDomains(root, configuration, settings);
+
 describe("the domains of the knowledge", () => {
+  it("are excluded, taken back and renamed, by what is kept apart from the index, which the cartography writes again", async () => {
+    const root = repository(".oqas/index", JSON.stringify(INDEX));
+    const settings = new MemoryDomainSettingStore();
+    const domains = domainsOf(root, await configured(), settings);
+    const told = async () => (await domains.list()).map(({ id, label, foundLabel, excluded }) => [id, label, foundLabel, excluded]);
+    await domains.change("orders", { excluded: true });
+    await domains.change("orders", { label: " Ventes " });
+    const set = [
+      ["orders", "Ventes", "Commandes", true],
+      ["customers", "Clients", undefined, undefined],
+    ];
+    assert.deepEqual(await told(), set);
+    writeFileSync(join(root, ".oqas/index/domain-index.json"), JSON.stringify({ ...INDEX, producedAt: "2026-11-21T09:00:00.000Z" }));
+    await domains.forget();
+    assert.deepEqual(await told(), set);
+    assert.equal((await domains.change("orders", { excluded: false })).label, "Ventes");
+    await domains.change("orders", { label: "Commandes" });
+    assert.deepEqual(await settings.list(), [], "the name the cartography gave takes it back");
+  });
+
+  it("refuse a name that is empty or too long, and a domain the knowledge does not hold", async () => {
+    const domains = domainsOf(repository(".oqas/index", JSON.stringify(INDEX)), await configured());
+    for (const label of [" ", "x".repeat(MAX_DOMAIN_LABEL + 1)]) await assert.rejects(domains.change("orders", { label }), DomainRefusedError);
+    await assert.rejects(domains.change("gone", { excluded: true }), UnknownDomainError);
+  });
+
+  it("take what was set of them away when the index no longer holds them, but not while it cannot be read", async () => {
+    const root = repository(".oqas/index", JSON.stringify(INDEX));
+    const settings = new MemoryDomainSettingStore();
+    const domains = domainsOf(root, await configured(), settings);
+    await domains.change("orders", { excluded: true });
+    const write = (text: string) => writeFileSync(join(root, ".oqas/index/domain-index.json"), text);
+    write("{");
+    await domains.forget();
+    assert.equal((await settings.list()).length, 1);
+    write(JSON.stringify({ ...INDEX, domains: INDEX.domains.slice(1) }));
+    await domains.forget();
+    assert.deepEqual(await settings.list(), []);
+  });
+
   it("are those of the index the cartography wrote, in its order, each source with the applications the configuration attaches it to", async () => {
-    assert.deepEqual(await new KnowledgeDomains(repository(".oqas/index", JSON.stringify(INDEX)), await configured()).list(), [
+    assert.deepEqual(await domainsOf(repository(".oqas/index", JSON.stringify(INDEX)), await configured()).list(), [
       {
         id: "orders",
         label: "Commandes",
@@ -88,15 +134,15 @@ describe("the domains of the knowledge", () => {
       },
     ]);
     const elsewhere = { ...DOCUMENT, repository: { indexDir: "knowledge" } } as OqasConfig;
-    assert.equal((await new KnowledgeDomains(repository("knowledge", JSON.stringify(INDEX)), await configured(elsewhere)).list()).length, 2);
+    assert.equal((await domainsOf(repository("knowledge", JSON.stringify(INDEX)), await configured(elsewhere)).list()).length, 2);
   });
 
   it("are none without a test repository, a configuration, or an index that can be read and matches its schema", async () => {
     const root = repository(".oqas/index", JSON.stringify(INDEX));
-    assert.deepEqual(await new KnowledgeDomains(undefined, await configured()).list(), []);
-    assert.deepEqual(await new KnowledgeDomains(root, new MemoryConfigurationStore()).list(), []);
-    assert.deepEqual(await new KnowledgeDomains(mkdtempSync(join(tmpdir(), "oqas-domains-")), await configured()).list(), [], "no index yet");
+    assert.deepEqual(await domainsOf(undefined, await configured()).list(), []);
+    assert.deepEqual(await domainsOf(root, new MemoryConfigurationStore()).list(), []);
+    assert.deepEqual(await domainsOf(mkdtempSync(join(tmpdir(), "oqas-domains-")), await configured()).list(), [], "no index yet");
     for (const text of ["", "{", JSON.stringify({ ...INDEX, domains: [] })])
-      assert.deepEqual(await new KnowledgeDomains(repository(".oqas/index", text), await configured()).list(), [], text);
+      assert.deepEqual(await domainsOf(repository(".oqas/index", text), await configured()).list(), [], text);
   });
 });

@@ -1,6 +1,6 @@
 # The database
 
-An instance keeps its state in one database: the project, the sessions, their events, the messages sent to them, the revisions of its configuration, the documents uploaded to its knowledge sources, the executions of tests, the campaigns, and the memories of the agents. The processes that say [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) reach it — the API, and the `oqas` command in a terminal — each of which runs the sessions it opened, and [meets the others there](#several-processes-on-one-database). They do so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections, [the commands of the life of a session](#the-life-of-a-session), and [the one assembly of them](#the-database-of-an-instance-assembled) every process uses.
+An instance keeps its state in one database: the project, the sessions, their events, the messages sent to them, the revisions of its configuration, the documents uploaded to its knowledge sources, the executions of tests, the campaigns, what a person set of the domains of the knowledge, and the memories of the agents. The processes that say [the operations on sessions](../../engine/docs/engine.md#the-operations-on-sessions) reach it — the API, and the `oqas` command in a terminal — each of which runs the sessions it opened, and [meets the others there](#several-processes-on-one-database). They do so through `@open-qa-stack/store`, which holds the schema of the database, its migrations, its connections, [the commands of the life of a session](#the-life-of-a-session), and [the one assembly of them](#the-database-of-an-instance-assembled) every process uses.
 
 ## One schema, two databases
 
@@ -77,6 +77,7 @@ The migrations so far:
 | `0012_session_purposes` | The purpose of a session: `map` for one that maps the knowledge alone. The sessions asked for before test. |
 | `0014_execution_environments` | The environment of an execution. The executions kept before stay without one. |
 | `0015_campaign_details` | What a person says of a campaign: what it is for, the version it tests, its days and who answers for it. The campaigns kept before say none. |
+| `0016_domain_settings` | The table of what a person set of the domains of the knowledge: the name that replaces the one the cartography gave, and whether the domain is excluded. |
 
 ## The database of an instance, assembled
 

@@ -1,3 +1,4 @@
+import type { KnowledgeDomain } from "@open-qa-stack/domain";
 import { readFile, stat } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import {
@@ -124,4 +125,9 @@ export function mappingLines({ environment, sources, index }: CartographyState):
       ? "No index puts the cards together yet."
       : `The index was written on ${index.producedAt}${index.status === "truncated" ? ", in part" : ""}.`;
   return [`The knowledge of the environment ${environment}:`, ...lines, indexed];
+}
+
+/** A domain of the knowledge: its identifier, its name, what it covers, and that it is excluded when it is. */
+export function domainLine({ id, label, description, excluded }: KnowledgeDomain): string {
+  return `${id}: ${label}. ${description}${excluded === true ? " (excluded)" : ""}`;
 }

@@ -9,6 +9,7 @@ import type {
   ConfigurationCheck,
   ConfigurationView,
   DocumentList,
+  DomainChange,
   Execution,
   ExecutionList,
   ExecutionQuery,
@@ -495,6 +496,17 @@ export class ApiClient {
   /** @returns The domains of the knowledge of the project, as the cartography named them; none before it. */
   public async domains(): Promise<readonly KnowledgeDomain[]> {
     return (await this.#ask<KnowledgeDomainList>("/knowledge/domains")).items;
+  }
+
+  /**
+   * Renames a domain of the knowledge, excludes it or takes it back.
+   *
+   * @param id - The identifier of the domain.
+   * @param change - What changes.
+   * @returns The domain; the failure carries the code `domain_refused` for a name that is empty or too long.
+   */
+  public changeDomain(id: string, change: DomainChange): Promise<KnowledgeDomain> {
+    return this.#ask<KnowledgeDomain>(`/knowledge/domains/${encodeURIComponent(id)}`, { ...posting(change), method: "PATCH" });
   }
 
   /** The answer of the instance to a call, once it is a success. */

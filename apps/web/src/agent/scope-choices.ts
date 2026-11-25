@@ -13,7 +13,7 @@ export interface ScopeChoices {
 
 /**
  * @param view - The configuration of the instance as it is now.
- * @param domains - The domains of the knowledge, as the cartography named them.
+ * @param domains - The domains of the knowledge, those excluded left out of the choice.
  * @returns What a session may be kept to; nothing of the configuration without a revision in force.
  */
 export function scopeChoicesOf({ revision }: Pick<ConfigurationView, "revision">, domains: readonly KnowledgeDomain[]): ScopeChoices {
@@ -21,7 +21,7 @@ export function scopeChoicesOf({ revision }: Pick<ConfigurationView, "revision">
   return {
     environments: [...new Set(applications.flatMap(({ environments }) => environments.map(({ name }) => name)))],
     applications: applications.map(({ id, name }) => ({ id, name })),
-    domains,
+    domains: domains.filter(({ excluded }) => excluded !== true),
     levels: revision === undefined ? [] : (revision.document.design?.levels ?? DEFAULT_LEVELS),
   };
 }

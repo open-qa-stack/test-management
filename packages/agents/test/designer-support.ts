@@ -1,3 +1,4 @@
+import type { DomainSetting } from "@open-qa-stack/domain";
 import { withTags } from "../src/designer/scenario-tags.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -348,6 +349,8 @@ export interface Setup {
   readonly brief?: string;
   /** The domains of the knowledge the plan is kept to. */
   readonly domains?: readonly string[];
+  /** What a person set of the domains. */
+  readonly domainSettings?: readonly DomainSetting[];
   readonly planReview?: PlanReview;
   /** Whether the agent that reviews plans is asked about duplicates. */
   readonly reviewPlan?: boolean;
@@ -403,6 +406,7 @@ export async function design(script: readonly { status?: number; body: unknown }
       ...(setup.check === undefined ? {} : { check: setup.check }),
       runner: setup.runner ?? new FakeTestRunner(),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
+      ...(setup.domainSettings === undefined ? {} : { domainSettings: setup.domainSettings }),
       ...(setup.domains === undefined ? {} : { domains: setup.domains }),
       ...(setup.planReview === undefined ? {} : { planReview: setup.planReview }),
       ...(setup.reviewPlan === undefined ? {} : { reviewPlan: setup.reviewPlan }),

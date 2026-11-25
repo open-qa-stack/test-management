@@ -129,6 +129,10 @@ Commands:
   executions show <execution>
                          Print an execution, with what came of each of its tests and why a test failed.
   knowledge domains      List the domains the cartography found in the knowledge.
+  knowledge exclude|restore <domain>
+                         Keep a domain from the sessions and the agents, or take it back.
+  knowledge rename <domain> <name>
+                         Give a domain another name; the one the cartography gave takes it back.
   knowledge read <source> <document>
                          Print a document a source of the instance keeps.
   knowledge remove <source> <document>
