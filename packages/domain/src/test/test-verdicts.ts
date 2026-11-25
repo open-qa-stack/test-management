@@ -33,7 +33,7 @@ const NETWORK_ERROR = /net::ERR_(?!HTTP_RESPONSE_CODE_FAILURE|ABORTED\b)[A-Z_]+|
  * In doubt, `indeterminate`, never `passed`. A test is `passed` only when the runner expected it to pass, it
  * has an attempt and every attempt passed; `failed` when it did not pass as expected; `blocked` when it
  * failed on a network error towards a declared address that a check after the run found unreachable, and
- * `indeterminate` when that check did not confirm it; `skipped` when skipped; `indeterminate` when flaky,
+ * `indeterminate` when that check did not confirm it; `skipped` when skipped for a reason the test gives, and `indeterminate` when it gives none; `indeterminate` when flaky,
  * interrupted, marked as expected to fail, or when the JSON could not be read; `not_run` when listed but
  * absent from the JSON. The exit code of the runner plays no part.
  *
@@ -67,7 +67,10 @@ export function networkFailureAddresses(reported: readonly ReportedTest[], addre
 }
 
 function verdictOf(test: ReportedTest, facts: RunFacts): Omit<TestVerdict, "id"> {
-  if (test.status === "skipped") return { verdict: "skipped", reason: "Skipped by the runner." };
+  if (test.status === "skipped")
+    return test.skippedFor === undefined
+      ? { verdict: "indeterminate", reason: "Skipped, and nothing in the report says why." }
+      : { verdict: "skipped", reason: `Skipped: ${test.skippedFor}` };
   if (test.status === "flaky") return { verdict: "indeterminate", reason: "Flaky: it failed, then passed on a retry." };
   if (test.attempts.some((attempt) => attempt.status === "interrupted")) return { verdict: "indeterminate", reason: "An attempt was interrupted." };
   if (test.expectedStatus !== "passed") return { verdict: "indeterminate", reason: `Marked as expected to end ${test.expectedStatus}.` };

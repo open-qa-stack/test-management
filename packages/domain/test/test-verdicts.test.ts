@@ -65,8 +65,17 @@ describe("criterion 5 — each line of the mapping gives its verdict", () => {
     assert.equal(verdictOf(reported("a", "unexpected", [{ status: "timedOut", errors: [] }])).reason, "Failed, without an error message.");
   });
 
-  it("skipped: skipped by the runner", () => {
-    assert.equal(verdictOf(reported("a", "skipped", [{ status: "skipped", errors: [] }])).verdict, "skipped");
+  it("skipped: skipped for a reason the test gives, which the verdict repeats", () => {
+    const test = { ...reported("a", "skipped", [{ status: "skipped", errors: [] }]), skippedFor: "No data here" };
+    assert.deepEqual(verdictOf(test), { id: "a", verdict: "skipped", reason: "Skipped: No data here" });
+  });
+
+  it("indeterminate: skipped, with nothing that says why", () => {
+    assert.deepEqual(verdictOf(reported("a", "skipped", [{ status: "skipped", errors: [] }])), {
+      id: "a",
+      verdict: "indeterminate",
+      reason: "Skipped, and nothing in the report says why.",
+    });
   });
 
   it("blocked: a network error towards a declared address that the check after the run found unreachable", () => {

@@ -1,4 +1,13 @@
-import { attemptErrors, reportEntries, type JsonResult, type JsonStep, type ListedTest, type ReportedAttempt, type ReportedTest } from "@open-qa-stack/domain";
+import {
+  attemptErrors,
+  reportEntries,
+  type JsonResult,
+  type JsonStep,
+  type JsonTest,
+  type ListedTest,
+  type ReportedAttempt,
+  type ReportedTest,
+} from "@open-qa-stack/domain";
 
 /**
  * The tests a JSON of the Playwright reporter lists, as `--list --reporter=json` prints it.
@@ -22,6 +31,7 @@ export function reportedTests(json: string): ReportedTest[] | undefined {
     status: test.status,
     expectedStatus: test.expectedStatus,
     attempts: test.results.map(attemptOf),
+    ...skipOf(test),
   }));
 }
 
@@ -39,6 +49,12 @@ function attemptOf(result: JsonResult): ReportedAttempt {
     ...(trace === undefined ? {} : { trace }),
     ...(errorContext === undefined ? {} : { errorContext }),
   };
+}
+
+/** Why a test is skipped, when it says so. */
+function skipOf({ annotations = [] }: JsonTest): Pick<ReportedTest, "skippedFor"> {
+  const said = annotations.find(({ type, description }) => (type === "skip" || type === "fixme") && description !== undefined && description.trim() !== "");
+  return said === undefined ? {} : { skippedFor: said.description!.trim() };
 }
 
 /** The titles, from the outer to the inner one, of the innermost failed step; a step that failed holds its failed steps. */
