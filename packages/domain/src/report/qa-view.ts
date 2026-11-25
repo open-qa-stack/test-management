@@ -1,5 +1,5 @@
 import type { ReportedStatus } from "../test/reported-test.ts";
-import { reportEntries, type JsonAttachment, type JsonResult, type JsonStep } from "./json-report.ts";
+import { attemptErrors, reportEntries, type JsonAttachment, type JsonResult, type JsonStep } from "./json-report.ts";
 
 /** A capture a test attached during one of its steps, as the reporter keeps it. */
 export interface QaCapture {
@@ -104,7 +104,7 @@ export interface AttemptFailure {
  */
 export function attemptFailure(result: JsonResult | undefined): AttemptFailure {
   const failedStep = (result?.steps ?? []).findIndex((step) => step.error !== undefined) + 1 || undefined;
-  const message = result?.errors?.[0]?.message?.replace(COLOURS, "");
+  const message = result === undefined ? undefined : attemptErrors(result)[0]?.message?.replace(COLOURS, "");
   const expected = message === undefined ? undefined : /^Expected[^:\n]*: (.*)$/m.exec(message)?.[1];
   const received = message === undefined ? undefined : /^Received[^:\n]*: (.*)$/m.exec(message)?.[1];
   return {
@@ -121,7 +121,7 @@ function viewOf(id: string, status: ReportedStatus, result: JsonResult | undefin
   // The step that failed, with no capture of its own, shows the page the runner captured at the failure.
   const atFailure = attachments.find((attachment) => attachment.name === "screenshot" && attachment.contentType?.startsWith("image/") === true);
   const steps = (result?.steps ?? []).map((step, at) => stepOf(step, attachments, at + 1, at + 1 === failed ? atFailure : undefined));
-  const [error] = result?.errors ?? [];
+  const [error] = result === undefined ? [] : attemptErrors(result);
   const kept = (name: string) => attachments.find((attachment) => attachment.name === name)?.path;
   const trace = kept("trace");
   const errorContext = kept("error-context");

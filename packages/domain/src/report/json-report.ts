@@ -97,3 +97,21 @@ function walk(suite: JsonSuite, titles: readonly string[]): ReportEntry[] {
   );
   return [...own, ...(suite.suites ?? []).flatMap((child) => walk(child, path))];
 }
+
+/**
+ * The errors of an attempt, the one that came first at the head.
+ *
+ * @remarks
+ * A test that fails, then fails again at a step it runs whatever came before, such as one that restores its data in a
+ * `finally`, ends on the last error: the runner gives that one alone, and leaves the first on the step that failed. It
+ * is put back here, unless an error of the attempt is that one already, with the code around it the runner adds.
+ *
+ * @param result - The attempt.
+ * @returns Its errors; none for an attempt that has none, whatever its steps failed at and the test caught.
+ */
+export function attemptErrors({ errors = [], steps = [] }: JsonResult): readonly JsonError[] {
+  const first = steps.find((step) => step.error !== undefined)?.error;
+  const message = first?.message ?? "";
+  if (errors.length === 0 || message === "" || errors.some((error) => error.message?.startsWith(message))) return errors;
+  return [first!, ...errors];
+}

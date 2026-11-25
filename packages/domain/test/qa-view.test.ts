@@ -129,6 +129,22 @@ describe("a test of a report read in steps", () => {
     );
   });
 
+  it("tells the error the test failed on first when a step it runs whatever came before failed too, which the runner tells alone", () => {
+    const first = 'Error: expect(locator).toHaveText()\n\nExpected string: "Saved"\nReceived string: "Refused"';
+    const later = 'Error: expect(locator).toHaveText()\n\nExpected string: "clean"\nReceived string: "dirty"\n\n> 6 | await';
+    const told = (steps: JsonResult["steps"], errors: JsonResult["errors"]) =>
+      viewOf(report({ status: "failed", steps: steps!, errors: errors! }, "unexpected"));
+    const failed = [step("1. Save", { error: { message: first, stack: "Error: save" } }), step("2. Restore", { error: { message: later.split("\n\n>")[0]! } })];
+    const view = told(failed, [{ message: later, stack: "Error: restore" }]);
+    assert.deepEqual([view.failedStep, view.expected, view.received, view.details.stack], [1, '"Saved"', '"Refused"', "Error: save"]);
+    // The runner adds the code around an error it tells: that of the step is the same one.
+    assert.equal(told(failed, [{ message: `${first}\n\n> 4 | await` }]).details.error, `${first}\n\n> 4 | await`);
+    // A step cut by a timeout says nothing, and an error a test caught is none of its attempt.
+    assert.equal(told([step("1. Wait", { error: { message: "" } })], [{ message: "Test timeout" }]).details.error, "Test timeout");
+    assert.equal(told([step("1. Wait", { error: {} })], [{}]).details.error, undefined);
+    assert.equal(told(failed, []).details.error, undefined);
+  });
+
   it("has no step for a test that made no attempt", () => {
     const json = JSON.stringify({
       suites: [
