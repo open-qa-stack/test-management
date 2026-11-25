@@ -187,6 +187,7 @@ function Screen(props: ConsoleProps): ReactNode {
         <AgentHomePage
           project={name}
           opening={opening}
+          {...(route.query["request"] === undefined ? {} : { request: route.query["request"] })}
           {...(sessions === undefined ? {} : { sessions })}
           {...(unlisted === undefined ? {} : { unlisted })}
           {...(onOpen === undefined ? {} : { onOpen })}

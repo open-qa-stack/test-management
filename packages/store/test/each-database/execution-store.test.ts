@@ -118,6 +118,17 @@ describe("the executions of tests the store keeps", () => {
     await assert.rejects(store.page({ limit: 2, before: "gone" }), UnknownExecutionError);
   });
 
+  it("tell what came of each test the last time it ran, a run that skipped it aside", async () => {
+    assert.deepEqual(await store.verdicts(), []);
+    await store.add(execution("e1", 10, { results: [result("Search an order", { verdict: "failed" }), result("Filter", { verdict: "passed" })] }));
+    await store.add(execution("e2", 20, { results: [result("Filter", { verdict: "failed" }), result("Search an order", { verdict: "skipped" })] }));
+    const { path } = result("Filter");
+    assert.deepEqual(await store.verdicts(), [
+      { path, title: "Filter", verdict: "failed" },
+      { path, title: "Search an order", verdict: "failed" },
+    ]);
+  });
+
   it("are read by where they come from", async () => {
     const launched = execution("e1", 10, { origin: "manual" });
     await store.add(launched);

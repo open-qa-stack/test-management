@@ -23,6 +23,8 @@ export interface AgentHomeScreenProps {
   readonly unlisted?: string;
   /** Where the opening of a session is. */
   readonly opening: Opening;
+  /** The request the address already writes; none by default. */
+  readonly request?: string;
   /** Opens the session the form asks for. */
   readonly onOpen?: (event: FormEvent<HTMLFormElement>) => void;
   /** What a session may be kept to; none until the configuration was read. */
@@ -62,7 +64,7 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
  * @param props - The project, its sessions, and the opening of a session.
  * @returns The screen.
  */
-export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen, choices }: AgentHomeScreenProps): ReactNode {
+export function AgentHomeScreen({ project, sessions, unlisted, opening, request, onOpen, choices }: AgentHomeScreenProps): ReactNode {
   const live = sessions?.filter(({ state }) => state === "running") ?? [];
   const sending = opening.state === "sending";
   return (
@@ -75,7 +77,15 @@ export function AgentHomeScreen({ project, sessions, unlisted, opening, onOpen, 
           <label className="sr-only" htmlFor="agent-home-request">
             {t("home.requestLabel")}
           </label>
-          <textarea id="agent-home-request" name="request" required disabled={sending} placeholder={t("home.requestPlaceholder")} />
+          <textarea
+            key={request}
+            id="agent-home-request"
+            name="request"
+            defaultValue={request}
+            required
+            disabled={sending}
+            placeholder={t("home.requestPlaceholder")}
+          />
           {choices !== undefined && <ScopePicker choices={choices} disabled={sending} />}
           <div className="agent-home-actions">
             {opening.state === "refused" && (

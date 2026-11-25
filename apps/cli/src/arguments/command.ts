@@ -56,6 +56,8 @@ export type Command =
   | { readonly name: "secrets"; readonly action: "set"; readonly variable: string }
   /** List the tests of the test repository, with what keeps some of its files from being listed as they are. */
   | { readonly name: "tests"; readonly action: "list" }
+  /** List what came of each test the last time it ran. */
+  | { readonly name: "tests"; readonly action: "verdicts" }
   /** Read a test in steps, as the latest run that ran it reported it; list what came of its file in the latest executions; or the versions of its tests. */
   | { readonly name: "tests"; readonly action: "read" | "executions" | "versions" | "source"; readonly path: string }
   /** Change a test of the test repository: its own title, or the text of one of its steps. */

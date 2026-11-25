@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { LaunchRequest, RepositoryTest, TestEdit, TestExecution, TestVersion } from "@open-qa-stack/domain/sessions";
+import type { LaunchRequest, RepositoryTest, TestEdit, TestExecution, LastVerdict, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
 import { VerdictBadge } from "../executions/verdicts.tsx";
@@ -16,6 +16,8 @@ import { Page } from "../ui/page.tsx";
 import { TESTS_PATH } from "./tests-paths.ts";
 import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 import { TestCode } from "./test-code.tsx";
+import { TestTree } from "./test-tree.tsx";
+import { WhatToDo } from "./what-to-do.tsx";
 import { TestSteps } from "./test-steps.tsx";
 import { TestEditPanel } from "./test-edit-panel.tsx";
 import type { TextSaving } from "./test-text-panel.tsx";
@@ -35,6 +37,8 @@ export interface TestScreenProps {
   readonly tests: PolledState<readonly RepositoryTest[]>;
   /** What the instance told of the executions of the test, the latest first. */
   readonly executions: PolledState<readonly TestExecution[]>;
+  /** What came of the tests of the repository the last time each ran. */
+  readonly verdicts?: readonly LastVerdict[];
   /** What the instance told of the versions of the test, the latest first. */
   readonly versions: PolledState<readonly TestVersion[]>;
   /** What the instance told of the text of the file of the test. */
@@ -158,12 +162,25 @@ function Versions({ title, versions }: { readonly title: string; readonly versio
 /**
  * The card of a test: what it is — its title, its path, what its tags say, its steps as written, its code, its versions
  * — and what came of it lately — its latest verdict, how many of its latest executions passed, and each of them, at the
- * version it ran, leading to what came of it there. Its title and the text of each of its steps are changed in a panel.
+ * version it ran, leading to what came of it there; what to do when it failed, and the tests of the repository by domain. Its title and the text of each of its steps are changed in a panel.
  *
  * @param props - The name of the project, the path of the test, the route, what the instance told, and what changes the test.
  * @returns The screen.
  */
-export function TestScreen({ project, path, route, tests, executions, versions, source, saving, onChange, relaunch, onRelaunch }: TestScreenProps): ReactNode {
+export function TestScreen({
+  project,
+  path,
+  route,
+  tests,
+  executions,
+  verdicts = [],
+  versions,
+  source,
+  saving,
+  onChange,
+  relaunch,
+  onRelaunch,
+}: TestScreenProps): ReactNode {
   const test = tests.value?.find((candidate) => candidate.path === path);
   const title = test?.title ?? path;
   const ran = executions.value;
@@ -188,6 +205,7 @@ export function TestScreen({ project, path, route, tests, executions, versions, 
       ) : (
         <>
           <Summary path={path} executions={ran} />
+          <WhatToDo path={path} latest={ran[0]} />
           {test === undefined && <EmptyState title={t("test.unknown")}>{t("test.unknownNote")}</EmptyState>}
           <div className="test-reading">
             <div className="test-column">
@@ -197,6 +215,7 @@ export function TestScreen({ project, path, route, tests, executions, versions, 
             <div className="test-column">
               <History path={path} title={title} executions={ran} />
               {test !== undefined && <TestCode source={source} />}
+              <TestTree path={path} tests={tests.value} verdicts={verdicts} failing={route.query["tree"] === "failing"} />
             </div>
           </div>
           {test !== undefined && <TestEditPanel test={test} route={route} tests={tests.value} saving={saving} onChange={onChange} />}

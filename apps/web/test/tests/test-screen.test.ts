@@ -6,7 +6,8 @@ import type { PolledState } from "../../src/api/polled-state.ts";
 import { HISTORY_SIZE, TestScreen } from "../../src/tests/test-screen.tsx";
 import { at, linksOf, render, textOf } from "../render.ts";
 import { nameApplications } from "../../src/applications/application-names.ts";
-import { DETAIL, HANDMADE, SOURCE, TESTS } from "./tests-fixture.ts";
+import { testHref } from "../../src/tests/tests-paths.ts";
+import { DETAIL, HANDMADE, SCREEN, SMOKE, SOURCE, TESTS } from "./tests-fixture.ts";
 
 /** What came of the test of the policies in an execution, at an hour of the morning. */
 const ran = (id: string, hour: number, verdict: TestExecution["result"]["verdict"], more: Partial<TestExecution> = {}): TestExecution => ({
@@ -85,7 +86,7 @@ describe("the card of a test", () => {
     );
     assert.match(
       text,
-      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Étapes · 2 étapes, telles qu’écrites 1\. Open the policy of the customer Modifier 2\. Read its amounts Modifier Code · Le fichier tel qu’il est dans le dépôt de tests\. Voir le code du test Lecture du fichier… Détails techniques apps\/policy-management\/\S+\.spec\.ts$/,
+      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Étapes · 2 étapes, telles qu’écrites 1\. Open the policy of the customer Modifier 2\. Read its amounts Modifier Code · Le fichier tel qu’il est dans le dépôt de tests\. Voir le code du test Lecture du fichier… Tests par domaine .* Détails techniques apps\/policy-management\/\S+\.spec\.ts$/,
     );
     assert.match(textOf(screen({ value: [] }, { value: TESTS }, HANDMADE.path)), /Étapes · 0 étape, telle qu’écrite Le fichier ne déclare aucune étape\. Code/);
   });
@@ -110,7 +111,27 @@ describe("the card of a test", () => {
     );
     const result = (id: string) => `#/executions/result?id=${id}&path=${encodeURIComponent(DETAIL.path)}`;
     const panel = (name: string) => `#/tests/view?panel=${encodeURIComponent(name)}`;
-    assert.deepEqual(linksOf(html), ["#/tests", panel("title"), result("e3"), panel("step:1"), panel("step:2"), result("e3"), result("e2"), result("e1")]);
+    const links = linksOf(html);
+    assert.match(links[3]!, /^#\/agent\?request=/, "a test that failed leads to the agent");
+    const tree = [
+      testHref(DETAIL.path),
+      testHref(DETAIL.path, "failing"),
+      testHref(DETAIL.path),
+      testHref(SCREEN.path),
+      testHref(SMOKE.path),
+      testHref(HANDMADE.path),
+    ];
+    assert.deepEqual(links.toSpliced(3, 1), [
+      "#/tests",
+      panel("title"),
+      result("e3"),
+      panel("step:1"),
+      panel("step:2"),
+      result("e3"),
+      result("e2"),
+      result("e1"),
+      ...tree,
+    ]);
     assert.doesNotMatch(textOf(screen({ value: EXECUTIONS.slice(0, 1) })), /sur la dernière exécution/, "one execution says no rate");
   });
 
@@ -150,7 +171,7 @@ describe("the card of a test", () => {
     assert.match(textOf(shown), /await test\.step\("2\. Read its amounts", async \(\) => \{/);
     assert.match(
       textOf(screen({ value: [] }, { value: TESTS }, DETAIL.path, {}, { source: { unread: "Down." } })),
-      /Voir le code du test Down\. Détails techniques /,
+      /Voir le code du test Down\. Tests par domaine .* Détails techniques /,
     );
   });
 

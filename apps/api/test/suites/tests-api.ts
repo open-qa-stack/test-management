@@ -9,7 +9,16 @@ import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { Problem, RepositoryTest, RepositoryTestList, TestExecutionList, TestSource, TestVersionList, TestReading } from "@open-qa-stack/domain/sessions";
+import type {
+  Problem,
+  RepositoryTest,
+  RepositoryTestList,
+  TestExecutionList,
+  TestSource,
+  LastVerdictList,
+  TestVersionList,
+  TestReading,
+} from "@open-qa-stack/domain/sessions";
 
 /** A test of the shop as a design writes it: a title, tags, and two steps. */
 const SEARCH = [
@@ -177,6 +186,13 @@ export function testsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual(
         [executions.status, executions.headers.get("cache-control"), (await executions.json()) as TestExecutionList],
         [200, "no-store", { items: [{ id: "e1", origin: "design", ranAt: "2026-11-19T08:00:01.000Z", result: results[0] }] }],
+      );
+      // What came of each test the last time it ran is told, a test skipped aside.
+      const verdicts = await fetch(`${api.url}/tests/verdicts`);
+      assert.deepEqual([verdicts.status, verdicts.headers.get("cache-control")], [200, "no-store"]);
+      assert.deepEqual(
+        ((await verdicts.json()) as LastVerdictList).items,
+        results.map(({ path: of, title, verdict }) => ({ path: of, title, verdict })),
       );
       // The versions of the tests of the file are told the latest first, numbered by the digest of each test.
       await new ExecutionStore(database.database).add({

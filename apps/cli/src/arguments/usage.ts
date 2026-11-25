@@ -88,6 +88,7 @@ Commands:
                          mapped or waiting, and the index that puts them together.
   tests                  List the tests of the test repository, each with its level, domain, functionality and case
                          when its tags give them, and the files whose tests cannot all be listed.
+  tests verdicts         List what came of each test the last time it ran.
   tests read <test>      Read a test in steps, as the latest run that ran it reported it: <test> is the path of its
                          file, relative to the test repository.
   tests executions <test>

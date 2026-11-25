@@ -28,6 +28,8 @@ import type {
   RepositoryTestList,
   TestExecution,
   TestExecutionList,
+  LastVerdict,
+  LastVerdictList,
   TestLaunch,
   TestChange,
   TestReading,
@@ -360,6 +362,11 @@ export class ApiClient {
    */
   public async testVersions(path: string): Promise<readonly TestVersion[]> {
     return (await this.#ask<TestVersionList>(`/tests/versions?${new URLSearchParams({ path }).toString()}`)).items;
+  }
+
+  /** Reads what came of each test the last time an execution ran it and did not skip it. */
+  public async testVerdicts(): Promise<readonly LastVerdict[]> {
+    return (await this.#ask<LastVerdictList>("/tests/verdicts")).items;
   }
 
   /**

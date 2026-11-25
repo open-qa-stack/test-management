@@ -1,7 +1,7 @@
 import type { Command } from "./command.ts";
 
 /** What `oqas tests` is followed by, with the words each action takes after it. */
-const TEST_ACTIONS = { read: 1, executions: 1, versions: 1, source: 1, trace: 2, capture: 3, rename: 3, step: 4 } as const;
+const TEST_ACTIONS = { verdicts: 0, read: 1, executions: 1, versions: 1, source: 1, trace: 2, capture: 3, rename: 3, step: 4 } as const;
 
 /** A step of a test, numbered from 1. */
 const STEP = /^[1-9][0-9]*$/;
@@ -13,7 +13,8 @@ export function testsOf(words: readonly string[], ofASession: boolean): Command 
   if (action === undefined) return { name: "tests", action: "list" };
   const known = Object.hasOwn(TEST_ACTIONS, action) ? (action as keyof typeof TEST_ACTIONS) : undefined;
   if (known === undefined || words.length !== TEST_ACTIONS[known] + 1)
-    return "oqas tests takes nothing, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.";
+    return "oqas tests takes nothing, verdicts, read, executions, versions or source then a test, trace then a test and a file, capture then a test, a step and a file, rename then a test, its title and its new title, or step then a test, its title, a step and its new text.";
+  if (known === "verdicts") return { name: "tests", action: known };
   if (known === "rename") return { name: "tests", action: "change", path, title: rest[0]!, change: { title: rest[1]! } };
   if (known === "step") {
     const [title = "", step = "", text = ""] = rest;

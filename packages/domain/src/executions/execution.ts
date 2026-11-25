@@ -111,6 +111,16 @@ export interface TestExecution extends Omit<Execution, "report" | "results"> {
   readonly result: ExecutionResult;
 }
 
+/** What came of a test the last time an execution ran it, whatever it ran against. */
+export interface LastVerdict extends Pick<ExecutionResult, "path" | "title"> {
+  readonly verdict: Exclude<ExecutionVerdict, "skipped">;
+}
+
+/** What came of each test the instance ever ran, as `GET /tests/verdicts` answers. */
+export interface LastVerdictList {
+  readonly items: readonly LastVerdict[];
+}
+
 /** The executions of the tests of one file, the latest first, as `GET /tests/executions` answers. */
 export interface TestExecutionList {
   readonly items: readonly TestExecution[];
