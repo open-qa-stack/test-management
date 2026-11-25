@@ -965,6 +965,15 @@
       "fixed_other": "{{count}} fixed"
     },
     "since": "Since the last run of each test: {{changes}}",
+    "views": {
+      "label": "Tests to show",
+      "attention": "To look at",
+      "all": "All",
+      "new_failures": "New failures",
+      "fixed": "Fixed",
+      "flaky": "Flaky"
+    },
+    "noneInView": "No test in this view.",
     "duration": "Duration {{duration}}",
     "launchedBy": "Run by the session “{{request}}”",
     "bySession": "Run by an agent session",

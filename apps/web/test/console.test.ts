@@ -241,6 +241,8 @@ describe("the console", () => {
       pageOf(consoleAt("#/executions/view?id=e1", { project: PROJECT })),
       "lakeside-tests / Exécutions / e1 e1 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.",
     );
+    for (const view of ["fixed", "other"])
+      assert.match(pageOf(consoleAt(`#/executions/view?id=e1&view=${view}`, { project: PROJECT })), /Lecture de l’exécution/);
     assert.equal(documentTitleOf({ route: at("#/executions/view?id=e1") }), "Exécution · Open QA Stack");
     assert.match(
       pageOf(consoleAt("#/executions/result?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
