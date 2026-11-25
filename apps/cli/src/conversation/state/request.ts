@@ -1,6 +1,6 @@
 import { hasEnded, type Session } from "@open-qa-stack/domain/sessions";
-import { UI_PORT } from "../../arguments/arguments.ts";
-import type { PrintingCommand } from "../../commands/operation-commands.ts";
+import { UI_PORT } from "../../arguments/ui-arguments.ts";
+import type { PrintingCommand } from "../../commands/printing-command.ts";
 import { conversationCommandOf } from "./conversation-command.ts";
 import { hintedCommands } from "./slash-commands.ts";
 import type { ConversationState } from "./conversation-state.ts";
