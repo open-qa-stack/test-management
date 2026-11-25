@@ -82,6 +82,22 @@ describe("the executions of tests the store keeps", () => {
     );
   });
 
+  it("tell of each test of one, read alone, what came of it in the last execution before that ran it, in the same project", async () => {
+    const run = (verdict: ExecutionResult["verdict"], project = "shop") => result("Search an order", { verdict, project });
+    await store.add(execution("e1", 10, { results: [run("failed"), run("passed", "back-office")] }));
+    // A test skipped did not run; another test of the file is not this one; dates tied are told apart by identifier.
+    await store.add(execution("e2", 20, { results: [run("skipped"), result("Filter")] }));
+    await store.add(execution("e3", 20, { results: [run("flaky"), result("New one")] }));
+    await store.add(execution("e4", 30, { results: [run("failed")] }));
+    const previous = async (id: string) => (await store.get(id))!.results.map((kept) => kept.previous);
+    assert.deepEqual(
+      [await previous("e1"), await previous("e2"), await previous("e3"), await previous("e4")],
+      [[undefined, undefined], ["failed", undefined], ["failed", undefined], ["flaky"]],
+    );
+    // A page tells what each execution kept, and no more.
+    assert.ok((await store.page({ limit: 25 })).items.every(({ results }) => results.every((kept) => !("previous" in kept))));
+  });
+
   it("are read a page at a time, each page going on after the last execution of the one before it, dates tied by identifier", async () => {
     for (const [id, seconds] of [
       ["e1", 10],
@@ -189,7 +205,7 @@ describe("the executions of tests the store keeps", () => {
         ["Sort", "shop", undefined],
       ],
     );
-    assert.deepEqual((await store.get("e4"))?.results, [search("d2", true, { version: 2 })]);
+    assert.deepEqual((await store.get("e4"))?.results, [{ ...search("d2", true, { version: 2 }), previous: "passed" }]);
     assert.deepEqual(await store.versions("apps/shop/tests/orders/search.spec.ts"), [
       { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", number: 3, digest: "d1", commit: "c5", since: at(50), executions: 2 },
       { path: "apps/shop/tests/orders/search.spec.ts", title: "Search an order", number: 2, digest: "d2", commit: "c4", since: at(30), executions: 2 },

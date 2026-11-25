@@ -18,7 +18,7 @@ export interface ExecutionStorePort {
    */
   page(query: ExecutionQuery): Promise<ExecutionList>;
 
-  /** @returns The execution of an identifier with its results; `undefined` when it keeps none under it. */
+  /** @returns The execution of an identifier with its results, each with what came of its test before; `undefined` when it keeps none under it. */
   get(id: string): Promise<Execution | undefined>;
 
   /**

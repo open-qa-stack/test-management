@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Execution, ExecutionResult, LaunchRequest, Session } from "@open-qa-stack/domain/sessions";
+import { resultChange, type Execution, type ExecutionResult, type LaunchRequest, type ResultChange, type Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
@@ -7,6 +7,7 @@ import { applicationName } from "../applications/application-names.ts";
 import { TechnicalDetails } from "../ui/technical-details.tsx";
 import { hrefTo } from "../routing/route.ts";
 import { TestRelaunch, type RelaunchState } from "../tests/test-relaunch.tsx";
+import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
@@ -66,11 +67,30 @@ function Origin({ execution, sessions }: { readonly execution: Execution; readon
   );
 }
 
-/** A test of the execution, which leads to what came of it: its verdict, its title, where it failed, and how long it took. */
+/** What an execution may change for a test, each with the tone of its badge, in the order a summary counts them. */
+const CHANGES: Readonly<Record<ResultChange, BadgeTone>> = { new_failure: "ko", still_failing: "outline", fixed: "ok" };
+
+/** What the execution changed for a test since its last run, as a badge; nothing when nothing changed. */
+function ChangeBadge({ result }: { readonly result: ExecutionResult }): ReactNode {
+  const change = resultChange(result);
+  return change === undefined ? null : <Badge tone={CHANGES[change]}>{t(`execution.change.${change}`)}</Badge>;
+}
+
+/** How many tests the execution changed, change by change, each against its last run; nothing when it changed none. */
+function Changes({ results }: { readonly results: readonly ExecutionResult[] }): ReactNode {
+  const told = (Object.keys(CHANGES) as ResultChange[])
+    .map((change) => [change, results.filter((result) => resultChange(result) === change).length] as const)
+    .filter(([, count]) => count > 0)
+    .map(([change, count]) => t(`execution.changes.${change}`, { count }));
+  return told.length === 0 ? null : <span className="small">{t("execution.since", { changes: told.join(", ") })}</span>;
+}
+
+/** A test of the execution, which leads to what came of it: its verdict, what changed since its last run, its title, where it failed, and how long it took. */
 function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
   return (
     <a className="row tests-row" href={resultHref(execution.id, result.path)}>
       <VerdictBadge verdict={result.verdict} />
+      <ChangeBadge result={result} />
       <div className="grow">
         <b>{result.title}</b>
         <FailureNote failure={result.failure} />
@@ -97,7 +117,7 @@ function Results({ execution }: { readonly execution: Execution }): ReactNode {
 }
 
 /**
- * The screen of an execution: what came of its tests, how long it took, where it comes from and at which version,
+ * The screen of an execution: what came of its tests, what changed since the last run of each, how long it took, where it comes from and at which version,
  * then its tests, each leading to what came of it; the files of those that failed run again on demand.
  *
  * @param props - The name of the project, the identifier of the execution, the sessions, and what the instance told.
@@ -130,6 +150,7 @@ export function ExecutionScreen({ project, id, sessions, state, relaunch, onRela
               <span className="exec-counts">
                 <VerdictCounts results={execution.results} />
               </span>
+              <Changes results={execution.results} />
               <span className="small">{t("execution.duration", { duration: executionDuration(execution) })}</span>
               <Origin execution={execution} sessions={sessions} />
             </div>

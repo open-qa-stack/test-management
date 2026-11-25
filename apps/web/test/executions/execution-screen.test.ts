@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import type { ExecutionFailure, Execution, Session } from "@open-qa-stack/domain/sessions";
+import type { ExecutionFailure, Execution, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { ExecutionScreen, failedPaths } from "../../src/executions/execution-screen.tsx";
 import { linksOf, render, textOf } from "../render.ts";
@@ -66,6 +66,20 @@ describe("the screen of an execution", () => {
     assert.match(textOf(screen({ value: { ...PAST, origin: "manual" } })), /Lancée à la main, sans agent\./);
     const html = screen({ value: { ...PAST, origin: "campaign", campaignId: "c1" } });
     assert.match(html, /<a href="#\/campaigns\/view\?id=c1">Lancée pour une campagne →<\/a>/);
+  });
+
+  it("says what changed for each test since its last run, and how many of each, or nothing when nothing changed", () => {
+    const [passed, failed] = LATEST.results as [ExecutionResult, ExecutionResult];
+    const results = [
+      { ...passed, previous: "failed" as const },
+      { ...failed, previous: "passed" as const },
+      { ...failed, previous: "flaky" as const },
+      { ...failed, previous: "failed" as const },
+    ];
+    const text = textOf(screen({ value: { ...LATEST, results } }));
+    assert.match(text, /Depuis le dernier passage de chaque test : 2 nouveaux échecs, 1 déjà en échec, 1 corrigé Durée/);
+    assert.match(text, /Échoué Nouvel échec Policies › Edit a policy .*Échoué Déjà en échec Policies .*Réussi Corrigé Display the detail/);
+    assert.doesNotMatch(textOf(screen({ value: LATEST })), /Depuis le dernier passage/);
   });
 
   it("runs the files of its failures again, each once, but not for a campaign nor without a failure", () => {

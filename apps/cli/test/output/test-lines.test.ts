@@ -75,6 +75,20 @@ describe("the tests and the executions, as a command writes them", () => {
     assert.equal(testExecutionLine({ id: "e3", origin: "manual", ranAt: AT, result: unversioned }), `e3  manual  ${AT}  failed  search`);
   });
 
+  it("say what an execution changed for a test since its last run", () => {
+    const [search, filter, sort] = CAMPAIGN.results;
+    const results = [
+      { ...search!, failure: {}, previous: "passed" as const },
+      { ...filter!, previous: "failed" as const },
+      { ...sort!, failure: {}, previous: "failed" as const },
+    ];
+    assert.deepEqual(executionLines({ ...CAMPAIGN, results }).slice(1), [
+      `failed  ${PATH} › search, version 2, new failure`,
+      `failed  ${PATH} › filter, failed already`,
+      `flaky   ${PATH} › sort, fixed`,
+    ]);
+  });
+
   it("say where a page stands among the executions, with how to ask for the next one", () => {
     assert.deepEqual(executionPageLines({ items: [CAMPAIGN], total: 30, start: 20, next: "e2" }), [
       `e2  campaign, campaign c1  ${AT}  0 of 3 tests passed`,

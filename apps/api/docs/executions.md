@@ -96,7 +96,7 @@ A page holds `limit` executions, 25 when the query does not say, 100 at most. Th
 GET /api/executions/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
 ```
 
-The answer is the execution, as a page tells it.
+The answer is the execution, as a page tells it, with one more field: `results[].previous` is the verdict of the test in the last execution before this one that ran it, in the same project of the runner — `passed`, `failed` or `flaky`. It is left out when none ran it before. A test is compared with its own last run, so that an execution of a few files compares as well as one of them all; the environment is not told apart.
 
 ## Launching tests
 
