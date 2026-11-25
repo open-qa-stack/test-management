@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { ApiConfiguration } from "../src/config/api-configuration.ts";
 import { builtConsole } from "../src/config/value-type.ts";
 import { sessionsApi, type TestApi } from "./support/sessions-api.ts";
@@ -28,7 +28,7 @@ writeFileSync(join(folder, ".env"), SECRET);
 writeFileSync(join(folder, "favicon.svg"), "<svg/>");
 writeFileSync(join(folder, "assets", "index-B7x2Qk9a.js"), SCRIPT);
 writeFileSync(join(folder, "assets", "index-Dq3lmn0P.css"), "body{}");
-after(() => rmSync(workspace, { recursive: true, force: true }));
+afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 describe("the built console an API is given", () => {
   it("is named by the absolute path of the folder that holds its page, and may be left unset: the API then has none", () => {
@@ -63,10 +63,10 @@ function raw(origin: string, path: string, headers: Record<string, string> = {})
 describe("an API given a built console", () => {
   const project = { name: "shop-tests", applications: [] };
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     api = await sessionsApi({ console: folder, operations: { project: async () => project } });
   });
-  after(() => api.close());
+  afterAll(() => api.close());
 
   it("serves its page at the root of its address and at a route of the console, asked again at each visit, its routes staying under /api", async () => {
     for (const path of ["/", "/index.html", "/?show=talk", "/agent/sessions/session-1?show=talk", "/assets"]) {

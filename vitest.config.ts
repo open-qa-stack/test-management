@@ -1,6 +1,10 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import swc from "unplugin-swc";
+import { defineConfig, type PluginOption } from "vitest/config";
 import { DurationSequencer } from "./packages/testing/src/duration-sequencer.ts";
+
+/** The code of the API, which SWC compiles. */
+const API_CODE = /\/apps\/api\/(src|test)\/.*\.ts$/;
 
 /** Refuses, in the tests of a package that opens connections, any that leaves the machine. */
 const LOOPBACK_ONLY = fileURLToPath(new URL("./packages/testing/src/loopback-only.ts", import.meta.url));
@@ -10,10 +14,12 @@ const LOOPBACK_ONLY = fileURLToPath(new URL("./packages/testing/src/loopback-onl
  *
  * @param root - The folder of the package, from the root of the workspace.
  * @param test - What its tests need beside the settings they all share.
+ * @param plugins - What compiles its code, when the default compiler does not suit it.
  * @returns The project, named after its folder unless its tests name it.
  */
-const project = (root: string, test: Record<string, unknown> = {}) => ({
+const project = (root: string, test: Record<string, unknown> = {}, plugins: PluginOption[] = []) => ({
   extends: true as const,
+  plugins,
   test: { name: root.split("/").at(-1)!, root, include: ["test/**/*.test.ts"], ...test },
 });
 
@@ -67,6 +73,24 @@ export default defineConfig({
       project("packages/harness", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/agents", { setupFiles: [LOOPBACK_ONLY] }),
       project("packages/engine", { setupFiles: [LOOPBACK_ONLY] }),
+      // The API reads the types of its constructors, which esbuild does not keep: SWC compiles it, with its decorators.
+      project(
+        "apps/api",
+        {
+          setupFiles: [LOOPBACK_ONLY],
+          globalSetup: ["../../packages/store/test/support/global-setup.ts"],
+        },
+        [
+          // Only the code of the API: a file the other projects load is compiled the one way everywhere, else the
+          // ranges of its functions differ from a project to the next and their coverage does not merge.
+          swc.vite({
+            include: API_CODE,
+            jsc: { target: "es2023", parser: { syntax: "typescript", decorators: true }, transform: { legacyDecorator: true, decoratorMetadata: true } },
+          }),
+          // After SWC, which turns the default compiler off for the whole project: the files it leaves go back to it.
+          { name: "typescript-elsewhere", config: () => ({ oxc: { exclude: API_CODE } }) },
+        ],
+      ),
       project("apps/cli", { setupFiles: [LOOPBACK_ONLY] }),
       project("apps/web", { setupFiles: ["./test/in-french.ts"] }),
       project("lint"),
@@ -80,11 +104,11 @@ export default defineConfig({
         "{packages,apps}/*/test/**",
         "lint/test/**",
         "test/**",
-        "apps/api/**",
         "packages/check/**",
         "vitest.config.ts",
         "**/vite.config.ts",
         "**/src/main.ts",
+        "**/src/migrate.ts",
         "**/src/main.tsx",
         "**/src/app.tsx",
         "**/src/configuration/configuration-page.tsx",

@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it } from "vitest";
 import { Logger } from "@nestjs/common";
 import { ExecutionStore } from "@open-qa-stack/store";
 import { SessionDatabase, type DatabaseEngine } from "@open-qa-stack/store/testing";
@@ -32,7 +32,7 @@ export function testsApiSuite(engine: DatabaseEngine): void {
   let database: SessionDatabase;
   let repository: string;
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     database = await SessionDatabase.create(engine, new Logger("Database"));
   });
   beforeEach(async () => {
@@ -50,7 +50,7 @@ export function testsApiSuite(engine: DatabaseEngine): void {
     await api.close();
     rmSync(repository, { recursive: true, force: true });
   });
-  after(() => database.drop());
+  afterAll(() => database.drop());
 
   describe(`the tests of the test repository on ${engine.name}`, () => {
     it("are read from their files as they are now, each with what its tags say of it, which no cache keeps", async () => {

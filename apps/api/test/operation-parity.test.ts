@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { operationIds, type OperationId } from "@open-qa-stack/domain";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { sessionsApi, type TestApi } from "./support/sessions-api.ts";
@@ -69,11 +69,11 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
 describe("the operations of the engine, as the API offers them", () => {
   const repository = mkdtempSync(join(tmpdir(), "oqas-api-parity-"));
   let api: TestApi;
-  before(async () => {
+  beforeAll(async () => {
     writeFileSync(join(repository, "oqas.json"), fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/"));
     api = await sessionsApi({ database: `sqlite:${join(repository, "instance.db")}`, repository });
   });
-  after(async () => {
+  afterAll(async () => {
     await api.close();
     rmSync(repository, { recursive: true, force: true });
   });

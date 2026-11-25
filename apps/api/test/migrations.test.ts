@@ -3,7 +3,7 @@ import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { Database, DatabaseStatus, DatabaseUrl, InstanceDatabase, PendingMigrationsError, SchemaMigrations } from "@open-qa-stack/store";
 import { FIXTURE_MIGRATIONS, firstFixtureMigrations, POSTGRES, SQLITE } from "@open-qa-stack/store/testing";
@@ -19,7 +19,7 @@ import { apiFrom } from "./support/started-api.ts";
 import { CapturedLogger } from "./support/captured-logger.ts";
 import { childEnvironment } from "./support/environment.ts";
 
-const MIGRATE = fileURLToPath(new URL("../src/migrate.js", import.meta.url));
+const MIGRATE = fileURLToPath(new URL("../dist/src/migrate.js", import.meta.url));
 
 /** The tables of an instance, with those that record its migrations. */
 const TABLES = [
@@ -209,7 +209,7 @@ describe("the file of a database that cannot be opened", () => {
       // A file stands where the folder of the database should be.
       writeFileSync(join(folder, "state"), "");
       const file = join(folder, "state", "oqas.db");
-      const main = fileURLToPath(new URL("../src/main.js", import.meta.url));
+      const main = fileURLToPath(new URL("../dist/src/main.js", import.meta.url));
       const run = await program(main, { OQAS_HOST: "127.0.0.1", OQAS_PORT: String(await closedPort()), OQAS_DATABASE_URL: `sqlite:${file}` });
       assert.equal(run.code, 1);
       assert.match(run.err, /^The database is unreachable: .*oqas\.db cannot be opened \(.+\)\.\n$/);

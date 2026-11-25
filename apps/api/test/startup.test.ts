@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import type { Session, SessionList } from "@open-qa-stack/domain/sessions";
 import { closedPort } from "@open-qa-stack/testing";
@@ -15,8 +15,8 @@ import { apiFrom } from "./support/started-api.ts";
 import { childEnvironment } from "./support/environment.ts";
 import { eventually } from "./support/eventually.ts";
 
-const MAIN = fileURLToPath(new URL("../src/main.js", import.meta.url));
-const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
+const MAIN = fileURLToPath(new URL("../dist/src/main.js", import.meta.url));
+const PACKAGE = fileURLToPath(new URL("..", import.meta.url));
 
 /** A database nothing listens for: the API starts all the same, not ready. */
 async function absentDatabase(): Promise<string> {
@@ -43,6 +43,18 @@ describe("an API started with a valid configuration", () => {
     try {
       assert.match(api.url, /^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/);
       assert.equal((await fetch(`${api.url}/api/health`)).status, 200);
+    } finally {
+      await api.close();
+    }
+  });
+
+  it("keeps the logger of NestJS and stops on the signals it is given when it is given no logger", async () => {
+    const read = environmentSettings({ OQAS_HOST: "127.0.0.1", OQAS_PORT: "1", OQAS_DATABASE_URL: await absentDatabase() });
+    const listeners = process.listenerCount("SIGUSR2");
+    const api = await startApi({ ...read, port: 0, signals: ["SIGUSR2"] });
+    try {
+      assert.equal((await fetch(`${api.url}/api/health`)).status, 200);
+      assert.equal(process.listenerCount("SIGUSR2"), listeners + 1);
     } finally {
       await api.close();
     }
