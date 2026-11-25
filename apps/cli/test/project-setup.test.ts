@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, it } from "vitest";
 import type { OqasConfig } from "@open-qa-stack/domain";
-import { terminalLanguage } from "../src/solo/conversation/project-setup/setup-project.ts";
+import { terminalLanguage } from "../src/conversation/setup/project-setup/setup-project.ts";
 import { FakeTerminal } from "./support/fake-terminal.ts";
 import { Terminal, workspace } from "./support/terminal.ts";
 

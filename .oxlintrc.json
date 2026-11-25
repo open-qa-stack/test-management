@@ -17,9 +17,9 @@
       {
         "modules": {
           "@github/copilot-sdk": "packages/harness/src/copilot",
-          "ink": "apps/cli/src/solo/conversation",
-          "ink-spinner": "apps/cli/src/solo/conversation",
-          "ink-text-input": "apps/cli/src/solo/conversation"
+          "ink": "apps/cli/src/conversation",
+          "ink-spinner": "apps/cli/src/conversation",
+          "ink-text-input": "apps/cli/src/conversation"
         }
       }
     ]

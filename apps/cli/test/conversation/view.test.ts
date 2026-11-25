@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { Session } from "@open-qa-stack/domain/sessions";
-import { initialState } from "../../src/solo/conversation/conversation-state.ts";
+import { initialState } from "../../src/conversation/state/conversation-state.ts";
 import { after, COMPLETED, FAILED, NOW, RUNNING, showing, THREAD, type EventBody, endOf } from "./fixtures.ts";
 import { PLAIN, screenOf, WIDTHS, widthOf } from "./screen.ts";
 

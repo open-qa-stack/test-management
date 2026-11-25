@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { soloCommand } from "./solo/solo-command.ts";
+import { runOqas } from "./run-oqas.ts";
 
-const code = await soloCommand(process.argv.slice(2), {
+const code = await runOqas(process.argv.slice(2), {
   env: process.env,
   cwd: process.cwd(),
   stdout: process.stdout,

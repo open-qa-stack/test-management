@@ -1,6 +1,6 @@
 # The engine
 
-The engine is the application core of Open QA Stack, and holds three things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. `Configuration` is [the operations on the configuration of an instance](#the-operations-on-the-configuration) — read it, check a change, save one, take or write `oqas.json` — which keep its revisions in the database. No rule of the product lives outside: [the `oqas` command](../../../apps/cli/docs/solo-command.md) says the operations in a terminal, and [the API](../../../apps/api/docs/sessions.md) says them in HTTP, both on the database of the instance.
+The engine is the application core of Open QA Stack, and holds three things. `Run` is one run on a test repository: every step, in one place, whatever starts it. `Sessions` is [the operations on the sessions of an instance](#the-operations-on-sessions) — open one, speak to it, resume it once it ended, interrupt it, read them, follow one — which run each session with a `Run`, in the process that hosts them. `Configuration` is [the operations on the configuration of an instance](#the-operations-on-the-configuration) — read it, check a change, save one, take or write `oqas.json` — which keep its revisions in the database. No rule of the product lives outside: [the `oqas` command](../../../apps/cli/docs/oqas-command.md) says the operations in a terminal, and [the API](../../../apps/api/docs/sessions.md) says them in HTTP, both on the database of the instance.
 
 ```ts
 import { liveRuntime, Run } from "@open-qa-stack/engine";
@@ -29,7 +29,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
 6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, and the state of the run is written.
 
-[The page of the command](../../../apps/cli/docs/solo-command.md#steps) says what each step does for the person who asks for the tests.
+[The page of the command](../../../apps/cli/docs/oqas-command.md#steps) says what each step does for the person who asks for the tests.
 
 `run()` resolves with the code the run ends with, one of the `ExitCode` of `@open-qa-stack/domain`: `passed` (0), `failed` (1), `unsettled` (2), `configuration` (3), `prerequisite` (4) or `interrupted` (5). A step that stops on an unexpected error is told in the journal and ends the run with `interrupted`. `run()` rejects only when a port does: the journal refuses an entry outside a step, or the state cannot be written.
 
@@ -156,7 +156,7 @@ An operation added to the list does not compile in these tests until each client
 
 ## The operations on sessions
 
-`Sessions` is what an instance does with its sessions, with no HTTP, no terminal and no SQL in it. A presentation calls these operations and adds nothing to them: [the API](../../../apps/api/docs/sessions.md) in HTTP, [the `oqas` command](../../../apps/cli/docs/solo-command.md) in a terminal.
+`Sessions` is what an instance does with its sessions, with no HTTP, no terminal and no SQL in it. A presentation calls these operations and adds nothing to them: [the API](../../../apps/api/docs/sessions.md) in HTTP, [the `oqas` command](../../../apps/cli/docs/oqas-command.md) in a terminal.
 
 ```ts
 import { Sessions } from "@open-qa-stack/engine";
@@ -281,7 +281,7 @@ A host gives `Sessions` a `SessionsHost`:
 | `writerPace`, optional | How a write the store failed to take is made again: 250 milliseconds at first, 10 seconds at most, by default. |
 | `pace`, optional | The paces of the process among the others that reach the store: `DEFAULT_PACE` by default. |
 
-A host calls `start()` when it starts, or lets `open()` do it: the revision in force is read, a first file that is not valid left to the runs to report, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../../apps/api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../../apps/cli/docs/solo-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents, of the memories of the agents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
+A host calls `start()` when it starts, or lets `open()` do it: the revision in force is read, a first file that is not valid left to the runs to report, and the project the store keeps is named after the test repository, with the applications of the revision in force. It calls `stop(withinMs)` before it closes its store. The two presentations: [the API](../../../apps/api/docs/sessions.md) starts with its server and stays; [`oqas --brief`](../../../apps/cli/docs/oqas-command.md) hosts the session it opens. Both are given the stores of the sessions, of the configuration, of the documents, of the memories of the agents and of the executions by `InstanceDatabase` of [`@open-qa-stack/store`](../../store/docs/database.md#the-database-of-an-instance-assembled), which assembles the database of an instance once for every process.
 
 ## The operations on the configuration
 

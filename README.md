@@ -16,7 +16,7 @@
 <p align="center">
   <a href="docs/getting-started.md">Get started</a> ·
   <a href="packages/domain/docs/configuration.md">Configuration</a> ·
-  <a href="apps/cli/docs/solo-command.md">The command</a> ·
+  <a href="apps/cli/docs/oqas-command.md">The command</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 

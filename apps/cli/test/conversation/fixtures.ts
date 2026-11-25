@@ -1,6 +1,6 @@
 import type { Session, SessionEvent, UnrankedEvent } from "@open-qa-stack/domain/sessions";
-import { initialState, type ConversationContext, type ConversationState } from "../../src/solo/conversation/conversation-state.ts";
-import { conversationReducer, type ConversationAction } from "../../src/solo/conversation/conversation-reducer.ts";
+import { initialState, type ConversationContext, type ConversationState } from "../../src/conversation/state/conversation-state.ts";
+import { conversationReducer, type ConversationAction } from "../../src/conversation/state/conversation-reducer.ts";
 
 /** An event without its rank nor its date, which the tests give in order. */
 export type EventBody = UnrankedEvent extends infer Event ? (Event extends unknown ? Omit<Event, "at"> : never) : never;

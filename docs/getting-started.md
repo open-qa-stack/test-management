@@ -39,7 +39,7 @@ Then ask for tests, in your words:
 oqas
 ```
 
-`oqas` opens a conversation in your terminal: type what to test — `search a customer and open their profile` — and press Enter. The agents work under your eyes: each phase, what each agent does, every refusal of the harness, then the verdict of each test. What you type meanwhile is said to them, `/stop` stops them, and `/help` lists the rest: [the command](../apps/cli/docs/solo-command.md#the-conversation) says it all.
+`oqas` opens a conversation in your terminal: type what to test — `search a customer and open their profile` — and press Enter. The agents work under your eyes: each phase, what each agent does, every refusal of the harness, then the verdict of each test. What you type meanwhile is said to them, `/stop` stops them, and `/help` lists the rest: [the command](../apps/cli/docs/oqas-command.md#the-conversation) says it all.
 
 The tests are written on a new local branch of the test repository. Nothing is pushed: you read the branch, and you merge it or not.
 
@@ -71,7 +71,7 @@ Open the address it prints, `http://127.0.0.1:6727`, and write what to test. The
 
 The request is a session: the command runs it in your test repository as `oqas --brief` does, and its thread fills while the agents work — what each of them thinks, does and hands in, and every refusal of the harness. A message written under the thread reaches the agent at work, and a session can be stopped from its bar. The tests are written on a new local branch, as with the command line, and nothing is pushed. Ctrl-C stops the console.
 
-The console runs the sessions opened through it one at a time: the next one waits its turn. A session opened with `oqas --brief` runs in its terminal; run one at a time on a test repository. It listens on your machine alone, and asks nobody who they are: [the command](../apps/cli/docs/solo-command.md#the-console) says what it serves, on which port, and how it stops.
+The console runs the sessions opened through it one at a time: the next one waits its turn. A session opened with `oqas --brief` runs in its terminal; run one at a time on a test repository. It listens on your machine alone, and asks nobody who they are: [the command](../apps/cli/docs/oqas-command.md#the-console) says what it serves, on which port, and how it stops.
 
 An instance that several people share is a server that stays, [the API](../apps/api/docs/running.md), which serves the same console and can keep its database on a PostgreSQL server: [the database](../packages/store/docs/database.md#one-schema-two-databases) says how.
 
@@ -99,7 +99,7 @@ Every test bears the tags of what it is: its level in the pyramid of tests, its 
 
 ## Going further
 
-- [The command](../apps/cli/docs/solo-command.md): every command and option, what each step does, the JSON output, the exit codes.
+- [The command](../apps/cli/docs/oqas-command.md): every command and option, what each step does, the JSON output, the exit codes.
 - [The configuration](../packages/domain/docs/configuration.md): every key of the configuration, as `oqas.json` writes it; [its schema](../packages/domain/schema/oqas.schema.json) is the reference.
 - [The test charter](../packages/harness/docs/test-charter.md): the rules every generated test is held to.
 - [How the tests are designed](../packages/agents/docs/designer.md): the agents, what the harness checks, what it refuses.

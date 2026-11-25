@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "vitest";
 import { LANGUAGES, type Session, type SessionResult, type SessionTest } from "@open-qa-stack/domain/sessions";
-import { i18n, RESOURCES } from "../../src/solo/conversation/i18n/i18n.ts";
-import { standing, stateText } from "../../src/solo/conversation/session-facts.ts";
+import { i18n, RESOURCES } from "../../src/conversation/i18n/i18n.ts";
+import { standing, stateText } from "../../src/conversation/view/session-facts.ts";
 import { after, COMPLETED, endOf, showing } from "./fixtures.ts";
 import { screenOf } from "./screen.ts";
 
