@@ -11,6 +11,11 @@ updates:
     groups:
       dependencies:
         patterns: ["*"]
+    ignore:
+      # The types of Node.js follow the runtime the project supports, the major that .nvmrc names, not the latest one: a
+      # newer major types APIs the supported runtime does not have, and breaks the type check.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
