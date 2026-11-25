@@ -3,8 +3,8 @@ import { cleanup, render } from "ink-testing-library";
 import { createElement } from "react";
 import { afterEach, describe, it } from "vitest";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain";
-import { checkText, ModelSetup, type SetupEnd } from "../../src/conversation/setup/model-setup/model-setup.ts";
-import { PLAIN, UNICODE, staging, until } from "./screen.ts";
+import { checkText, ModelSetup, type SetupEnd } from "../../../../src/conversation/setup/model-setup/model-setup.ts";
+import { PLAIN, UNICODE, staging, until } from "../../support/screen.ts";
 
 const ENTER = "\r";
 const ESC = "\u001B";

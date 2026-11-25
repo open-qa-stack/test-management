@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { hintsOf } from "../../src/conversation/view/key-hints.ts";
-import { interruptionOf } from "../../src/conversation/state/interruption.ts";
-import { requestOf } from "../../src/conversation/state/request.ts";
-import { hintedCommands, SLASH_COMMANDS } from "../../src/conversation/state/slash-commands.ts";
-import type { ConversationState } from "../../src/conversation/state/conversation-state.ts";
-import { after, COMPLETED, FAILED, RUNNING, showing, endOf } from "./fixtures.ts";
+import { hintsOf } from "../../../src/conversation/view/key-hints.ts";
+import { interruptionOf } from "../../../src/conversation/state/interruption.ts";
+import { requestOf } from "../../../src/conversation/state/request.ts";
+import { hintedCommands, SLASH_COMMANDS } from "../../../src/conversation/state/slash-commands.ts";
+import type { ConversationState } from "../../../src/conversation/state/conversation-state.ts";
+import { after, COMPLETED, FAILED, RUNNING, showing, endOf } from "../support/fixtures.ts";
 
 const HOME = after([]);
 const LIVE = showing();

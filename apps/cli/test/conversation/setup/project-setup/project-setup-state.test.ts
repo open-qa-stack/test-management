@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { validateConfig } from "@open-qa-stack/domain";
-import { configOf, isAddress, knowledgeOf, slugOf, sourceIds, valuesOf, type ProjectDraft } from "../../src/conversation/setup/project-setup/project-draft.ts";
+import {
+  configOf,
+  isAddress,
+  knowledgeOf,
+  slugOf,
+  sourceIds,
+  valuesOf,
+  type ProjectDraft,
+} from "../../../../src/conversation/setup/project-setup/project-draft.ts";
 import {
   DATABASE_VARIABLE,
   EXPOSES,
@@ -10,7 +18,7 @@ import {
   SOURCE_CHOICES,
   type ProjectSetupAction,
   type ProjectSetupState,
-} from "../../src/conversation/setup/project-setup/project-setup-state.ts";
+} from "../../../../src/conversation/setup/project-setup/project-setup-state.ts";
 
 /** The setting up after the actions, from its start or from a state given. */
 const after = (actions: readonly ProjectSetupAction[], from: ProjectSetupState = PROJECT_START): ProjectSetupState => actions.reduce(projectSetupAfter, from);

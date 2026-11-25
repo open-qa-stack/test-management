@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { Session, SessionPhase } from "@open-qa-stack/domain/sessions";
-import { elapsedText, sinceText, standing } from "../../src/conversation/view/session-facts.ts";
-import { toolTitle } from "../../src/conversation/blocks/tool-title.ts";
-import { wording } from "../../src/conversation/blocks/wording.ts";
-import { COMPLETED, FAILED, RUNNING } from "./fixtures.ts";
+import { elapsedText, sinceText, standing } from "../../../src/conversation/view/session-facts.ts";
+import { toolTitle } from "../../../src/conversation/blocks/tool-title.ts";
+import { wording } from "../../../src/conversation/blocks/wording.ts";
+import { COMPLETED, FAILED, RUNNING } from "../support/fixtures.ts";
 
 describe("what a tool call did, as the terminal words it", () => {
   it("is a sentence in the past tense for each tool the command knows", () => {

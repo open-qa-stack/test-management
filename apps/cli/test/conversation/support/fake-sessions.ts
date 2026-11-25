@@ -1,7 +1,7 @@
 import { UnknownSessionError } from "@open-qa-stack/domain";
 import type { KnowledgeRemap, MessageReceipt, Session, SessionEvent, SessionMessage, SessionOpening } from "@open-qa-stack/domain/sessions";
 import type { EventListener, SessionEventStream } from "@open-qa-stack/engine";
-import type { ConversationSessions } from "../../src/conversation/conversation.ts";
+import type { ConversationSessions } from "../../../src/conversation/conversation.ts";
 
 /**
  * The operations on sessions, as a conversation calls them, with nothing behind: a test says what each
