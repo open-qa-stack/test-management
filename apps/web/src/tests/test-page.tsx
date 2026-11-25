@@ -1,23 +1,20 @@
 import { useEffect, useState, type ReactNode } from "react";
-import type { LaunchRequest, RepositoryTest, TestEdit } from "@open-qa-stack/domain/sessions";
+import type { RepositoryTest, TestEdit } from "@open-qa-stack/domain/sessions";
 import type { ApiError } from "../api/api-error.ts";
 import { api } from "../api/instance-api.ts";
 import { usePolled } from "../api/use-polled.ts";
-import { scopeChoicesOf } from "../agent/scope-choices.ts";
 import { withPanel, type Route } from "../routing/route.ts";
 import { hearShortcuts } from "../ui/shortcuts.ts";
+import { useRelaunch } from "./use-relaunch.ts";
 import { TestScreen } from "./test-screen.tsx";
-
-/** How often the launch that runs is read again, in milliseconds. */
-const LAUNCH_PAUSE_MS = 1500;
 
 /**
  * The card of a test of the repository, read again at the pace of the console, which runs it again on demand — its
  * button, or the key R —, and changes its title or a step: once saved, the panel closes and the test and its file are read again at once.
  */
 export function TestPage({ project, path, route }: { readonly project: string; readonly path: string; readonly route: Route }): ReactNode {
-  const launches = usePolled(() => api.launches(), "launches", LAUNCH_PAUSE_MS);
-  const ended = launches.value?.last?.endedAt;
+  const relaunch = useRelaunch([path]);
+  const ended = relaunch.endedAt;
   const [changes, setChanges] = useState(0);
   const [saving, setSaving] = useState<{ readonly pending: boolean; readonly refusal?: string }>({ pending: false });
   const tests = usePolled(() => api.tests(), `tests:${changes}`);
@@ -25,25 +22,8 @@ export function TestPage({ project, path, route }: { readonly project: string; r
   // The executions are read again as each launch ends, which brings the one of a relaunch.
   const executions = usePolled(() => api.testExecutions(path), `${path}:${ended}`);
   const versions = usePolled(() => api.testVersions(path), `${path} versions:${ended}`);
-  const [environments, setEnvironments] = useState<readonly string[]>([]);
-  const [asked, setAsked] = useState<{ readonly pending: boolean; readonly refusal?: string }>({ pending: false });
-  useEffect(() => {
-    void api.configuration().then(
-      (view) => setEnvironments(scopeChoicesOf(view, []).environments),
-      () => setEnvironments([]),
-    );
-  }, []);
   // The key presses the button, against the environment chosen: a button that waits takes neither.
   useEffect(() => hearShortcuts(document, { r: () => document.querySelector<HTMLElement>(".test-relaunch button")?.click() }), []);
-  const running = launches.value?.running;
-  const launch = running?.paths.includes(path) === true ? running : undefined;
-  const onRelaunch = (where: Pick<LaunchRequest, "environment">): void => {
-    setAsked({ pending: true });
-    api.launch({ paths: [path], ...where }).then(
-      () => setAsked({ pending: false }),
-      (error: ApiError) => setAsked({ pending: false, refusal: error.message }),
-    );
-  };
   const onChange = (test: RepositoryTest, change: TestEdit): void => {
     setSaving({ pending: true });
     api.changeTest({ path, title: test.title, change }).then(
@@ -66,8 +46,8 @@ export function TestPage({ project, path, route }: { readonly project: string; r
       source={source}
       saving={saving}
       onChange={onChange}
-      relaunch={{ environments, ...asked, ...(launch === undefined ? {} : { launch }) }}
-      onRelaunch={onRelaunch}
+      relaunch={relaunch.state}
+      onRelaunch={relaunch.onLaunch}
     />
   );
 }

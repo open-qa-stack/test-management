@@ -947,6 +947,9 @@
     "title": "Execution of {{date}}",
     "reading": "Reading the execution",
     "readingNote": "It shows as soon as the instance answers.",
+    "relaunch_one": "Run the failure again",
+    "relaunch_other": "Run the {{count}} failures again",
+    "relaunchNote": "The files of these tests run whole, with the other tests they hold.",
     "duration": "Duration {{duration}}",
     "launchedBy": "Run by the session “{{request}}”",
     "bySession": "Run by an agent session",
@@ -1051,6 +1054,9 @@
     "pending": "Sending…",
     "running": "Running again: installing, then running…",
     "finished": "Test run, its result is coming…",
+    "finishedSome_one": "{{count}} test ran…",
+    "finishedSome_other": "{{count}} tests ran…",
+    "see": "See the result",
     "environment": "Environment of the run"
   },
   "campaignComposer": {

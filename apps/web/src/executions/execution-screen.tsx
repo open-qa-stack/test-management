@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import type { Execution, ExecutionResult, Session } from "@open-qa-stack/domain/sessions";
+import type { Execution, ExecutionResult, LaunchRequest, Session } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText, durationText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { applicationName } from "../applications/application-names.ts";
 import { TechnicalDetails } from "../ui/technical-details.tsx";
 import { hrefTo } from "../routing/route.ts";
+import { TestRelaunch, type RelaunchState } from "../tests/test-relaunch.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
@@ -25,6 +26,23 @@ export interface ExecutionScreenProps {
   readonly sessions: readonly Session[];
   /** What the instance told of the execution. */
   readonly state: PolledState<Execution>;
+  /** Where the relaunch of its failures stands. */
+  readonly relaunch: RelaunchState;
+  /** Runs its failures again, against the environment chosen, if any. */
+  readonly onRelaunch: (where: Pick<LaunchRequest, "environment">) => void;
+}
+
+/** The tests of the execution that failed. */
+const failuresOf = (execution: Execution): readonly ExecutionResult[] => execution.results.filter(({ verdict }) => verdict === "failed");
+
+/**
+ * The files of the tests an execution saw fail, each once.
+ *
+ * @param execution - The execution, once the instance told it.
+ * @returns Their paths; none before that.
+ */
+export function failedPaths(execution: Execution | undefined): readonly string[] {
+  return execution === undefined ? [] : [...new Set(failuresOf(execution).map(({ path }) => path))];
 }
 
 /** Where the execution comes from. */
@@ -80,13 +98,16 @@ function Results({ execution }: { readonly execution: Execution }): ReactNode {
 
 /**
  * The screen of an execution: what came of its tests, how long it took, where it comes from and at which version,
- * then its tests, each leading to what came of it.
+ * then its tests, each leading to what came of it; the files of those that failed run again on demand.
  *
  * @param props - The name of the project, the identifier of the execution, the sessions, and what the instance told.
  * @returns The screen.
  */
-export function ExecutionScreen({ project, id, sessions, state }: ExecutionScreenProps): ReactNode {
+export function ExecutionScreen({ project, id, sessions, state, relaunch, onRelaunch }: ExecutionScreenProps): ReactNode {
   const execution = state.value;
+  // The failures of a campaign are launched from it, so that their execution belongs to it.
+  const failures = execution === undefined || execution.campaignId !== undefined ? 0 : failuresOf(execution).length;
+  const several = { label: t("execution.relaunch", { count: failures }), note: t("execution.relaunchNote") };
   const title = execution === undefined ? id : t("execution.title", { date: dateText(execution.ranAt) });
   return (
     <Page
@@ -96,6 +117,7 @@ export function ExecutionScreen({ project, id, sessions, state }: ExecutionScree
         { label: execution === undefined ? id : dateText(execution.ranAt) },
       ]}
       title={title}
+      {...(failures === 0 ? {} : { actions: <TestRelaunch state={relaunch} onLaunch={onRelaunch} several={several} /> })}
     >
       {execution === undefined ? (
         <EmptyState title={t("execution.reading")}>

@@ -22,8 +22,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the card of a test when it is used in the browser, from the list of the tests, and leads to its latest result", async () => {
     const instance = new ListedInstance();
-    const [screen] = await app().measure(
-      ["src/tests/test-page.tsx"],
+    const [screen, relaunch] = await app().measure(
+      ["src/tests/test-page.tsx", "src/tests/use-relaunch.ts"],
       async (page) => {
         await page.goto("http://console.test/#/tests");
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
@@ -70,8 +70,10 @@ describe("the code of the console is covered in full", () => {
       },
       instance.api,
     );
-    assert.ok(screen!.lines.length > 0, "the screen is in the build");
-    assert.deepEqual(screen!.uncovered, []);
+    for (const measured of [screen, relaunch]) {
+      assert.ok(measured!.lines.length > 0, "the module is in the build");
+      assert.deepEqual(measured!.uncovered, []);
+    }
   });
 
   it("changes the title and a step of a test in a panel, the whole screen of a phone and a drawer on a wide one, and shows its code", async () => {
@@ -340,6 +342,7 @@ describe("the code of the console is covered in full", () => {
   });
 
   it("runs every line of the screens of the executions when they are used in the browser, from a page to an execution and to a result", async () => {
+    const instance = new ListedInstance();
     const [list, one, polled] = await app().measure(
       ["src/executions/executions-page.tsx", "src/executions/execution-page.tsx", "src/api/use-polled.ts"],
       async (page) => {
@@ -367,10 +370,21 @@ describe("the code of the console is covered in full", () => {
           .first()
           .click();
         await page.waitForURL(/#\/executions\/view\?id=/);
+        // Its failures run again: a refusal is said, then the launch is followed to the execution it kept.
+        instance.refusal = "launch_refused";
+        await page.getByRole("button", { name: "Relancer l’échec" }).click();
+        await page.getByText("Les tests ne peuvent pas être lancés maintenant").waitFor();
+        await page.getByRole("button", { name: "Relancer l’échec" }).click();
+        await page.getByText("Relance en cours").waitFor();
+        assert.deepEqual(instance.launches.running!.paths, [DETAIL]);
+        instance.launches = { last: { ...instance.launches.running!, endedAt: "2026-11-20T10:02:00.000Z", execution: EXECUTIONS[1]!.id } };
+        await page.getByRole("link", { name: /Voir le résultat/ }).click();
+        await page.waitForURL(`**/#/executions/view?id=${EXECUTIONS[1]!.id}`);
+        await page.goBack();
         await page.getByRole("link", { name: /Policies › Edit a policy/ }).click();
         await page.waitForURL(/#\/executions\/result\?id=/);
       },
-      new ListedInstance().api,
+      instance.api,
     );
     for (const measured of [list, one, polled]) {
       assert.ok(measured!.lines.length > 0, "the module is in the build");

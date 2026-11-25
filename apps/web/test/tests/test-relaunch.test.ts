@@ -27,6 +27,20 @@ describe("the relaunch of a test", () => {
     assert.match(textOf(relaunch({ environments: [], pending: false, refusal: "Une session tourne." })), /Une session tourne\.$/);
   });
 
+  it("leads to the execution the launch kept once it ended, or says why it kept none", () => {
+    assert.match(relaunch({ environments: [], pending: false, ended: { execution: "e9" } }), /<a href="#\/executions\/view\?id=e9">Voir le résultat →<\/a>/);
+    assert.match(textOf(relaunch({ environments: [], pending: false, ended: { failure: "No report." } })), /No report\.$/);
+    assert.match(textOf(relaunch({ environments: [], pending: false, ended: {} })), /Relancer ce test$/);
+  });
+
+  it("says how many of several tests ran, under the words of their button", () => {
+    const several = { label: "Relancer les 2 échecs", note: "En entier." };
+    const ran = { ...LAUNCH, progress: { finished: [{ path: DETAIL.path, title: DETAIL.title, verdict: "passed" as const }] } };
+    const html = render(createElement(TestRelaunch, { state: { environments: [], pending: false, launch: ran }, onLaunch: () => undefined, several }));
+    assert.match(html, /title="En entier\."/);
+    assert.equal(textOf(html), "Relancer les 2 échecs 1 test joué…");
+  });
+
   it("launches the test against the environment chosen, or the one of the project", () => {
     const asked: object[] = [];
     for (const environments of [["local"], ["local", "staging"]]) {
