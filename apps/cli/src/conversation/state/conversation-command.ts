@@ -1,5 +1,6 @@
-import { parseArguments, type Command } from "../../arguments/arguments.ts";
-import { isPrinting, type PrintingCommand } from "../../commands/operation-commands.ts";
+import type { Command } from "../../arguments/command.ts";
+import { parseArguments } from "../../arguments/parse-arguments.ts";
+import { isPrinting, type PrintingCommand } from "../../commands/printing-command.ts";
 import { t } from "../i18n/i18n.ts";
 
 /** What the words typed after a slash ask the command for: one that prints, or why the conversation refuses them. */

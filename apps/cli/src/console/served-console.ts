@@ -3,7 +3,7 @@ import { builtConsole } from "./built-console.ts";
 import { Interruptions } from "../sessions/interruptions.ts";
 import { commandLogger, databaseOf, runsOf } from "../commands/operations.ts";
 import { UsageError } from "../errors/usage-error.ts";
-import type { Command } from "../arguments/arguments.ts";
+import type { Command } from "../arguments/command.ts";
 import type { CommandIo } from "../commands/command-io.ts";
 
 /** The addresses that name this machine to itself: what listens there is reached from nowhere else. */

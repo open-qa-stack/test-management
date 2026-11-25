@@ -5,9 +5,9 @@ import { ExitCode, languageOf, type ExitCodeValue } from "@open-qa-stack/domain"
 import { hasEnded, type Project } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
 import type { DatabaseUrl } from "@open-qa-stack/store";
-import { UI_HOST } from "../arguments/arguments.ts";
+import { UI_HOST } from "../arguments/ui-arguments.ts";
 import { failureOf } from "../errors/failure.ts";
-import { printedBy } from "../commands/operation-commands.ts";
+import { printedBy } from "../commands/printed-by.ts";
 import { databaseOf, modelConnectionOf, openOperations, savedModel } from "../commands/operations.ts";
 import { startConsole, type StartedConsole } from "../console/served-console.ts";
 import { exitCodeOf } from "../sessions/session-exit.ts";

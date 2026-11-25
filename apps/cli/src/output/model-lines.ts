@@ -1,5 +1,5 @@
 import { ExitCode, MODEL_PROVIDERS, providerOf, type ExitCodeValue, type Model, type ModelConnectionCheck } from "@open-qa-stack/domain";
-import type { ModelArguments } from "../arguments/arguments.ts";
+import type { ModelArguments } from "../arguments/command.ts";
 import { UsageError } from "../errors/usage-error.ts";
 
 /** What `oqas model` tells of a connection: its lines, what a program reads, and its exit code. */

@@ -3,7 +3,7 @@ import { createElement as h, useEffect, useReducer, type ReactNode } from "react
 import { hasEnded, type Session, type SessionEvent } from "@open-qa-stack/domain/sessions";
 import type { Sessions } from "@open-qa-stack/engine";
 import type { Model, ModelConnectionCheck } from "@open-qa-stack/domain/sessions";
-import type { PrintingCommand } from "../commands/operation-commands.ts";
+import type { PrintingCommand } from "../commands/printing-command.ts";
 import { checkText, type SetupEnd } from "./setup/model-setup/model-setup.ts";
 import type { SecretEnd } from "./setup/secret-entry.ts";
 import { t } from "./i18n/i18n.ts";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { operationIds, type OperationId } from "@open-qa-stack/domain";
-import { parseArguments } from "../src/arguments/arguments.ts";
+import { parseArguments } from "../src/arguments/parse-arguments.ts";
 import { initialState } from "../src/conversation/state/conversation-state.ts";
 import { requestOf } from "../src/conversation/state/request.ts";
 import { SLASH_COMMANDS, type SlashCommand } from "../src/conversation/state/slash-commands.ts";
