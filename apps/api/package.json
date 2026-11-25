@@ -18,7 +18,7 @@
     "start": "node --enable-source-maps dist/src/main.js",
     "migrate": "node --enable-source-maps dist/src/migrate.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm -s build && node dist/test/support/with-test-database.js node --test --enable-source-maps --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='**/src/**' --test-coverage-exclude='../**' --test-coverage-exclude='../../packages/**' 'dist/test/**/*.test.js'"
+    "test": "pnpm -s build && node dist/test/support/with-test-database.js node --test --test-timeout=180000 --enable-source-maps --import @open-qa-stack/testing/loopback-only --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-include='**/src/**' --test-coverage-exclude='../**' --test-coverage-exclude='../../packages/**' 'dist/test/**/*.test.js'"
   },
   "dependencies": {
     "@fastify/multipart": "10.1.7",
