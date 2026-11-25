@@ -30,4 +30,6 @@ export interface ReportedTest {
   /** What the test expected of itself: `failed` for a test marked as expected to fail. */
   readonly expectedStatus: AttemptStatus;
   readonly attempts: readonly ReportedAttempt[];
+  /** Why it is skipped, as its `test.skip` or `test.fixme` says; left out when none says why, such as for a test left out because one before it in a series failed. */
+  readonly skippedFor?: string;
 }

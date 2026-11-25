@@ -31,7 +31,7 @@ When the lockfile cannot be read, the dependencies or the browsers cannot be ins
 
 ## The verdicts
 
-The verdicts are pronounced by `testVerdicts`, a pure function of the domain, from the statuses of the reporter. In doubt, a test is `indeterminate`, never `passed`. The exit code of the runner is recorded, never read as a verdict.
+The verdicts are pronounced by `testVerdicts`, a pure function of the domain, from the statuses of the reporter. In doubt, a test is `indeterminate`, never `passed`. The exit code of the runner is recorded, never read as a verdict. These are the verdicts of a run that designs tests, which asks whether each test can be relied on: a test that passed only on a retry is `indeterminate`. The executions of tests launched afterwards, and the campaigns, tell what the runner reported instead, where such a test is `flaky`.
 
 | Reporter | Verdict |
 |---|---|
@@ -40,7 +40,8 @@ The verdicts are pronounced by `testVerdicts`, a pure function of the domain, fr
 | `unexpected` | `failed`, with the first line of its first error |
 | `unexpected`, on a network error towards a declared address that the check after the run finds unreachable | `blocked` |
 | `unexpected`, on a network error towards a declared address that answers after the run, or that the check could not confirm | `indeterminate` |
-| `skipped` | `skipped` |
+| `skipped`, for a reason its `test.skip` or `test.fixme` gives | `skipped`, with the reason |
+| `skipped`, without a reason, such as after a failure in a series | `indeterminate` |
 | `flaky`, an attempt `interrupted`, or a test marked as expected to fail | `indeterminate` |
 | listed, but absent from the JSON | `not_run` |
 | any test, when the JSON is missing, empty or unreadable | `indeterminate`, and the output of the runner is kept |

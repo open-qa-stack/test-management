@@ -16,12 +16,19 @@ export interface JsonSpec {
   readonly tests: readonly JsonTest[];
 }
 
+/** What a test says of itself, such as why it is skipped. */
+export interface JsonAnnotation {
+  readonly type: string;
+  readonly description?: string;
+}
+
 /** A test in one project, with each of its attempts. */
 export interface JsonTest {
   readonly projectName: string;
   readonly status: ReportedStatus;
   readonly expectedStatus: AttemptStatus;
   readonly results: readonly JsonResult[];
+  readonly annotations?: readonly JsonAnnotation[];
 }
 
 /** An error, as the reporter gives it. */

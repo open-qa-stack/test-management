@@ -428,20 +428,39 @@ describe("criterion 5 — the verdicts of a recorded report of the real runner",
 });
 
 describe("criterion 5 — each line of the mapping, from a report of the real runner", () => {
-  it("gives passed, failed, skipped, and indeterminate to a flaky test and to one expected to fail", async () => {
+  it("gives passed, failed, and indeterminate to a flaky test, to one expected to fail and to one skipped without a reason", async () => {
     const root = repository();
     const outcome = await runIn(root, new FakeRunner(root, { list: fixture("statuses.json"), report: { fixture: "statuses.json" } }));
     const byTitle = Object.fromEntries(outcome.result.tests.map((test) => [test.id.split(" › ").at(-1), test.verdict]));
     assert.deepEqual(byTitle, {
       passes: "passed",
       fails: "failed",
-      "is skipped": "skipped",
+      "is skipped": "indeterminate",
       "is flaky": "indeterminate",
       "is expected to fail": "indeterminate",
       "times out": "failed",
       "passes inside": "passed",
     });
     assert.ok(outcome.result.tests.some((test) => test.id.includes(" › a group › passes inside")));
+  });
+});
+
+describe("a test that is skipped", () => {
+  it("is skipped for the reason its annotation gives, be it a skip or a fixme, and indeterminate when that says nothing", () => {
+    const told = (annotations?: readonly object[]) => {
+      const test = { projectName: "shop", status: "skipped", expectedStatus: "skipped", results: [], annotations };
+      const specs = [{ title: "t", file: "a.spec.ts", line: 1, tests: [test] }];
+      return reportedTests(JSON.stringify({ suites: [{ title: "a.spec.ts", file: "a.spec.ts", specs }] }))![0]!.skippedFor;
+    };
+    assert.equal(
+      told([
+        { type: "slow", description: "Long" },
+        { type: "skip", description: " No data " },
+      ]),
+      "No data",
+    );
+    assert.equal(told([{ type: "fixme", description: "Broken" }]), "Broken");
+    for (const said of [undefined, [], [{ type: "skip" }], [{ type: "skip", description: " " }]]) assert.equal(told(said), undefined);
   });
 });
 
