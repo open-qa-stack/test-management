@@ -46,6 +46,30 @@ const knowledgeCommon = {
   attachments: { type: "array", items: { $ref: "#/$defs/attachment" } },
 } as const;
 
+/** The model of one role, offered by the same connection as the model of every one. */
+const ownModel = {
+  type: "object",
+  additionalProperties: false,
+  required: ["model"],
+  properties: {
+    model: label,
+    capabilities: {
+      type: "array",
+      items: { enum: ["vision"] },
+      description: "What this model can do besides reading and writing text: `vision`, it reads images.",
+    },
+    reasoningEffort: { ...label, description: "How much this model reasons before it answers." },
+  },
+} as const;
+
+/** The models of the roles that have one of their own. */
+const roleModels = {
+  type: "object",
+  additionalProperties: false,
+  description: "The roles that use a model of their own, through the same connection; the others use `model`.",
+  properties: { cartographer: ownModel, designer: ownModel, reviewer: ownModel },
+} as const;
+
 /**
  * JSON Schema (draft 2020-12) of the solo-mode configuration file.
  *
@@ -335,6 +359,7 @@ export const configSchema = {
               description:
                 "How much the model reasons before it answers, in a word of its server, such as `none`, `low` or `high`; sent with every request when set.",
             },
+            roles: roleModels,
           },
         },
         {
@@ -354,6 +379,7 @@ export const configSchema = {
               ...label,
               description: "How much the model reasons before it answers, in a word Copilot offers for the model, such as `low` or `high`.",
             },
+            roles: roleModels,
           },
         },
       ],

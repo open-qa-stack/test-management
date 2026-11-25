@@ -35,7 +35,7 @@ export const EditContext = createContext<ConfigurationEdit>(NO_EDIT);
  * How a field reads what the person typed: a text, a number, a choice, a member of a set, a level of autonomy, the
  * value of a variable, or the reach of a knowledge source.
  */
-export type FieldKind = "text" | "number" | "choice" | "member" | "flag" | "level" | "connection" | "secret" | "reach";
+export type FieldKind = "text" | "number" | "choice" | "member" | "flag" | "level" | "connection" | "secret" | "reach" | "role";
 
 /** What a field holds when the person changed it. */
 export interface ChangedField {
@@ -82,6 +82,9 @@ export function actionOf(field: ChangedField): ConfigurationAction {
     case "reach":
       // A source of the whole project has no attachment; one of applications starts with an application to choose.
       return { type: "edit", pointer, value: value === "project" ? undefined : [{ application: "" }] };
+    case "role":
+      // A role without a model of its own uses that of every one; another model takes over nothing tuned on the former.
+      return { type: "edit", pointer, value: value === "" ? undefined : { model: value } };
     case "number":
       return { type: "edit", pointer, value: value === "" ? undefined : Number(value) };
     default:

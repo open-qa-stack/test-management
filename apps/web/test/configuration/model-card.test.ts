@@ -65,6 +65,26 @@ describe("the card of the model", () => {
     assert.match(told(LOCAL, { state: "connected" }), /Connecté\. Le serveur ne donne pas la liste de ses modèles : saisissez le nom du modèle\./);
   });
 
+  it("offers a model for each role: its name, or one of the models found, with whether it reads images once it has one", () => {
+    const typed = card({ ...LOCAL, roles: { reviewer: { model: "big", capabilities: ["vision"] } } });
+    const cartographer = /<input id="config-model-roles-cartographer"[^>]*>/.exec(typed)![0];
+    for (const said of ['data-kind="role"', 'value=""', 'placeholder="Même modèle que ci-dessus"']) assert.ok(cartographer.includes(said), cartographer);
+    assert.match(typed, /id="config-model-roles-reviewer"[^>]*value="big"/);
+    assert.match(typed, /id="config-model-roles-reviewer-capabilities-vision"[^>]*checked=""/);
+    assert.doesNotMatch(typed, /config-model-roles-cartographer-capabilities/);
+    const models = [
+      { id: "gpt-5", name: "GPT-5", reasoningEfforts: [] },
+      { id: "mini", name: "mini", reasoningEfforts: [] },
+    ];
+    const check = { state: "connected", account: "octo", models } as const;
+    const listed = card({ mode: "github", model: "gpt-5", roles: { designer: { model: "gone" } } }, { model: GITHUB, check });
+    assert.match(
+      listed,
+      /<select id="config-model-roles-cartographer"[^>]*><option value="" selected="">Même modèle que ci-dessus<\/option><option value="gpt-5">GPT-5 \(gpt-5\)<\/option><option value="mini">/,
+    );
+    assert.match(listed, /<select id="config-model-roles-designer"[^>]*>.*?<option value="gone" selected="">gone<\/option>/);
+  });
+
   it("offers the models found in a list, with the efforts of reasoning and the vision of the one chosen", () => {
     const models = [
       { id: "gpt-5", name: "GPT-5", vision: true, reasoningEfforts: ["low", "high"] },

@@ -33,6 +33,10 @@ const LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     model: "configuration.model.model",
     reasoningEffort: "configuration.model.reasoningEffort",
     requestTimeoutSeconds: "configuration.model.timeout",
+    roles: "configuration.model.roles.title",
+    cartographer: "configuration.model.roles.cartographer",
+    designer: "configuration.model.roles.designer",
+    reviewer: "configuration.model.roles.reviewer",
   },
   autonomy: { level: "configuration.settings.autonomy.level", guardrailMinutes: "configuration.settings.autonomy.guardrail" },
 };
