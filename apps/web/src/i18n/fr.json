@@ -51,7 +51,8 @@
       "campaigns": "Campagnes",
       "campaign": "Campagne",
       "applications": "Applications",
-      "discovery": "Découverte"
+      "discovery": "Découverte",
+      "running": "Exécution en cours"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -942,7 +943,10 @@
     "campaign_one": "{{count}} test d’une campagne",
     "campaign_other": "{{count}} tests d’une campagne",
     "campaignNamed_one": "Campagne « {{name}} » · {{count}} test",
-    "campaignNamed_other": "Campagne « {{name}} » · {{count}} tests"
+    "campaignNamed_other": "Campagne « {{name}} » · {{count}} tests",
+    "campaignFilter": "Campagne",
+    "allCampaigns": "Toutes les campagnes",
+    "sizeFilter": "Par page"
   },
   "execution": {
     "title": "Exécution du {{date}}",
@@ -1308,5 +1312,16 @@
       "summary": "Bilan"
     }
   },
-  "technicalDetails": "Détails techniques"
+  "technicalDetails": "Détails techniques",
+  "running": {
+    "title": "Exécution en cours",
+    "badge": "En cours",
+    "since": "Exécution en cours depuis le {{date}}",
+    "preparing": "Préparation des tests…",
+    "progress": "{{finished}} tests sur {{total}}",
+    "finished": "Tests terminés",
+    "none": "Aucune exécution en cours",
+    "noneNote": "Elle apparaît ici dès que des tests sont lancés.",
+    "last": "Voir la dernière lancée"
+  }
 }

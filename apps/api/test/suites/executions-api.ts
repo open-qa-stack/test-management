@@ -91,6 +91,7 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
           await read("outcome=passing"),
           await read("origin=design"),
           await read("origin=manual"),
+          await read("campaign=c1"),
           await read("since=2026-11-19T09:30:00%2B00:00"),
           await read("since=2026-11-19"),
         ],
@@ -100,6 +101,7 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
           { items: [EARLIER], total: 1, start: 0 },
           { items: [LATER], total: 1, start: 0 },
           { items: [LATER, EARLIER], total: 2, start: 0 },
+          { items: [], total: 0, start: 0 },
           { items: [], total: 0, start: 0 },
           { items: [LATER], total: 1, start: 0 },
           { items: [LATER, EARLIER], total: 2, start: 0 },
@@ -120,6 +122,7 @@ export function executionsApiSuite(engine: DatabaseEngine): void {
         ["?limit=a", 400, "invalid_request"],
         ["?outcome=flaky", 400, "invalid_request"],
         ["?origin=robot", 400, "invalid_request"],
+        ["?campaign=", 400, "invalid_request"],
         ["?since=yesterday", 400, "invalid_request"],
         ["?since=2026-13-40", 400, "invalid_request"],
       ] as const) {

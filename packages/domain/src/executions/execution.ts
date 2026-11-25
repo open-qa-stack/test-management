@@ -100,6 +100,8 @@ export interface ExecutionQuery {
   readonly outcome?: ExecutionOutcome;
   /** Where the executions come from. */
   readonly origin?: ExecutionOrigin;
+  /** The identifier of the campaign the executions were launched for. */
+  readonly campaign?: string;
   /** An ISO 8601 date: only the executions kept from then on. */
   readonly since?: string;
 }

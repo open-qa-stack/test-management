@@ -154,10 +154,11 @@ export class ExecutionStore implements ExecutionStorePort {
    * many the query keeps and the rank of the first of the page among them.
    * @throws `UnknownExecutionError` when the page starts after an execution it does not keep.
    */
-  async page({ limit, before, outcome, origin, since }: ExecutionQuery): Promise<ExecutionList> {
+  async page({ limit, before, outcome, origin, campaign, since }: ExecutionQuery): Promise<ExecutionList> {
     let kept = this.#database.selectFrom("executions");
     if (outcome !== undefined) kept = kept.where((builder) => (outcome === "failing" ? failed(builder) : builder.not(failed(builder))));
     if (origin !== undefined) kept = kept.where("origin", "=", origin);
+    if (campaign !== undefined) kept = kept.where("campaign_id", "=", campaign);
     if (since !== undefined) kept = kept.where("ran_at", ">=", instant(since));
     let shown = kept.selectAll("executions");
     let start = 0;

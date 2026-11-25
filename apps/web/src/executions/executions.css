@@ -110,6 +110,21 @@
   gap: var(--space-1);
 }
 
+/* The launch that runs, above the executions kept, and how far it went. */
+.exec-running {
+  flex-wrap: wrap;
+  margin-block: var(--space-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.exec-advance {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
 /* Where a test failed and why, under its title. */
 .exec-failure {
   display: flex;

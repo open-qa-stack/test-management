@@ -35,6 +35,7 @@ export class ExecutionsController {
     @Query("before") before: unknown,
     @Query("outcome") outcome: unknown,
     @Query("origin") origin: unknown,
+    @Query("campaign") campaign: unknown,
     @Query("since") since: unknown,
   ): Promise<ExecutionList> {
     const size = limit === undefined ? DEFAULT_PAGE_SIZE : typeof limit === "string" && /^[1-9]\d{0,2}$/.test(limit) ? Number(limit) : 0;
@@ -44,6 +45,7 @@ export class ExecutionsController {
     if (outcome !== undefined && !OUTCOMES.includes(outcome as ExecutionOutcome)) throw new BadRequestException(`outcome is one of ${OUTCOMES.join(", ")}.`);
     if (origin !== undefined && !EXECUTION_ORIGINS.includes(origin as ExecutionOrigin))
       throw new BadRequestException(`origin is one of ${EXECUTION_ORIGINS.join(", ")}.`);
+    if (campaign !== undefined && (typeof campaign !== "string" || campaign === "")) throw new BadRequestException("campaign is the identifier of a campaign.");
     if (since !== undefined && (typeof since !== "string" || !ISO_DATE.test(since) || Number.isNaN(Date.parse(since))))
       throw new BadRequestException("since is an ISO 8601 date, such as 2026-11-20 or 2026-11-20T08:00:00Z.");
     return this.#executions.page({
@@ -51,6 +53,7 @@ export class ExecutionsController {
       ...(before === undefined ? {} : { before }),
       ...(outcome === undefined ? {} : { outcome: outcome as ExecutionOutcome }),
       ...(origin === undefined ? {} : { origin: origin as ExecutionOrigin }),
+      ...(campaign === undefined ? {} : { campaign }),
       ...(since === undefined ? {} : { since: new Date(since).toISOString() }),
     });
   }

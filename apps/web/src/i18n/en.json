@@ -51,7 +51,8 @@
       "campaigns": "Campaigns",
       "campaign": "Campaign",
       "applications": "Applications",
-      "discovery": "Discovery"
+      "discovery": "Discovery",
+      "running": "Execution that runs"
     },
     "opening": {
       "title": "Reading the session",
@@ -942,7 +943,10 @@
     "campaign_one": "{{count}} test of a campaign",
     "campaign_other": "{{count}} tests of a campaign",
     "campaignNamed_one": "Campaign “{{name}}” · {{count}} test",
-    "campaignNamed_other": "Campaign “{{name}}” · {{count}} tests"
+    "campaignNamed_other": "Campaign “{{name}}” · {{count}} tests",
+    "campaignFilter": "Campaign",
+    "allCampaigns": "All campaigns",
+    "sizeFilter": "Per page"
   },
   "execution": {
     "title": "Execution of {{date}}",
@@ -1308,5 +1312,16 @@
       "summary": "Summary"
     }
   },
-  "technicalDetails": "Technical details"
+  "technicalDetails": "Technical details",
+  "running": {
+    "title": "Execution that runs",
+    "badge": "Running",
+    "since": "Execution that runs since {{date}}",
+    "preparing": "Preparing the tests…",
+    "progress": "{{finished}} of {{total}} tests",
+    "finished": "Tests that ended",
+    "none": "No execution runs",
+    "noneNote": "One shows here as soon as tests are launched.",
+    "last": "See the last one launched"
+  }
 }

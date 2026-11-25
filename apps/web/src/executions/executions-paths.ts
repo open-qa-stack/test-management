@@ -4,15 +4,35 @@ import { hrefTo } from "../routing/route.ts";
 import type { ExecutionPeriod } from "./execution-period.ts";
 import type { ExecutionView } from "./execution-view.ts";
 
-/** What a page of the executions is narrowed to: what came of their tests, where they come from, how far back they go. */
+/** What a page of the executions is narrowed to: what came of their tests, where they come from, the campaign they were launched for, how far back they go; and how many it holds. */
 export interface ExecutionsFilter {
   readonly outcome?: ExecutionOutcome;
   readonly origin?: ExecutionOrigin;
+  /** The identifier of a campaign. */
+  readonly campaign?: string;
   readonly period?: ExecutionPeriod;
+  readonly size?: ExecutionsSize;
+}
+
+/** A filter as a person changes it: what they take away is there, and undefined. */
+export type ChangedFilter = { readonly [Name in keyof ExecutionsFilter]: ExecutionsFilter[Name] | undefined };
+
+/** How many executions a page may hold, as the address says it; the first is the one it holds by default. */
+export const EXECUTIONS_SIZES = ["25", "50", "100"] as const;
+
+/** How many executions a page holds. */
+export type ExecutionsSize = (typeof EXECUTIONS_SIZES)[number];
+
+/** Tells whether what an address names is how many executions a page may hold. */
+export function isExecutionsSize(value: string | undefined): value is ExecutionsSize {
+  return EXECUTIONS_SIZES.some((known) => known === value);
 }
 
 /** The address of the screen of the executions. */
 export const EXECUTIONS_PATH = "/executions";
+
+/** The address of the screen of the execution that runs. */
+export const RUNNING_PATH = `${EXECUTIONS_PATH}/running`;
 
 /** The address of the screen of an execution, whose identifier the query gives. */
 export const EXECUTION_PATH = `${EXECUTIONS_PATH}/view`;
@@ -33,13 +53,9 @@ export const TRACE_VIEWER = "/trace-viewer/index.html";
  * @param before - The execution the page starts after; the latest ones when none is given.
  * @returns The fragment to put in an `href`.
  */
-export function executionsHref({ outcome, origin, period }: ExecutionsFilter = {}, before?: string): string {
-  return hrefTo(EXECUTIONS_PATH, {
-    ...(outcome === undefined ? {} : { outcome }),
-    ...(origin === undefined ? {} : { origin }),
-    ...(period === undefined ? {} : { period }),
-    ...(before === undefined ? {} : { before }),
-  });
+export function executionsHref({ outcome, origin, campaign, period, size }: ChangedFilter = {}, before?: string): string {
+  const query = Object.entries({ outcome, origin, campaign, period, size, before }).filter((entry): entry is [string, string] => entry[1] !== undefined);
+  return hrefTo(EXECUTIONS_PATH, Object.fromEntries(query));
 }
 
 /**
