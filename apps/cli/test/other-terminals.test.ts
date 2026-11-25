@@ -47,8 +47,8 @@ describe("oqas, from another terminal: another process on the database of the te
       err: "",
     });
     const attached = terminal.program("attach", running.id, "--output", "json");
-    // The process of the tests, which runs the session, beats many times while a program starts: it holds the message by now.
-    await terminal.program("show", running.id);
+    // The process of the tests, which runs the session, holds the message once it met the store after it was said.
+    await terminal.met(running.id);
     running.open();
     const [opened, followed] = await Promise.all([running.ended, attached]);
     assert.equal(opened.code, 0, opened.err);
@@ -75,7 +75,7 @@ describe("oqas, from another terminal: another process on the database of the te
       out: `The session ${running.id} is asked to stop: the process that runs it interrupts it.\n`,
       err: "",
     });
-    await terminal.program("show", running.id);
+    await terminal.met(running.id);
     running.open();
     const opened = await running.ended;
     assert.equal(opened.code, 5);
