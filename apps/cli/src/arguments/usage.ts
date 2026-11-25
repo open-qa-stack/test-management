@@ -6,6 +6,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
+       oqas [--repository <folder>] agents [instruct <agent> <text>|clear <agent>] [--output text|json]
        oqas [--repository <folder>] config show|import|export|history|check [--output text|json]
        oqas [--repository <folder>] project [--output text|json]
        oqas [--repository <folder>] repository [--output text|json]
@@ -54,6 +55,10 @@ Commands:
   say <session> <text>   Say something to the agents of a session that goes on, or go on with one that ended:
                          its new turn runs here, followed to its end.
   stop <session>         Interrupt a session that goes on.
+  agents                 List what the team asks of each agent.
+  agents instruct <agent> <text>
+                         Add instructions of the team at the end of the prompt of an agent.
+  agents clear <agent>   Take them back.
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it differs.
   config export          Write the configuration in force over oqas.json, when it differs.

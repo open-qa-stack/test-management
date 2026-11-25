@@ -1,6 +1,9 @@
-import type { OqasConfig } from "@open-qa-stack/domain/sessions";
+import { AGENT_KEYS, type OqasConfig } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
 import { valueAt } from "./json-pointer.ts";
+
+/** The label of each agent. */
+const AGENT_NAMES = Object.fromEntries(AGENT_KEYS.map((agent) => [agent, `configuration.agents.names.${agent}`]));
 
 /** The label of a key of the configuration, by the section it is in, as its field names it. */
 const LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
@@ -38,6 +41,7 @@ const LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     designer: "configuration.model.roles.designer",
     reviewer: "configuration.model.roles.reviewer",
   },
+  agents: { instructions: "configuration.agents.instructions", ...AGENT_NAMES },
   autonomy: { level: "configuration.settings.autonomy.level", guardrailMinutes: "configuration.settings.autonomy.guardrail" },
 };
 
@@ -45,6 +49,7 @@ const LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 const SECTIONS: Readonly<Record<string, string>> = {
   model: "configuration.model.title",
   autonomy: "configuration.settings.autonomy.title",
+  agents: "configuration.agents.title",
   design: "configuration.settings.design.title",
   repository: "configuration.settings.repository.title",
   language: "configuration.settings.languages.language",

@@ -98,6 +98,7 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
     return [header, ...[...errors, ...doubts].map((problem) => `- ${problem}`)].join("\n");
   };
   const task = {
+    agent: "domain-writer" as const,
     instructions: writingInstructions(options.sourceType),
     tools: [...options.notes],
     request: redactText(domainRequest(sourceId, domain, options.members, options.others), options.secrets.flatMap(secretForms)),

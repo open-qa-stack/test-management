@@ -10,6 +10,7 @@ export type PrintingCommand =
       {
         name:
           | "init"
+          | "agents"
           | "config"
           | "knowledge"
           | "applications"
@@ -30,6 +31,7 @@ export type PrintingCommand =
 /** The names of the commands that print, as {@link isPrinting} reads them: typed on them, it does not compile while one is left out. */
 const PRINTING: Readonly<Record<PrintingCommand["name"], true>> = {
   init: true,
+  agents: true,
   config: true,
   knowledge: true,
   applications: true,

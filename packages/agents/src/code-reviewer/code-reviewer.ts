@@ -43,6 +43,7 @@ export class CodeReviewer implements QualityJudge {
   /** {@inheritDoc QualityJudge.judge} */
   public async judge(test: string): Promise<readonly QualityFinding[]> {
     return reportedFindings(this.run, {
+      agent: "code-reviewer",
       instructions: this.instructions,
       request: `The test:\n\`\`\`ts\n${test.trimEnd()}\n\`\`\`\n\nNext: call ${QUALITY_TOOL} with what you found, or with an empty list.`,
       tool: QUALITY_TOOL,

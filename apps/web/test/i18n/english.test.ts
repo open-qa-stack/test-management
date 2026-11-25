@@ -99,8 +99,8 @@ describe("the console in English", () => {
       view: { ...VIEW, revision: { ...VIEW.revision!, document: { ...DOCUMENT, language: "fr" } } },
       revisions: REVISIONS,
     });
-    const html = render(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS }));
-    const text = english(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS }));
+    const html = render(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS, route: at("#/configuration") }));
+    const text = english(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS, route: at("#/configuration") }));
     assert.match(
       text,
       /The settings of Open QA Stack\. The applications under test and the knowledge the agents read have screens of their own\.(?: .*)? Agents Model · what the agents think with Connection to the model /,

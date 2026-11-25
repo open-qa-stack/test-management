@@ -7,7 +7,7 @@ import { PLAN_REVIEWER_INSTRUCTIONS, REPORT_TOOL, reviewRequest } from "./plan-r
 export const MAX_REASON_LENGTH = 300;
 
 /** Runs the session of one review, and gives how it ended. */
-export type ReviewSession = (task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
+export type ReviewSession = (task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
 
 /**
  * The agent that reviews the scenarios of a test plan for duplicates.
@@ -61,7 +61,13 @@ export class PlanReviewer implements DuplicateJudge {
       },
     };
     const reminder = () => (reported === undefined ? `Call ${REPORT_TOOL} now, with an empty list when no candidate is a duplicate.` : undefined);
-    const last = await this.run({ instructions: PLAN_REVIEWER_INSTRUCTIONS, tools: [tool], request: reviewRequest(kept, candidates), reminder });
+    const last = await this.run({
+      agent: "plan-reviewer",
+      instructions: PLAN_REVIEWER_INSTRUCTIONS,
+      tools: [tool],
+      request: reviewRequest(kept, candidates),
+      reminder,
+    });
     if (reported !== undefined) return reported;
     if (last.type === "error") throw new Error(last.error.message);
     throw new Error(last.type === "stopped" ? `the review reached its ${last.reason.limit} limit.` : "the review ended without a report.");

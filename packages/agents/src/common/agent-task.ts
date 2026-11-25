@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, ResolvedConfig, TaskCounters, TaskLimits, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentKey, AgentRuntime, ResolvedConfig, TaskCounters, TaskLimits, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
 import type { PersonDelivery } from "./person-delivery.ts";
 import { PERSON_RULE } from "./person-message.ts";
 
@@ -14,6 +14,8 @@ export const MAX_PERSON_TURNS = 10;
 
 /** One task of an agent, run in its own session. */
 export interface AgentTask {
+  /** The agent that carries it out, which the team may give instructions to. */
+  readonly agent: AgentKey;
   /** System instructions of the role. */
   readonly instructions: string;
   /** The tools of the task. */
@@ -68,6 +70,7 @@ export function taskLimits(config: ResolvedConfig): TaskLimits {
 export async function runAgentTask(runtime: AgentRuntime, task: AgentTask, limits: TaskLimits): Promise<void> {
   const { person } = task;
   const session = await runtime.openSession({
+    agent: task.agent,
     instructions: person === undefined ? task.instructions : `${task.instructions}\n\n${PERSON_RULE}`,
     tools: person === undefined ? task.tools : person.heard(task.tools),
     limits,

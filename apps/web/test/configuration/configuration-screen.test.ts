@@ -4,7 +4,7 @@ import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { ConfigurationScreen, FORM_ID } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
-import { render, textOf } from "../render.ts";
+import { at, render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
 import { bears } from "./fields.ts";
 import { UNCALLED_CONTROLS } from "./uncalled-controls.ts";
@@ -19,7 +19,8 @@ function stateAfter(actions: readonly ConfigurationAction[], document: OqasConfi
 }
 
 /** The screen in a state, as HTML. */
-const screen = (state: ConfigurationState): string => render(createElement(ConfigurationScreen, { project: "shop-tests", state, controls: CONTROLS }));
+const screen = (state: ConfigurationState): string =>
+  render(createElement(ConfigurationScreen, { project: "shop-tests", state, controls: CONTROLS, route: at("#/configuration") }));
 
 describe("the screen of the configuration", () => {
   it("says it reads the configuration until the instance told it, and why it could not", () => {

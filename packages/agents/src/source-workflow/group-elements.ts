@@ -111,6 +111,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     const placement = new BatchPlacement({ sourceId, label, batch, grouping, secrets: options.secrets, journal });
     const events: AgentEvent[] = [];
     const task = {
+      agent: "source-grouping" as const,
       instructions: groupingInstructions(options.sourceType),
       tools: [placement.tool(), ...options.notes],
       request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping, options.former), forms),

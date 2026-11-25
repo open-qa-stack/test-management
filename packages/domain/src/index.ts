@@ -1,5 +1,6 @@
 export type { AgentEvent, TerminalEvent } from "./agent/agent-event.ts";
-export type { AgentKey } from "./agent/agent-key.ts";
+export { AGENT_KEYS, type AgentKey } from "./agent/agent-key.ts";
+export { MAX_TEAM_INSTRUCTIONS, teamInstructions, type AgentSettings, type AgentsSettings } from "./agent/team-instructions.ts";
 export type { AgentRuntime, SessionOptions } from "./agent/agent-runtime.ts";
 export type { AgentSession } from "./agent/agent-session.ts";
 export { AgentRuntimeError } from "./agent/errors/agent-runtime-error.ts";

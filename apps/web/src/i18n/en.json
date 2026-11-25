@@ -747,6 +747,28 @@
       "rank": "{{rank}}",
       "source": "Source {{name}}",
       "attachment": "Serves {{rank}}"
+    },
+    "agents": {
+      "title": "Instructions of the agents",
+      "hint": "what the team asks of each",
+      "none": "Its own prompt alone",
+      "some": "Follows the instructions of the team",
+      "instructions": "Instructions of the team",
+      "note": "They are added at the end of the prompt of the agent, which stays as it is.",
+      "example": "For example the words of your trade, or what never to test.",
+      "names": {
+        "source-cartographer": "Reader of a source",
+        "source-grouping": "Grouping of the elements of a source",
+        "domain-writer": "Writer of a domain",
+        "document-cartographer": "Reader of documents",
+        "application-explorer": "Explorer of an application",
+        "cartography-orchestrator": "Orchestrator of the cartography",
+        "planner": "Planner of the tests",
+        "plan-reviewer": "Reviewer of the plan",
+        "writer": "Writer of a test",
+        "coherence-reviewer": "Reviewer of coherence",
+        "code-reviewer": "Reviewer of code"
+      }
     }
   },
   "knowledge": {

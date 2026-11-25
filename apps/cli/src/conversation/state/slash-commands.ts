@@ -7,7 +7,8 @@ interface OwnCommand {
 
 /** A command of the conversation that runs what `oqas` runs, with the words typed after its name, which its help names. */
 interface RunningCommand {
-  readonly name: "model" | "config" | "knowledge" | "applications" | "secrets" | "tests" | "launch" | "campaigns" | "executions" | "repository" | "init";
+  readonly name:
+    "model" | "agents" | "config" | "knowledge" | "applications" | "secrets" | "tests" | "launch" | "campaigns" | "executions" | "repository" | "init";
   readonly takes?: undefined;
   /** The arguments of the command it runs, which the words typed after its name follow. `/model` alone sets the connection step by step instead. */
   readonly runs: readonly string[];
@@ -23,6 +24,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   { name: "stop" },
   { name: "ui", takes: "[port]" },
   { name: "model", runs: ["model"] },
+  { name: "agents", runs: ["agents"] },
   { name: "config", runs: ["config"] },
   { name: "knowledge", runs: ["knowledge"] },
   { name: "applications", runs: ["applications"] },

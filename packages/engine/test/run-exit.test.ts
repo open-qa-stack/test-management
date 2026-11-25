@@ -230,3 +230,29 @@ describe("a model for each role", () => {
     assert.ok(!journalOf(run.root).some(({ message }) => message.includes("The designer works with")));
   });
 });
+
+describe("what the team asks of an agent", () => {
+  it("ends its prompt, in the sessions of that agent alone, and is told once in the journal", async () => {
+    const run = await ran(chain(), {
+      environment: "local",
+      config: (url) =>
+        JSON.stringify({
+          ...(JSON.parse(configText(url)) as object),
+          agents: { writer: { instructions: " Say policy. " }, planner: { instructions: " " }, "cartography-orchestrator": { instructions: "Few domains." } },
+        }),
+    });
+    assert.equal(run.code, 0, run.err);
+    const asked = (text: string) =>
+      run.server.requests.map(({ body }) => JSON.stringify(body ?? {})).filter((sent) => sent.includes(`Instructions of the team:\\n\\n${text}`));
+    assert.ok(asked("Say policy.").length > 0 && asked("Say policy.").every((sent) => sent.includes("run_test")));
+    assert.ok(asked("Few domains.").length > 0 && asked("Few domains.").every((sent) => sent.includes("submit_index")));
+    const told = journalOf(run.root).filter(({ message }) => message.includes("instructions of the team"));
+    assert.deepEqual(
+      told.map(({ step, message }) => `${step} ${message.replace(/\([0-9a-f]{12}\)/, "(digest)")}`),
+      [
+        "cartography The cartography-orchestrator follows the instructions of the team (digest).",
+        "design The writer follows the instructions of the team (digest).",
+      ],
+    );
+  });
+});

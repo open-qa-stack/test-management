@@ -1,6 +1,7 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
+import type { Route } from "../routing/route.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
@@ -8,6 +9,7 @@ import { isPending, shownErrors, type ConfigurationState } from "./configuration
 import { placeText } from "./config-place.ts";
 import { errorText } from "./configuration-words.ts";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
+import { AgentsCard } from "./agents-card.tsx";
 import { ModelCard } from "./model-card.tsx";
 import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settings-cards.tsx";
 import { SaveBar } from "./save-bar.tsx";
@@ -36,6 +38,8 @@ export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" 
 
 /** What the screen of the configuration is drawn from. */
 export interface ConfigurationScreenProps {
+  /** Where the console is, which tells the panel open. */
+  readonly route: Route;
   /** The name of the project. */
   readonly project: string;
   readonly state: ConfigurationState;
@@ -98,7 +102,7 @@ export function Notes({ state }: { readonly state: ConfigurationState }): ReactN
  * @param props - The project, the state of the screen and what the person does on it.
  * @returns The screen.
  */
-export function ConfigurationScreen({ project, state, controls }: ConfigurationScreenProps): ReactNode {
+export function ConfigurationScreen({ project, state, controls, route }: ConfigurationScreenProps): ReactNode {
   const { draft, view, saving, unread, revisions } = state;
   const errors = shownErrors(state);
   const pending = isPending(state);
@@ -149,6 +153,12 @@ export function ConfigurationScreen({ project, state, controls }: ConfigurationS
             <AutonomyCard {...(draft.autonomy === undefined ? {} : { autonomy: draft.autonomy })} />
             <DesignCard design={draft.design} />
             <LanguageCard config={draft} />
+            <AgentsCard
+              agents={draft.agents}
+              route={route}
+              wrong={(pointer) => errors.some(({ path }) => path === pointer || path.startsWith(`${pointer}/`))}
+              footer={<SaveBar saving={saving} pending={pending} saved={t("configuration.item.saved")} discard={controls.discard} />}
+            />
           </section>
           <section className="config-section" aria-labelledby="config-repository">
             <h2 id="config-repository">{t("configuration.screen.repository")}</h2>

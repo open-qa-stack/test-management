@@ -184,6 +184,7 @@ export class SourceCartographer {
     );
     const notes = this.notes(now);
     const task = {
+      agent: "source-cartographer" as const,
       instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
       tools: [...subject.tools, ...notes, submission.tool()],
       request: sourceCardRequest(source.id, source.type, subject.inventory()),

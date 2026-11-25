@@ -274,3 +274,27 @@ describe("oqas model, alone, in a terminal", () => {
     assert.match(told.err, /^oqas model alone sets the connection step by step in a terminal, and this is not one/);
   });
 });
+
+describe("oqas agents", () => {
+  it("lists what the team asks of each agent, gives an agent instructions, and takes them back", async () => {
+    const { oqas } = repository();
+    assert.match((await oqas("agents")).out, /^source-cartographer: its own prompt alone\n/);
+    assert.match((await oqas("agents", "instruct", "writer", " Say policy. ")).out, /\nwriter: Say policy\.\n/);
+    assert.match((await oqas("agents", "instruct", "planner", "Think.")).out, /\nplanner: Think\.\n[^]*\nwriter: Say policy\.\n/);
+    assert.match((await oqas("agents", "clear", "writer")).out, /\nplanner: Think\.\n[^]*\nwriter: its own prompt alone\n/);
+  });
+
+  it("is refused for an agent there is not, a text that is empty or too long, and words it does not take", async () => {
+    const { oqas } = repository();
+    const refused = async (argv: string[], message: RegExp) => {
+      const told = await oqas("agents", ...argv);
+      assert.deepEqual([told.code, message.test(told.err)], [3, true], told.err);
+    };
+    await refused(["instruct", "robot", "Hi."], /robot is no agent: name one of source-cartographer, /);
+    await refused(["instruct", "writer", " "], /a text of 1 to 4000 characters/);
+    await refused(["instruct", "writer", "x".repeat(4001)], /a text of 1 to 4000 characters/);
+    for (const argv of [["instruct", "writer"], ["clear"], ["clear", "writer", "now"], ["list"], ["instruct", "writer", "a", "b"]])
+      await refused(argv, /oqas agents takes nothing, instruct then an agent and a text, or clear then an agent\./);
+    await refused(["--follow"], /it takes no --brief, --environment nor --follow/);
+  });
+});

@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { locale } from "../i18n/i18n.ts";
 import { ConfigurationScreen } from "./configuration-screen.tsx";
 import { FIRST_DRAFT, FIRST_USE_STEPS, FirstUse } from "./first-use.tsx";
+import type { Route } from "../routing/route.ts";
+import { usePanelControls } from "./use-panel-controls.ts";
 import { useConfigurationEditor } from "./use-configuration-editor.ts";
 
 /**
@@ -9,13 +11,14 @@ import { useConfigurationEditor } from "./use-configuration-editor.ts";
  * what the person changes, has each draft checked as it changes, and saves it, or takes the file, when asked, then
  * says so. An instance that has no configuration yet is set up step by step, from a first draft.
  *
- * @param props - The name of the project, and what is told once a change, or the file, became the revision in force.
+ * @param props - The name of the project, where the console is, and what is told once a change, or the file, became the revision in force.
  * @returns The screen.
  */
-export function ConfigurationPage({ project, onSaved }: { readonly project: string; readonly onSaved?: () => void }): ReactNode {
+export function ConfigurationPage({ project, route, onSaved }: { readonly project: string; readonly route: Route; readonly onSaved?: () => void }): ReactNode {
   const { state, dispatch, sync, controls } = useConfigurationEditor();
   const [step, setStep] = useState(0);
   const { draft, saved } = state;
+  const edit = usePanelControls(controls, route, saved, true);
   useEffect(() => {
     if (saved !== undefined) onSaved?.();
   }, [saved, onSaved]);
@@ -39,5 +42,5 @@ export function ConfigurationPage({ project, onSaved }: { readonly project: stri
         onNext={() => setStep(step + 1)}
       />
     );
-  return <ConfigurationScreen project={project} state={state} controls={controls} />;
+  return <ConfigurationScreen project={project} route={route} state={state} controls={edit} />;
 }

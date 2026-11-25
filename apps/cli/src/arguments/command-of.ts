@@ -1,3 +1,4 @@
+import { agentsOf } from "./agents-arguments.ts";
 import { applicationsOf } from "./applications-arguments.ts";
 import { campaignsOf } from "./campaigns-arguments.ts";
 import type { Command } from "./command.ts";
@@ -40,6 +41,7 @@ export function commandOf(
   if (name === "config") return configured(rest, opens || follow);
   if (name === "knowledge") return knowledgeOf(rest, opens || follow);
   if (name === "applications") return applicationsOf(rest, opens || follow);
+  if (name === "agents") return agentsOf(rest, opens || follow);
   if (name === "model") return modelOf(rest, opens || follow, connection, asks);
   if (name === "secrets") return secretsOf(rest, opens || follow);
   if (name === "tests") return testsOf(rest, opens || follow);

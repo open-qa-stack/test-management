@@ -747,6 +747,28 @@
       "rank": "{{rank}}",
       "source": "Source {{name}}",
       "attachment": "Sert à {{rank}}"
+    },
+    "agents": {
+      "title": "Consignes des agents",
+      "hint": "ce que l’équipe demande à chacun",
+      "none": "Son prompt seul",
+      "some": "Suit des consignes de l’équipe",
+      "instructions": "Consignes de l’équipe",
+      "note": "Elles s’ajoutent à la fin du prompt de l’agent, qui reste tel quel.",
+      "example": "Par exemple les mots de votre métier, ou ce qu’il ne faut jamais tester.",
+      "names": {
+        "source-cartographer": "Lecteur d’une source",
+        "source-grouping": "Regroupement des éléments d’une source",
+        "domain-writer": "Rédacteur d’un domaine",
+        "document-cartographer": "Lecteur des documents",
+        "application-explorer": "Explorateur d’une application",
+        "cartography-orchestrator": "Chef de la cartographie",
+        "planner": "Planificateur des tests",
+        "plan-reviewer": "Relecteur du plan",
+        "writer": "Rédacteur d’un test",
+        "coherence-reviewer": "Relecteur de cohérence",
+        "code-reviewer": "Relecteur du code"
+      }
     }
   },
   "knowledge": {

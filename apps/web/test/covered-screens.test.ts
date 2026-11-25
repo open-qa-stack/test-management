@@ -621,13 +621,19 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("status").filter({ hasText: "Révision 4 enregistrée" }).waitFor();
         await page.getByRole("button", { name: "Prendre oqas.json" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 5 enregistrée" }).waitFor();
+        // What the team asks of an agent is written in its panel, which closes once it is saved.
+        await page.getByRole("link", { name: "Modifier Rédacteur d’un test" }).click();
+        await page.getByRole("dialog").getByLabel("Consignes de l’équipe").fill("Say policy.");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.getByRole("status").filter({ hasText: "Révision 6 enregistrée" }).waitFor();
         // A value typed is saved alone, out of the configuration, which does not change.
         await page.getByLabel("Clé", { exact: true }).fill("typed-key");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Les valeurs tapées sont enregistrées sur cet ordinateur." }).waitFor();
         assert.equal(instance.values.get("MODEL_KEY"), "typed-key");
-        assert.equal(instance.revisions[0]?.number, 5, "the configuration did not change");
+        assert.equal(instance.revisions[0]?.number, 6, "the configuration did not change");
         // An instance with no configuration yet is set up step by step, then its repository prepared.
         instance.view = { file: "missing" };
         instance.revisions = [];

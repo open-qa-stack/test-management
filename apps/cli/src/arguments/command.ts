@@ -1,4 +1,4 @@
-import type { DomainChange, CampaignDetails, CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
+import type { AgentKey, DomainChange, CampaignDetails, CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
 
 /** What the command is asked to do, with what that takes. */
 export type Command =
@@ -30,6 +30,10 @@ export type Command =
   | { readonly name: "model"; readonly action: "status" }
   /** Set the connection to the model, then test it. */
   | { readonly name: "model"; readonly action: "set"; readonly connection: ModelArguments }
+  /** List what the team asks of each agent. */
+  | { readonly name: "agents"; readonly action: "list" }
+  /** Give an agent the instructions of the team, or take them back. */
+  | { readonly name: "agents"; readonly action: "instruct"; readonly agent: AgentKey; readonly instructions?: string }
   /** Upload files as documents of a source the instance keeps. */
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
   /** Tell where the cartography of the knowledge stands, source by source. */

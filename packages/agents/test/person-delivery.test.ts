@@ -45,6 +45,7 @@ async function task(turns: (inbox: string) => readonly Turn[], setup: Setup = {}
   const delivered: PersonMessage[] = [];
   const events: AgentEvent[] = [];
   const whole: AgentTask = {
+    agent: "planner",
     instructions: "You plan.",
     tools: TOOLS,
     request: "Plan the tests.",

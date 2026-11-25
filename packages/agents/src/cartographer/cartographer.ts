@@ -201,6 +201,7 @@ export class Cartographer {
     const events: AgentEvent[] = [];
     const { inbox } = this.options;
     const task = {
+      agent: "cartography-orchestrator" as const,
       instructions: CARTOGRAPHER_INSTRUCTIONS,
       tools: [sourceDomainTool(cards, written), ...knowledgeTools(declared(sources), access), ...browser.tools, ...notes, submission.tool()],
       request: cartographyRequest(environment, sources, cards),

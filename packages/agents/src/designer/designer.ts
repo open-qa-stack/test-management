@@ -293,7 +293,7 @@ export class Designer {
     const sessionOf = async (
       name: "plan" | "write",
       session: SessionTools,
-      task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">,
+      task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">,
       settled: () => boolean,
       listening?: () => boolean,
     ): Promise<TerminalEvent> => {
@@ -323,7 +323,7 @@ export class Designer {
       return last;
     };
     /** Runs one session of the agent that reviews the plan, under the limits of a task: its lines of the trace are those of `review`, and what it used is added to the design. */
-    const reviewed = async (task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">): Promise<TerminalEvent> => {
+    const reviewed = async (task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">): Promise<TerminalEvent> => {
       const events: AgentEvent[] = [];
       const sent = (text: string) => opened.harness("review", { type: "message", text });
       await runAgentTask(
@@ -387,7 +387,7 @@ export class Designer {
       // What the plan says of each scenario, its title and its steps, is what its test says: it is written in the language of the tests.
       const testLanguage = testLanguageRule(config.design.testLanguage);
       const reminder = () => (repairs.chosen === undefined ? plan.reminder() : undefined);
-      const task = { instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, tools, request, reminder };
+      const task = { agent: "planner" as const, instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, tools, request, reminder };
       // Once its plan is accepted or refused, or a repair asked, the session that plans can act on nothing: a message then waits for the agent that writes.
       const open = () => plan.accepted === undefined && plan.refused === undefined && repairs.chosen === undefined;
       const settled = () => plan.accepted !== undefined || plan.drafted || repairs.chosen !== undefined;
@@ -471,6 +471,7 @@ export class Designer {
           repaired?.get(scenario.id),
         );
         const task = {
+          agent: "writer" as const,
           instructions: [writerInstructions(config.design.architecture), this.options.writerCharter, testLanguage].join("\n\n"),
           tools,
           request,

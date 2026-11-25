@@ -1,11 +1,13 @@
-import type { JsonSchema, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentKey, JsonSchema, TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
 import type { AgentTask } from "./agent-task.ts";
 
 /** Runs the session of one review, and gives how it ended. */
-export type ReviewSession = (task: Pick<AgentTask, "instructions" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
+export type ReviewSession = (task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
 
 /** What a review asks of its agent: its instructions, its request, and the one tool it reports with. */
 export interface FindingsReport<T> {
+  /** The agent that reviews. */
+  readonly agent: AgentKey;
   readonly instructions: string;
   readonly request: string;
   /** Name of the tool the agent reports its findings with. */
@@ -43,7 +45,7 @@ export async function reportedFindings<T>(run: ReviewSession, report: FindingsRe
     },
   };
   const reminder = () => (reported === undefined ? `Call ${report.tool} now, with an empty list ${report.whenEmpty}.` : undefined);
-  const last = await run({ instructions: report.instructions, tools: [...(report.tools ?? []), tool], request: report.request, reminder });
+  const last = await run({ agent: report.agent, instructions: report.instructions, tools: [...(report.tools ?? []), tool], request: report.request, reminder });
   if (reported !== undefined) return reported;
   if (last.type === "error") throw new Error(last.error.message);
   throw new Error(last.type === "stopped" ? `the review reached its ${last.reason.limit} limit.` : "the review ended without a report.");

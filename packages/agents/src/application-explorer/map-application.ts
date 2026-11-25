@@ -59,6 +59,7 @@ export async function mapApplication(options: MapApplicationOptions): Promise<Se
   const trail = new ScreenTrail(source.id, options.uiUrl, options.mode);
   const map = new ApplicationMap({ sourceId: source.id, trail, secrets: options.secrets, journal });
   const task = {
+    agent: "application-explorer" as const,
     instructions: applicationExplorerInstructions(source.id, options.mode),
     tools: [...trail.watched(options.browser), ...options.notes, ...map.tools()],
     request: explorationRequest(source.id, options.environment, options.uiUrl),
