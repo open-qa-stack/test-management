@@ -4,14 +4,19 @@ import type { Kysely, Selectable } from "kysely";
 import type { Database } from "../database/database.ts";
 import type { CampaignsTable, StoreSchema } from "../database/schema.ts";
 
-/** A row of the campaigns as the campaign it holds, with its tests, its empty dates left out. */
+/** A row of the campaigns as the campaign it holds, with its tests, its empty columns left out. */
 function campaignOf(row: Selectable<CampaignsTable>, tests: readonly CampaignTest[]): Campaign {
-  const { id, name, environment, status, created_at, ready_at, closed_at } = row;
+  const { id, name, environment, status, created_at, ready_at, closed_at, objective, target_version, starts_on, ends_on, owner } = row;
   return {
     id,
     name,
     environment,
     status,
+    ...(objective === null ? {} : { objective }),
+    ...(target_version === null ? {} : { targetVersion: target_version }),
+    ...(starts_on === null ? {} : { startsOn: starts_on }),
+    ...(ends_on === null ? {} : { endsOn: ends_on }),
+    ...(owner === null ? {} : { owner }),
     createdAt: instant(created_at),
     ...(ready_at === null ? {} : { readyAt: instant(ready_at) }),
     ...(closed_at === null ? {} : { closedAt: instant(closed_at) }),
@@ -32,10 +37,23 @@ export class CampaignStore implements CampaignStorePort {
   }
 
   /** Keeps a campaign that was just planned. */
-  async add({ id, name, environment, status, createdAt }: Campaign): Promise<void> {
+  async add({ id, name, environment, status, createdAt, objective, targetVersion, startsOn, endsOn, owner }: Campaign): Promise<void> {
     await this.#database
       .insertInto("campaigns")
-      .values({ id, name, environment, status, created_at: instant(createdAt), ready_at: null, closed_at: null })
+      .values({
+        id,
+        name,
+        environment,
+        status,
+        created_at: instant(createdAt),
+        ready_at: null,
+        closed_at: null,
+        objective: objective ?? null,
+        target_version: targetVersion ?? null,
+        starts_on: startsOn ?? null,
+        ends_on: endsOn ?? null,
+        owner: owner ?? null,
+      })
       .execute();
   }
 

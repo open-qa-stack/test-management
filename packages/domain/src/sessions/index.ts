@@ -76,6 +76,7 @@ export type { EndedLaunch, FinishedTest, LaunchProgress, LaunchRequest, LaunchSt
 export type {
   Campaign,
   CampaignCounts,
+  CampaignDetails,
   CampaignLaunchScope,
   CampaignList,
   CampaignOverview,
@@ -86,6 +87,7 @@ export type {
   CampaignTest,
   CampaignVerdict,
 } from "../campaigns/campaign.ts";
+export { CAMPAIGN_DETAILS } from "../campaigns/campaign.ts";
 export { testFacets, type TestFacets } from "../repository-tests/test-facets.ts";
 export { campaignCounts, campaignVerdict } from "../campaigns/campaign-rules.ts";
 export type { TestReading } from "../repository-tests/test-reading.ts";

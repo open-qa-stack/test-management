@@ -1047,10 +1047,24 @@
       "namePlaceholder": "Release 4.2",
       "environment": "Environment",
       "submit": "Plan",
-      "pending": "Planning…"
+      "pending": "Planning…",
+      "more": "More about it (optional)"
     },
     "chosen_one": "{{count}} test chosen",
-    "chosen_other": "{{count}} tests chosen"
+    "chosen_other": "{{count}} tests chosen",
+    "details": {
+      "objective": "Objective",
+      "targetVersion": "Version tested",
+      "startsOn": "First day",
+      "endsOn": "Last day",
+      "days": "Window",
+      "owner": "In charge"
+    },
+    "days": {
+      "both": "{{from}} to {{until}}",
+      "from": "from {{from}}",
+      "until": "until {{until}}"
+    }
   },
   "campaign": {
     "reading": "Reading the campaign",

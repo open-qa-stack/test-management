@@ -1,4 +1,4 @@
-import type { CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
+import type { CampaignDetails, CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
 
 /** What the command is asked to do, with what that takes. */
 export type Command =
@@ -71,7 +71,7 @@ export type Command =
   /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */
   | { readonly name: "campaigns"; readonly action: "list" }
   /** Plan a campaign against an environment, with no test yet. */
-  | { readonly name: "campaigns"; readonly action: "plan"; readonly campaign: string; readonly environment: string }
+  | { readonly name: "campaigns"; readonly action: "plan"; readonly campaign: string; readonly environment: string; readonly details?: CampaignDetails }
   /** Print a campaign with what came of each of its tests, make it ready, or close it. */
   | { readonly name: "campaigns"; readonly action: "show" | "ready" | "close"; readonly campaign: string }
   /** Choose the tests of a campaign that is planned: every test of the files named. */

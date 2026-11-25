@@ -1,6 +1,6 @@
 import { byCodeUnits } from "../text-order.ts";
 import { CampaignRefusedError } from "./campaign-refused-error.ts";
-import type { CampaignCounts, CampaignResult, CampaignStatus, CampaignTest, CampaignVerdict } from "./campaign.ts";
+import type { CampaignCounts, CampaignDetails, CampaignResult, CampaignStatus, CampaignTest, CampaignVerdict } from "./campaign.ts";
 import type { Execution } from "../executions/execution.ts";
 
 /** The one change each state of a campaign takes. */
@@ -30,6 +30,22 @@ export function chosenTests(tests: readonly CampaignTest[]): CampaignTest[] {
 export function campaignTransition(from: CampaignStatus, to: CampaignStatus): void {
   if (NEXT[from] !== to)
     throw new CampaignRefusedError(`A campaign ${from} cannot become ${to}: a campaign goes from planned to ready, then in_progress, then closed.`);
+}
+
+/** Whether a text is a day of the calendar, in ISO 8601. */
+function isDay(text: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(Date.parse(text)) && new Date(text).toISOString().startsWith(text);
+}
+
+/**
+ * Checks the days a campaign is meant to run between, when a person says them.
+ *
+ * @throws {@link CampaignRefusedError} for a day that is none of the calendar, or a last day before the first one.
+ */
+export function campaignWindow({ startsOn, endsOn }: CampaignDetails): void {
+  for (const day of [startsOn, endsOn]) if (day !== undefined && !isDay(day)) throw new CampaignRefusedError(`${day} is not a day: write it as 2026-12-01.`);
+  if (startsOn !== undefined && endsOn !== undefined && endsOn < startsOn)
+    throw new CampaignRefusedError(`The campaign would end on ${endsOn}, before it starts on ${startsOn}.`);
 }
 
 /** @returns How many of the results came to each verdict, and how many were not run. */

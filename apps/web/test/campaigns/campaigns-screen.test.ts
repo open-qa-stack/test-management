@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
-import type { CampaignList } from "@open-qa-stack/domain/sessions";
+import type { CampaignDetails, CampaignList } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { campaignHref, declaredEnvironments } from "../../src/campaigns/campaigns-paths.ts";
 import { CampaignsScreen, type PlanningState } from "../../src/campaigns/campaigns-screen.tsx";
@@ -25,11 +25,21 @@ describe("the screen of the campaigns", () => {
     assert.equal(campaignHref("c1"), "#/campaigns/view?id=c1");
   });
 
+  it("says the version, the days and who is in charge of a campaign when they were said", () => {
+    const told = (details: CampaignDetails) => textOf(screen({ value: { items: [{ ...OVERVIEWS[1]!, ...details }] } }));
+    assert.match(
+      told({ targetVersion: "4.2", startsOn: "2026-12-01", endsOn: "2026-12-05", owner: "QA" }),
+      / local · 4\.2 · du 1 déc\. 2026 au 5 déc\. 2026 · QA 1 \/ 2/,
+    );
+    assert.match(told({ startsOn: "2026-12-01" }), / local · à partir du 1 déc\. 2026 1 \/ 2/);
+    assert.match(told({ endsOn: "2026-12-05" }), / local · jusqu’au 5 déc\. 2026 1 \/ 2/);
+  });
+
   it("plans a campaign from a name and an environment the configuration declares, its tests chosen next", () => {
     const html = screen({ value: { items: [] } });
     assert.match(
       textOf(html),
-      /Planifier une campagne Nom Environnement local staging Planifier Aucune campagne Planifiez-en une : un nom et un environnement, puis choisissez ses tests\./,
+      /Planifier une campagne Nom Environnement local staging En dire plus \(facultatif\) Objectif Version visée Premier jour Dernier jour Responsable Planifier Aucune campagne Planifiez-en une : un nom et un environnement, puis choisissez ses tests\./,
     );
     assert.ok(html.includes('<select name="environment">'));
     assert.match(screen({ value: { items: [] } }, []), /<input required="" name="environment"\/>/);

@@ -60,6 +60,21 @@ async function chosen(campaigns: Campaigns, name: string, tests: readonly { path
 }
 
 describe("a campaign", () => {
+  it("is planned with what a person says of it, and refused when its days are none of the calendar, or in the wrong order", async () => {
+    const { campaigns } = await campaignsOf(REPOSITORY);
+    const plan = { name: "R", environment: "local" };
+    const details = { objective: "Ship", targetVersion: "4.2", startsOn: "2026-12-01", endsOn: "2026-12-01", owner: "QA" };
+    const planned = await campaigns.plan({ ...plan, ...details });
+    assert.deepEqual({ ...planned, ...details }, planned);
+    for (const day of ["tomorrow", "2026-13-01", "2026-02-30"])
+      await assert.rejects(campaigns.plan({ ...plan, startsOn: day }), refused(/is not a day: write it as 2026-12-01\.$/));
+    await assert.rejects(
+      campaigns.plan({ ...plan, startsOn: "2026-12-02", endsOn: "2026-12-01" }),
+      refused(/end on 2026-12-01, before it starts on 2026-12-02/),
+    );
+    await campaigns.plan({ ...plan, endsOn: "2026-12-01" });
+  });
+
   it("is planned with no test, has its tests chosen in order, chosen again while it is planned, then fixed when it becomes ready", async () => {
     const { campaigns } = await campaignsOf(REPOSITORY);
     const planned = await campaigns.plan({ name: "Recette 4.2", environment: "local" });

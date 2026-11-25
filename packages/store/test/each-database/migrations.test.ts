@@ -63,8 +63,9 @@ describe("applying the migrations", () => {
         "0012_session_purposes",
         "0013_tests",
         "0014_execution_environments",
+        "0015_campaign_details",
       ]);
-      assert.equal(await migrate(url), "Applied 14 migrations.");
+      assert.equal(await migrate(url), "Applied 15 migrations.");
       assert.deepEqual(await tables(database), [
         "campaign_tests",
         "campaigns",

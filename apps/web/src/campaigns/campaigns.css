@@ -58,6 +58,17 @@
   padding: var(--space-3) var(--inset);
 }
 
+/* What may be said of a campaign when it is planned, folded. */
+.campaign-more > .campaign-field {
+  margin-top: var(--space-3);
+}
+
+.campaign-more > summary {
+  min-height: var(--control);
+  align-content: center;
+  cursor: pointer;
+}
+
 /* How far a campaign went: the bar of its verdicts, what was not run left empty. */
 .campaign-bar {
   display: inline-flex;

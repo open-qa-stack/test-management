@@ -46,6 +46,12 @@ content-type: application/json
 |---|---|
 | `name` | What a person calls it; at most 200 characters, spaces around it left out. |
 | `environment` | The environment its tests run against. It is checked when its tests are launched. |
+| `objective` | What it is for; left out when none is said, as each field below. |
+| `targetVersion` | The version of the application it tests. The console shows it beside the environment of its executions. |
+| `startsOn`, `endsOn` | The first and the last day it is meant to run, such as `2026-12-01`. Nothing starts nor stops it then. A day that is none of the calendar, or a last day before the first one, is refused with `campaign_refused`. |
+| `owner` | Who answers for it, as free text. |
+
+Each of these details is at most 500 characters. They are said once, when the campaign is planned.
 
 The campaign is planned with no test: they are chosen next.
 
@@ -71,7 +77,7 @@ GET /api/campaigns/5b0c8f2e-6a51-4d1e-9a3f-2c7d1e0b9a44
 
 | Field | |
 |---|---|
-| `campaign` | The campaign: `id`, `name`, `environment`, `status`, `createdAt`, `readyAt`, `closedAt`, and its `tests`. |
+| `campaign` | The campaign: `id`, `name`, `environment`, what was said of it, `status`, `createdAt`, `readyAt`, `closedAt`, and its `tests`. |
 | `results[]` | Each test, by `path` and `title`, with its `verdict` in the latest execution of the campaign that ran it — `passed`, `failed`, `flaky` or `skipped` — and that execution and its date, or `not_run` when none ran it. |
 
 A launch runs the files of the tests of the campaign, as [launching tests](executions.md#launching-tests) does, in the turn

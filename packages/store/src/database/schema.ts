@@ -117,6 +117,11 @@ export interface CampaignsTable {
   created_at: StoredInstant;
   ready_at: StoredInstant | null;
   closed_at: StoredInstant | null;
+  objective: string | null;
+  target_version: string | null;
+  starts_on: string | null;
+  ends_on: string | null;
+  owner: string | null;
 }
 
 /** The tests chosen for a campaign, each named by the path of its file and its title: they may change while it is planned. */

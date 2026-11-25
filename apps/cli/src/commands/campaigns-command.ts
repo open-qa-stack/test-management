@@ -28,7 +28,7 @@ export async function campaigned(
       return ExitCode.passed;
     }
     case "plan":
-      return told(await campaigns.plan({ name: command.campaign, environment: command.environment }));
+      return told(await campaigns.plan({ name: command.campaign, environment: command.environment, ...command.details }));
     case "choose": {
       // A file named stands for every test it holds.
       const named = new Set(command.paths);

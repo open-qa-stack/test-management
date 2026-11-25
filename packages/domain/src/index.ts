@@ -164,6 +164,7 @@ export { scopedConfig, type ScopedConfig } from "./sessions/scoped-config.ts";
 export type {
   Campaign,
   CampaignCounts,
+  CampaignDetails,
   CampaignLaunchScope,
   CampaignList,
   CampaignOverview,
@@ -174,7 +175,8 @@ export type {
   CampaignTest,
   CampaignVerdict,
 } from "./campaigns/campaign.ts";
-export { campaignCounts, campaignResults, campaignTransition, campaignVerdict, chosenTests } from "./campaigns/campaign-rules.ts";
+export { CAMPAIGN_DETAILS } from "./campaigns/campaign.ts";
+export { campaignCounts, campaignResults, campaignTransition, campaignWindow, campaignVerdict, chosenTests } from "./campaigns/campaign-rules.ts";
 export { CampaignRefusedError } from "./campaigns/campaign-refused-error.ts";
 export { UnknownCampaignError } from "./campaigns/unknown-campaign-error.ts";
 export { OPERATIONS, operationIds, type OperationId } from "./operations/operations.ts";

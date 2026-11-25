@@ -52,7 +52,24 @@ export function launchOrigin(campaign: string | undefined): ExecutionOrigin {
  * @param campaigns - The campaigns of the project the console listed.
  * @returns The words.
  */
-export function launchText({ campaign, environment }: TestLaunch, campaigns: readonly Pick<Campaign, "id" | "name">[]): string {
+export function launchText({ campaign, environment }: TestLaunch, campaigns: readonly Pick<Campaign, "id" | "name" | "targetVersion">[]): string {
   const name = campaigns.find(({ id }) => id === campaign)?.name;
-  return [originName(launchOrigin(campaign)), name, environment].filter((part) => part !== undefined).join(" · ");
+  const where = environmentText({ environment, ...(campaign === undefined ? {} : { campaignId: campaign }) }, campaigns);
+  return [originName(launchOrigin(campaign)), name, where].filter((part) => part !== undefined).join(" · ");
+}
+
+/**
+ * The environment an execution ran against, with the version the campaign it was launched for tests.
+ *
+ * @param execution - The execution, or a launch that runs.
+ * @param campaigns - The campaigns of the project the console listed.
+ * @returns The words; `undefined` when neither is known.
+ */
+export function environmentText(
+  { environment, campaignId }: Pick<Execution, "environment" | "campaignId">,
+  campaigns: readonly Pick<Campaign, "id" | "targetVersion">[],
+): string | undefined {
+  const version = campaigns.find(({ id }) => id === campaignId)?.targetVersion;
+  const known = [environment, version].filter((part) => part !== undefined);
+  return known.length === 0 ? undefined : known.join(" · ");
 }

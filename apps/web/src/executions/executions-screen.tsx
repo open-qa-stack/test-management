@@ -20,7 +20,7 @@ import { Page } from "../ui/page.tsx";
 import { campaignHref } from "../campaigns/campaigns-paths.ts";
 import { hrefTo } from "../routing/route.ts";
 import { LaunchAdvance } from "./launch-advance.tsx";
-import { contentText, executionDuration, launchOrigin, launchText } from "./execution-text.ts";
+import { contentText, environmentText, executionDuration, launchOrigin, launchText } from "./execution-text.ts";
 import { EXECUTION_PERIODS } from "./execution-period.ts";
 import { EXECUTIONS_SIZES, executionHref, executionsHref, resultHref, RUNNING_PATH, type ExecutionsFilter } from "./executions-paths.ts";
 import { FailureNote } from "./failure-note.tsx";
@@ -179,6 +179,7 @@ function ExecutionRow({
   readonly campaigns: readonly CampaignOverview[];
 }): ReactNode {
   const content = contentText(execution, sessions, campaigns);
+  const where = environmentText(execution, campaigns);
   return (
     <details className="exec-row">
       <summary className="exec-line">
@@ -191,7 +192,7 @@ function ExecutionRow({
         </span>
         <span className="exec-content small">
           {execution.campaignId === undefined ? content : <a href={campaignHref(execution.campaignId)}>{content}</a>}
-          {execution.environment !== undefined && <span className="muted"> · {execution.environment}</span>}
+          {where !== undefined && <span className="muted"> · {where}</span>}
         </span>
         <span className="exec-result small">
           <VerdictBar results={execution.results} />

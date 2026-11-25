@@ -62,6 +62,11 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     created_at: "instant",
     ready_at: "instant, or nothing",
     closed_at: "instant, or nothing",
+    objective: "text, or nothing",
+    target_version: "text, or nothing",
+    starts_on: "text, or nothing",
+    ends_on: "text, or nothing",
+    owner: "text, or nothing",
   },
   campaign_tests: { campaign_id: "text", path: "text", title: "text" },
   executions: {

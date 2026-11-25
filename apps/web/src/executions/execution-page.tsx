@@ -28,6 +28,7 @@ export function ExecutionPage({
 }): ReactNode {
   const state = usePolled(() => api.execution(id), id);
   const tests = usePolled(() => api.tests(), "tests");
+  const campaigns = usePolled(() => api.campaigns(), "campaigns");
   const relaunch = useRelaunch(failedPaths(state.value));
   return (
     <ExecutionScreen
@@ -38,6 +39,7 @@ export function ExecutionPage({
       relaunch={relaunch.state}
       onRelaunch={relaunch.onLaunch}
       tests={tests.value ?? []}
+      campaigns={campaigns.value?.items ?? []}
       onSearch={(event) => {
         event.preventDefault();
         const words = (event.currentTarget.elements.namedItem("q") as HTMLInputElement).value.trim();

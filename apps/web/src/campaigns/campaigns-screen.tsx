@@ -7,6 +7,7 @@ import { statusCount } from "../i18n/vocabulary.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { CampaignBar, ranOf } from "./campaign-progress.tsx";
+import { campaignDays, campaignEnvironment } from "./campaign-text.ts";
 import { CampaignStatusBadge } from "./campaign-status.tsx";
 import { CampaignVerdictBadge } from "./campaign-verdict.tsx";
 import { campaignHref } from "./campaigns-paths.ts";
@@ -28,7 +29,7 @@ export interface CampaignsScreenProps {
   readonly onPlan: FormEventHandler<HTMLFormElement>;
 }
 
-/** The form that plans a campaign: its name and its environment, its tests chosen next. */
+/** The form that plans a campaign: its name and its environment, and what may be said of it, folded; its tests are chosen next. */
 function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps, "environments" | "planning" | "onPlan">): ReactNode {
   return (
     <form className="card campaign-plan" onSubmit={onPlan}>
@@ -51,6 +52,29 @@ function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps,
           </select>
         )}
       </label>
+      <details className="campaign-more">
+        <summary>{t("campaigns.plan.more")}</summary>
+        <label className="campaign-field">
+          <span>{t("campaigns.details.objective")}</span>
+          <input name="objective" maxLength={500} />
+        </label>
+        <label className="campaign-field">
+          <span>{t("campaigns.details.targetVersion")}</span>
+          <input name="targetVersion" maxLength={500} placeholder="4.2" />
+        </label>
+        <label className="campaign-field">
+          <span>{t("campaigns.details.startsOn")}</span>
+          <input name="startsOn" type="date" />
+        </label>
+        <label className="campaign-field">
+          <span>{t("campaigns.details.endsOn")}</span>
+          <input name="endsOn" type="date" />
+        </label>
+        <label className="campaign-field">
+          <span>{t("campaigns.details.owner")}</span>
+          <input name="owner" maxLength={500} />
+        </label>
+      </details>
       {planning.refusal !== undefined && (
         <p className="small campaign-refusal" role="alert">
           {planning.refusal}
@@ -70,7 +94,9 @@ function CampaignRow({ campaign }: { readonly campaign: CampaignOverview }): Rea
     <a className="row campaign-row" href={campaignHref(campaign.id)}>
       <div className="grow">
         <b>{campaign.name}</b>
-        <div className="small muted">{campaign.environment}</div>
+        <div className="small muted">
+          {[campaignEnvironment(campaign), campaignDays(campaign), campaign.owner].filter((part) => part !== undefined).join(" · ")}
+        </div>
         <div className="campaign-row-progress small muted">
           <CampaignBar counts={campaign.counts} />
           {campaign.status === "planned" ? t("campaigns.chosen", { count: total }) : t("campaign.ran", { ran: ranOf(campaign.counts), total })}
