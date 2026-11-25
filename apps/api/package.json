@@ -20,21 +20,21 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@fastify/multipart": "10.1.7",
-    "@fastify/static": "10.1.11",
-    "@nestjs/common": "12.4.2",
-    "@nestjs/core": "12.4.2",
-    "@nestjs/platform-fastify": "12.4.2",
+    "@fastify/multipart": "10.1.9",
+    "@fastify/static": "10.1.12",
+    "@nestjs/common": "12.6.0",
+    "@nestjs/core": "12.6.0",
+    "@nestjs/platform-fastify": "12.6.0",
     "@open-qa-stack/domain": "workspace:*",
     "@open-qa-stack/engine": "workspace:*",
     "@open-qa-stack/store": "workspace:*",
     "fastify": "5.12.8",
-    "playwright-core": "1.64.1",
+    "playwright-core": "1.65.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   },
   "devDependencies": {
-    "@nestjs/testing": "12.4.2",
+    "@nestjs/testing": "12.6.0",
     "@open-qa-stack/testing": "workspace:*",
     "@types/pg": "8.23.1",
     "pg": "8.23.1"
