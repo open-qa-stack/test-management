@@ -1,3 +1,4 @@
+import type { BatchEnd, DesignBatch } from "@open-qa-stack/domain";
 import { countedTests, type DesignerOptions, type DesignOutcome } from "./designer.ts";
 import { mergedOutcomes } from "./merged-outcomes.ts";
 import type { DesignRun } from "./design-passes.ts";
@@ -12,22 +13,6 @@ export interface BatchLimits {
   readonly deadline: number;
   /** The clock, in milliseconds since the epoch. */
   readonly now: () => number;
-}
-
-/**
- * Why a batch made no more rounds: `tests` when it wrote as many as it may, `idle-rounds` when its last rounds
- * brought no new test, `guardrail` when the deadline passed between two rounds, `stopped` when a round was cut
- * short by a limit, could not start, or repaired tests instead of planning new ones.
- */
-export type BatchEnd = "tests" | "idle-rounds" | "guardrail" | "stopped";
-
-/** What the rounds of a batch gave, round by round. */
-export interface DesignBatch {
-  /** The new tests of each round, in order. */
-  readonly rounds: readonly number[];
-  /** The new tests of the batch. */
-  readonly tests: number;
-  readonly endedBy: BatchEnd;
 }
 
 /**

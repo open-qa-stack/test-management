@@ -34,7 +34,7 @@ The instructions of both end with the language of the tests, `design.testLanguag
 
 4. **Branch.** Once the sessions are over, a branch is created from the revision checked out, and stays checked out. The kept tests, the design state and the file of the plan are committed on it with the identity and the hooks of the repository. The message is `test: add <n> generated Playwright tests`, with one line per test: its path and the title of its scenario, or, for a test kept failing, `- <path>: failing (<cause>) at step <n>`, the number of the step its last run failed at, or, for an unfinished one, `- <path>: unfinished (<check>)`. Nothing contacts a remote, and no existing branch nor the git configuration is changed.
 
-The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name.
+The branch is `oqas/design-<date>` by default, such as `oqas/design-20261113T100000Z`; `branch` gives another name. The date also names the design, its state and its plan; a design that starts in the same second as another one, whose branch or state is already there, as the rounds of a batch may, is numbered after it: `design-20261113T100000Z-2`.
 
 A design that goes on with an earlier one, such as the next turn of a session, is given its branch as `continuedBranch`: that branch must exist, and no other is created. The design checks it out before it reads anything, when it is not checked out already, so that the agent that plans finds the tests it holds among those of the repository and sets aside what they cover; its tests are then committed on that branch.
 

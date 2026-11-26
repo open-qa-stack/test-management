@@ -75,6 +75,6 @@ export function comparable(event: SessionEvent | UnrankedEvent, root: string): u
   return JSON.parse(
     JSON.stringify(said)
       .replaceAll(root, "<repository>")
-      .replaceAll(/\d{8}T\d{6}Z/g, "<date>"),
+      .replaceAll(/\d{8}T\d{6}Z(?:-\d+)?/g, "<date>"),
   );
 }

@@ -75,7 +75,7 @@ describe("oqas, without a command, in a terminal", () => {
     assert.match(text, /● Writer\n {2}✓ Ran "[^"\n]+" · /);
     assert.match(
       text,
-      / {2}Verdicts of the run: 3 tests\n✓ passed {2}the test\n✓ passed {2}the test\n✓ passed {2}the test\n\nSession completed · tests passed\n[\d.]+ s · 17 model requests · 3 of 3 tests passed · branch oqas\/design-\d{8}T\d{6}Z\n/,
+      / {2}Verdicts of the run: 3 tests\n✓ passed {2}the test\n✓ passed {2}the test\n✓ passed {2}the test\n\nSession completed · tests passed\n[\d.]+ s · 23 model requests · 3 of 3 tests passed · branch oqas\/design-\d{8}T\d{6}Z\n/,
     );
     await screen.sees("›  What do the agents do next?");
     await screen.enter("/quit");

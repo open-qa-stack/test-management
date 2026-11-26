@@ -29,7 +29,7 @@ describe("oqas --brief", () => {
     // Without --follow, nothing of what the agents do is printed.
     assert.doesNotMatch(run.err, / -> | <- |harness to the /);
     const summary = run.out.split("\n");
-    assert.match(String(summary[0]), new RegExp(`^Session ${id}: completed, passed, in [\\d.]+ s and 17 model requests\\.$`));
+    assert.match(String(summary[0]), new RegExp(`^Session ${id}: completed, passed, in [\\d.]+ s and 23 model requests\\.$`));
     assert.match(String(summary[1]), /^Tests written on the branch oqas\/design-\d{8}T\d{6}Z\.$/);
     assert.deepEqual(
       summary.slice(2),
@@ -69,7 +69,9 @@ describe("oqas --brief", () => {
     assert.match(run.err, /^\d\d:\d\d:\d\d <- The plan is not closed yet\. It holds 3 scenarios: test-1, test-2, test-3\./m);
     assert.match(run.err, /^\d\d:\d\d:\d\d harness to the writer: Write the test of this scenario/m);
     assert.match(run.err, /^\d\d:\d\d:\d\d cartographer: One domain\.$/m);
-    assert.equal(run.err.split("\n").filter((line) => line.includes("The plan was accepted:")).length, 1);
+    // The first round plans the scenarios; the three rounds after it find nothing new.
+    assert.equal(run.err.split("\n").filter((line) => line.includes("The plan was accepted: test-1, test-2, test-3.")).length, 1);
+    assert.equal(run.err.split("\n").filter((line) => / planner -> propose_plan\(/.test(line)).length, 4);
   });
 
   it("prints the thread as JSON Lines when asked: each event of the session on the standard output, and nothing else there", async () => {

@@ -112,7 +112,7 @@ export { ExitCode, type ExitCodeValue } from "./run/exit-code.ts";
 export type { ModelUsage } from "./run/model-usage.ts";
 export { PERSON_TAG, personTags, type PersonMessage } from "./run/person-message.ts";
 export { entryLine, type RunEntry, type RunScope, type Step } from "./run/run-entry.ts";
-export type { RunState } from "./run/run-state.ts";
+export type { BatchEnd, DesignBatch, RunState } from "./run/run-state.ts";
 export { runFolderDate, runIdAt, RUNS_FOLDER, traceFile, TRACES_FOLDER } from "./run/state-folder.ts";
 export { withoutClosing } from "./run/tag-closing.ts";
 export type { HarnessEvent, PhaseOutcome, TracedAgentEvent, TraceLine, TracePhase } from "./run/trace-line.ts";

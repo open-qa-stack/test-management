@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import { answer, toolCalls } from "@open-qa-stack/testing";
@@ -201,6 +201,22 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     assert.match(
       messages(outcome),
       /The plan was written to \.oqas\/designs\/design-\w+\.plan\.md, which git ignores: it was not committed\.\nThe design state was written to \.oqas\/designs\/design-\w+\.json, which git ignores: it was not committed\./,
+    );
+  });
+});
+
+describe("a design that starts in the same second as another one", () => {
+  it("takes the first number free, after the branch and the state of the others, for its branch, its state and its plan", async () => {
+    const root = repository();
+    git(root, "branch", "oqas/design-20261113T100000Z");
+    // A design whose branch was removed still has its state.
+    mkdirSync(join(root, ".oqas", "designs"), { recursive: true });
+    writeFileSync(join(root, ".oqas", "designs", "design-20261113T100000Z-2.json"), "{}\n");
+    const { outcome } = await design(replies(valid(3)), { root, branch: null, at: new Date("2026-11-13T10:00:00.400Z") });
+    assert.equal(outcome.ok, true, messages(outcome));
+    assert.deepEqual(
+      [outcome.branch, outcome.statePath?.endsWith("/design-20261113T100000Z-3.json"), outcome.planPath?.endsWith("/design-20261113T100000Z-3.plan.md")],
+      ["oqas/design-20261113T100000Z-3", true, true],
     );
   });
 });

@@ -16,8 +16,9 @@ describe("a run whose configuration names the language of the person", () => {
     const run = await ran(chain(), { environment: "local", config: (url) => configText(url, { language: "fr" }) });
     assert.equal(run.code, 0, run.err);
     const instructions = instructionsOf(run.server);
-    // The agent of the document, the orchestrator of the cartography, the agent that plans and the three that write.
-    assert.equal(instructions.length, 6);
+    // The agent of the document, the orchestrator of the cartography, the agent that plans and the three that write, then the agent
+    // that plans each of the three rounds that bring nothing new.
+    assert.equal(instructions.length, 9);
     for (const text of instructions) assert.ok(text.includes(`\n\n${languageRule("fr")}`), text.slice(-300));
     assert.ok(instructions.every((text) => !text.includes(languageRule("en"))));
   });

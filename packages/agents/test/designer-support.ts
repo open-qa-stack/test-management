@@ -337,6 +337,8 @@ export interface Setup {
   readonly limits?: { maxIterations: number; maxMinutes: number; maxActions: number };
   readonly check?: TestCheck;
   readonly branch?: string | null;
+  /** When a design named after its date starts, with `branch: null`; the clock by default. */
+  readonly at?: Date;
   /** The branch of an earlier design the design goes on with, when it goes on with one. */
   readonly continued?: string;
   readonly env?: Readonly<Record<string, string>>;
@@ -408,7 +410,11 @@ export async function design(script: readonly { status?: number; body: unknown }
       ...(reviewRuntime === undefined ? {} : { reviewRuntime }),
       writerCharter: writerCharter(charter.rules, config.repository),
       browser: { actionTimeoutMs: 1000, navigationTimeoutMs: 3000, settleTimeoutMs: 0 },
-      ...(setup.branch === null ? {} : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
+      ...(setup.branch === null
+        ? setup.at === undefined
+          ? {}
+          : { now: () => setup.at! }
+        : { branch: setup.branch ?? BRANCH, now: () => new Date("2026-11-13T10:00:00.000Z") }),
       ...(setup.continued === undefined ? {} : { continuedBranch: setup.continued }),
       ...(setup.check === undefined ? {} : { check: setup.check }),
       runner: setup.runner ?? new FakeTestRunner(),

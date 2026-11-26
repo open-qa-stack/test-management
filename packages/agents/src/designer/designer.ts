@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, posix } from "node:path";
 import {
@@ -259,9 +260,13 @@ export class Designer {
     const unstarted = (message: string): DesignOutcome => ({ ...failed(message), unstarted: true });
     const now = this.options.now ?? (() => new Date());
     const start = now();
-    const id = `design-${start.toISOString().replace(/[-:]|\.\d+/g, "")}`;
     const repository = new TestRepository(repositoryRoot);
     const { continuedBranch } = this.options;
+    const id = await freeId(`design-${start.toISOString().replace(/[-:]|\.\d+/g, "")}`, async (candidate) => {
+      // A design started in the same second as one before it, as the rounds of a batch may be, takes the next number.
+      const named = continuedBranch === undefined && this.options.branch === undefined && (await repository.hasBranch(`${BRANCH_PREFIX}${candidate}`));
+      return named || existsSync(join(repositoryRoot, config.repository.stateDir, DESIGNS_FOLDER, `${candidate}.json`));
+    });
     const branch = continuedBranch ?? this.options.branch ?? `${BRANCH_PREFIX}${id}`;
     // The console writes the configuration file when a person saves a revision: that change is not the developer's.
     const reserved = [config.repository.stateDir, config.repository.indexDir, CONFIG_FILE_NAME];
@@ -714,4 +719,17 @@ async function readJson(path: string): Promise<unknown> {
       () => undefined,
     )
     .catch(() => undefined);
+}
+
+/**
+ * The identifier of a design: the one given, or the first of it followed by a number from 2 that is not taken.
+ *
+ * @param stamp - The identifier the date of the design gives.
+ * @param taken - Whether an identifier is already the one of another design.
+ * @returns The identifier.
+ */
+async function freeId(stamp: string, taken: (candidate: string) => Promise<boolean>): Promise<string> {
+  let id = stamp;
+  for (let rank = 2; await taken(id); rank += 1) id = `${stamp}-${rank}`;
+  return id;
 }

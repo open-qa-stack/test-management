@@ -62,10 +62,16 @@ export const written = (id: string) => [
 /** The reply of the session that plans that submits the plan. */
 export const planned = { body: toolCalls(MODEL, [plan]) };
 
+/** The replies of a round of design that finds nothing new: the session that plans submits an empty plan, then answers. */
+export const idleRound = (round: number) => [{ body: toolCalls(MODEL, [submit("propose_plan", { scenarios: [] }, `idle-${round}`)]) }, ended];
+
+/** The replies of the rounds that follow a first one which gave tests: three in a row that bring none end the batch. */
+export const idleRounds = () => [2, 3, 4].flatMap(idleRound);
+
 /**
  * The replies of the model for the whole chain: the check of the server, the card, the index, then the
- * session that plans — a read of the orders, the plan, an answer — and the session of each of three
- * scenarios.
+ * session that plans — a read of the orders, the plan, an answer — the session of each of three
+ * scenarios, then the rounds that bring nothing new.
  */
 export const chain = () => [
   { body: { data: [] } },
@@ -79,6 +85,7 @@ export const chain = () => [
   planned,
   ended,
   ...IDS.flatMap(written),
+  ...idleRounds(),
   ...Array.from({ length: 4 }, () => ended),
 ];
 

@@ -4,7 +4,7 @@ import { basename, join } from "node:path";
 import { setTimeout as pause } from "node:timers/promises";
 import { CONFIG_FILE_NAME, DomainRefusedError, SessionEndedError, SessionStateError, UnknownSessionError } from "@open-qa-stack/domain";
 import type { SessionEvent, SessionOpening } from "@open-qa-stack/domain/sessions";
-import { chain, ended, git, planned, read } from "@open-qa-stack/testing/test-repository";
+import { chain, ended, git, idleRound, planned, read } from "@open-qa-stack/testing/test-repository";
 import { afterEach, describe, it } from "vitest";
 import { KeptMemories } from "@open-qa-stack/testing";
 import { Configuration, NoRepositoryError, Sessions } from "../src/index.ts";
@@ -21,13 +21,14 @@ import { comparable, toldByTheEngine } from "./support/told-by-the-engine.ts";
 const REQUEST = "Test the listing of the orders.";
 
 /** How many replies of the scripted chain a first run in a test repository asks the model for. */
-const FIRST_RUN_REPLIES = 18;
+const FIRST_RUN_REPLIES = 24;
 
 /**
  * The replies of a second run in the same test repository: the cards and the index are up to date, so the
- * model is only checked, then asked for a plan, whose scenarios the tests of the first run already cover.
+ * model is only checked, then asked for a plan, whose scenarios the tests of the first run already cover: that first round
+ * brings nothing new, and two more such rounds end the batch.
  */
-const secondRun = () => [{ body: { data: [] } }, read(), planned, ended, ended];
+const secondRun = () => [{ body: { data: [] } }, read(), planned, ended, ...idleRound(2), ...idleRound(3), ended];
 
 /** A session whose run the configuration stops at once: it names an environment the test repository does not declare. */
 const STOPPED_AT_ONCE = { request: REQUEST, environment: "nowhere" };

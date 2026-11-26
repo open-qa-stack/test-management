@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
+import { toolCalls } from "../src/scripted-model.ts";
 
 import "../src/loopback-only.ts";
 import * as fixture from "../src/fixture-repository.ts";
@@ -13,6 +14,8 @@ import {
   FakeRunner,
   FIRST_RUN,
   git,
+  idleRound,
+  idleRounds,
   IDS,
   isFinalRun,
   later,
@@ -89,13 +92,15 @@ describe("the test repository of a host the test runner does not serve", () => {
 });
 
 describe("the replies scripted for the whole chain", () => {
-  it("are the check of the server, the cartography, the plan, then the session of each scenario", () => {
+  it("are the check of the server, the cartography, the plan, the session of each scenario, then three rounds with nothing new", () => {
     const replies = chain();
-    assert.equal(replies.length, 9 + 3 * IDS.length + 4);
+    assert.equal(replies.length, 9 + 3 * IDS.length + 3 * 2 + 4);
     assert.deepEqual(replies[0], { body: { data: [] } });
     assert.equal(replies[7], planned);
     assert.equal(replies[8], ended);
     assert.deepEqual(replies.slice(9, 12), written("test-1"));
+    assert.deepEqual(replies.slice(9 + 3 * IDS.length, 9 + 3 * IDS.length + 6), idleRounds());
+    assert.deepEqual(idleRound(2), [{ body: toolCalls(MODEL, [submit("propose_plan", { scenarios: [] }, "idle-2")]) }, ended]);
     assert.deepEqual(offered({ tools: [{ function: { name: "run_test" } }, { function: { name: "propose_test" } }] }), ["run_test", "propose_test"]);
   });
 
