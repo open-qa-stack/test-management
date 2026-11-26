@@ -27,6 +27,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests step <test> <title> <step> <text> [--output text|json]
        oqas [--repository <folder>] tests trace <test> <file>
        oqas [--repository <folder>] tests capture <test> <step> <file>
+       oqas [--repository <folder>] reviews [show <id>] [--output text|json]
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
        oqas [--repository <folder>] campaigns [--output text|json]
        oqas [--repository <folder>] campaigns plan <name> --environment <name> [--objective <text>] [--target <version>] [--from <day>] [--until <day>] [--owner <text>]
@@ -117,6 +118,10 @@ Commands:
                          Write the trace the latest run kept of the test to the file, which npx playwright show-trace opens.
   tests capture <test> <step> <file>
                          Write the capture the latest run attached for the step of the test to the file.
+  reviews                List the tests the agents wrote for you to review, and those you set aside, the oldest
+                         design first.
+  reviews show <id>      Tell what you read to decide of one of them: why it was written, its steps, the remarks
+                         of the agents that reviewed it, and the files its design wrote.
   launch [<test>...]     Launch tests of the test repository as they are, with no agent, in this process, against
                          --environment, and follow them to their end: every test, or those of the files named.
                          It exits with 0 when each passed, 1 when one failed, 2 when one was skipped.

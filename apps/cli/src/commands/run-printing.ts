@@ -3,6 +3,7 @@ import { playwrightVersion } from "@open-qa-stack/tools";
 import type { Arguments } from "../arguments/arguments.ts";
 import { RepositoryInit } from "../project/repository-init.ts";
 import { instructed } from "./agents-command.ts";
+import { reviewed } from "./reviews-command.ts";
 import { addressesChecked } from "./applications-command.ts";
 import { campaigned } from "./campaigns-command.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -79,6 +80,10 @@ export async function runPrinting(
       // The tests are read with the configuration of oqas.json, which says where the applications and the runs are.
       await configuration.inForce();
       return await tested(operations, command, { options, io });
+    case "reviews":
+      // The designs are read in the state folder the configuration of oqas.json names.
+      await configuration.inForce();
+      return await reviewed(operations, command, { options, io });
     case "executions":
       return await executed(operations, command, { options, io });
     case "launch":

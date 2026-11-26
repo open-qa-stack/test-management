@@ -121,6 +121,16 @@ describe("the client of the API, for the configuration", () => {
 describe("the client of the API, for the documents of the knowledge sources", () => {
   const SUMMARY = { name: "quotes é.md", bytes: 9, uploadedAt: "2026-11-18T09:00:00.000Z" };
 
+  it("reads the queue of the review, and a test of it by its identifier", async () => {
+    const queue = { tests: [], counts: { inReview: 0, setAside: 0 } };
+    const listed = clientOf(() => json(queue));
+    assert.deepEqual(await listed.client.reviews(), queue);
+    assert.deepEqual(listed.calls, [["/api/reviews", undefined]]);
+    const read = clientOf(() => json({ id: "a b" }));
+    assert.deepEqual(await read.client.proposal("a b"), { id: "a b" });
+    assert.deepEqual(read.calls, [["/api/reviews/a%20b", undefined]]);
+  });
+
   it("lists the tests of the test repository out of the envelope the API answers", async () => {
     const test = { path: "apps/shop/orders.spec.ts", title: "Orders", steps: [], tags: [], applications: [] };
     const listed = clientOf(() => json({ items: [test] }));

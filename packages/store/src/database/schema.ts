@@ -225,6 +225,16 @@ export interface DomainSettingsTable {
   excluded: number;
 }
 
+/** What a person decided of each test the agents wrote, under its identifier: `validated` or `set_aside`, with the reason of the latter. */
+export interface TestDecisionsTable {
+  id: string;
+  status: string;
+  decided_at: string;
+  reason: string | null;
+  covered_by: string | null;
+  note: string | null;
+}
+
 /**
  * The schema of the database of an instance, on every database the store supports: the tables the migrations
  * create, and what the statements of the store are checked against.
@@ -243,5 +253,6 @@ export interface StoreSchema {
   test_versions: TestVersionsTable;
   tests: TestsTable;
   domain_settings: DomainSettingsTable;
+  test_decisions: TestDecisionsTable;
   memories: MemoriesTable;
 }

@@ -114,4 +114,15 @@ export type { SecretKind, SecretList, SecretSource, SecretState } from "../secre
 export { OPERATIONS, operationIds, type OperationId } from "../operations/operations.ts";
 export type { SourceCheck } from "../knowledge-check/source-check.ts";
 export type { CartographyState, MappedSource, MappingState } from "../knowledge-check/knowledge-mapping.ts";
+export { SET_ASIDE_REASONS } from "../test-review/test-review.ts";
+export type {
+  ProposedFile,
+  ReviewedTest,
+  ReviewQueue,
+  ReviewRemark,
+  ReviewStatus,
+  SetAsideReason,
+  TestDecision,
+  TestProposal,
+} from "../test-review/test-review.ts";
 export type { KnowledgeRemap } from "../knowledge-check/knowledge-remap.ts";

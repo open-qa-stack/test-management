@@ -11,7 +11,7 @@ export { knowledgeLanguageRule, languageRule, testLanguageRule } from "./common/
 export { MAX_TRACED_LENGTH } from "./common/trace.ts";
 export { DesignPasses, PYRAMID, type DesignRun } from "./designer/design-passes.ts";
 export { DesignRounds, type BatchLimits } from "./designer/design-rounds.ts";
-export { BRANCH_PREFIX, Designer, type DesignerOptions, type DesignOutcome } from "./designer/designer.ts";
+export { BRANCH_PREFIX, countedTests, Designer, type DesignerOptions, type DesignOutcome } from "./designer/designer.ts";
 export {
   DESIGNS_FOLDER,
   type DesignedRun,

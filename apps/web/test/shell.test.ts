@@ -54,17 +54,18 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the discovery, the tests, the executions, the campaigns, the applications, the knowledge and the configuration as links, and what is coming as a name without one", () => {
+  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the applications, the knowledge and the configuration as links, and what is coming as a name without one", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration page$/,
     );
     assert.deepEqual(linksOf(html), [
       "#/agent",
       "#/?nav=open",
       "#/agent",
       "#/discovery",
+      "#/review",
       "#/tests",
       "#/executions",
       "#/campaigns",
@@ -74,7 +75,7 @@ describe("the shell", () => {
     ]);
     const coming = NAVIGATION.flatMap((group) => group.entries).filter((entry) => entry.path === undefined);
     assert.equal((html.match(/<span class="nav-soon">/g) ?? []).length, coming.length);
-    assert.equal(coming.length, 3);
+    assert.equal(coming.length, 2);
   });
 
   it("marks the agent at the home, at its entry and under it, the tests, the executions, the campaigns and the configuration at their own, and nowhere else", () => {
@@ -121,7 +122,7 @@ describe("the shell", () => {
     assert.match(panel, /<h2 id="shell-menu">Menu<\/h2><a class="side-panel-close" href="#\/agent\/sessions\/s1\?show=talk" aria-label="Fermer">/);
     assert.match(
       textOf(panel),
-      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire bientôt Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration$/,
+      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration$/,
     );
     assert.match(panel, /<a href="#\/agent" class="on" aria-current="page">/);
     assert.match(shell("#/?nav=open"), /<a class="side-panel-close" href="#\/" aria-label="Fermer">/);
@@ -157,6 +158,6 @@ describe("the shell", () => {
     await inEnglish();
     const text = textOf(shell("#/", { project: projectWith(1), unreachable: true }));
     assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back ✓ Open QA Stack Agent Menu/);
-    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery To review soon Tests Coverage soon/);
+    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery To review Tests Coverage soon/);
   });
 });

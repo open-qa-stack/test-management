@@ -20,6 +20,7 @@ describe("the package", () => {
       "PendingMigrationsError",
       "SchemaMigrations",
       "SessionStore",
+      "TestDecisionStore",
       "TestStore",
       "instanceDatabaseUrl",
       "runMigrations",

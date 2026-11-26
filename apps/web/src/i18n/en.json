@@ -52,7 +52,8 @@
       "campaign": "Campaign",
       "applications": "Applications",
       "discovery": "Discovery",
-      "running": "Execution that runs"
+      "running": "Execution that runs",
+      "review": "To review"
     },
     "opening": {
       "title": "Reading the session",
@@ -374,6 +375,7 @@
     "unknown_test": "The repository no longer holds this test: it was renamed, moved or removed since.",
     "test_change_refused": "This change cannot be written: the text is empty or too long, another test of the file already has this title, or the repository keeps the file from being committed alone (file already changed, no branch, merge under way…). Settle that in the repository, then try again.",
     "unknown_execution": "The instance no longer keeps this execution.",
+    "unknown_proposal": "No test the agents wrote bears this identifier any more.",
     "launch_refused": "The tests cannot be launched now: a session or another launch is running, or the environment asked for is not declared.",
     "unknown_campaign": "The instance does not keep this campaign.",
     "campaign_refused": "The campaign refuses this change: its state does not allow it, a test it names is not in the repository, or no test is chosen yet.",
@@ -884,6 +886,79 @@
     "noApplication": "No application",
     "noMatch": "No test matches",
     "noMatchNote": "Search other words, or choose another level."
+  },
+  "review": {
+    "title": "To review",
+    "lead": "The tests the agents wrote wait for your decision: nothing enters the repository without you.",
+    "readingQueue": "Reading the tests to review",
+    "readingQueueNote": "They show as soon as the instance answered.",
+    "views": "Views of the review",
+    "view": {
+      "new": "New tests",
+      "updates": "Updates",
+      "set_aside": "Set aside"
+    },
+    "domainFilter": "Domains",
+    "allDomains": "All domains",
+    "status": {
+      "in_review": "To review",
+      "validated": "Validated",
+      "set_aside": "Set aside"
+    },
+    "visual": "Visual",
+    "reviewed": "reviewed ✔",
+    "notReviewed": "not reviewed",
+    "verdicts": {
+      "passed": "ran ✔",
+      "failed": "ran ✗"
+    },
+    "where": "{{application}} › {{domain}} › {{feature}}",
+    "why": "Why this test",
+    "byAgents": "AI",
+    "brief": "Asked: {{brief}}",
+    "sources": "Sources:",
+    "verifies": "What the test verifies",
+    "remarks": "What the reviewers said",
+    "noRemark": "No remark from the agents that reviewed it.",
+    "notReviewedNote": "No agent reviewed it.",
+    "about": {
+      "coherence": "Coherence, {{where}}:",
+      "code": "Code, {{where}}:"
+    },
+    "code": "Code — {{files}}",
+    "runs_one": "{{count}} run",
+    "runs_other": "{{count}} runs",
+    "gestures": {
+      "setAside": "Set aside",
+      "correct": "Ask for a correction",
+      "validate": "Validate"
+    },
+    "reasons": {
+      "covered": "Set aside: already covered",
+      "out_of_scope": "Set aside: out of scope",
+      "wrong_oracle": "Set aside: wrong oracle",
+      "wrong_level": "Set aside: not at the right level"
+    },
+    "reading": "Reading the test…",
+    "progress": "Progress",
+    "position": "{{at}} / {{count}}",
+    "previous": "‹ Previous",
+    "next": "Next ›",
+    "keys": "Next: J · previous: K",
+    "noMatch": "No result for these filters",
+    "noMatchNote": "No test of this domain in this view.",
+    "clearFilters": "Clear the filters",
+    "allReviewed": "All reviewed",
+    "allReviewedNote": "No test waits for your decision. The next proposals arrive here at the end of an agent session.",
+    "startSession": "Start a session",
+    "empty": {
+      "updates": "No update",
+      "set_aside": "No test set aside"
+    },
+    "emptyNote": {
+      "updates": "The updates of tests the agents propose will show here.",
+      "set_aside": "The tests you set aside stay to read here."
+    }
   },
   "test": {
     "reading": "Reading the test",

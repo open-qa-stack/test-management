@@ -220,6 +220,17 @@ A version of a test is numbered from 1 each time an execution runs the test chan
 
 A version takes the commit the test repository was at when an execution first ran it committed: a version a session of design ran before it committed the test takes it at the next execution, and one never run committed has none. `since` is when an execution first ran it, `executions` how many executions ran it. The items come the latest first, then by the titles of the tests. The shape of the body is the type `TestVersionList` of `@open-qa-stack/domain/sessions`.
 
+## The review of the tests the agents wrote
+
+The tests the agents wrote wait for a person to decide of them. The queue of the review lists those a design kept as passing, or failing because of the application, whose file its branch still has: the state of each design, in the state folder of the test repository (`repository.stateDir`), names them, its plan gives their scenarios, and the tag `@oqas-id-…` of each file gives its identifier. A test a later design wrote again is the one of that design. What a person decided of a test is kept in the database of the instance, by its identifier: a test validated has entered the working branch and leaves the queue; one set aside stays listed, with why. Nothing else is kept: the queue is read at each call.
+
+| Route | Answer |
+|---|---|
+| `GET /api/reviews` | The tests to review and those set aside, the oldest design first, and how many of each: the type `ReviewQueue`. |
+| `GET /api/reviews/<id>` | What a person reads to decide of a test: the brief of its design, why it was written, its sources, its steps and what each expects, why it stands as it does, the remarks of the agents that reviewed its coherence and its code, the files its design wrote for it — its own, then those it relies on, such as page objects, with the lines each added — and the decision made of it: the type `TestProposal`. |
+
+`<id>` is the identifier of a test, the UUID of its tag. Both answers are given with `cache-control: no-store`.
+
 ## Problems
 
 | `code` | Status | When |
@@ -230,4 +241,5 @@ A version takes the commit the test repository was at when an execution first ra
 | `unknown_execution` | `404` | The query names an execution the instance does not keep. |
 | `unknown_capture` | `404` | The run of the test that was read attached no capture for the step that can be read: no run ran the test, it attached none for the step, or its file is gone or outside the repository. The detail says to read the test again, whose steps say which have a capture. |
 | `unknown_trace` | `404` | The run of the test that was read kept no trace of it that can be read: no run ran the test, it kept none, or its file is gone or outside the repository. |
+| `unknown_proposal` | `404` | No design of the test repository gives a test of the identifier for a person to review. The detail says to list them with `GET /reviews`. |
 

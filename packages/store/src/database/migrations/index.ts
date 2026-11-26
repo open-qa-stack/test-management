@@ -14,6 +14,7 @@ import { tests } from "./0013-tests.ts";
 import { executionEnvironments } from "./0014-execution-environments.ts";
 import { campaignDetails } from "./0015-campaign-details.ts";
 import { domainSettings } from "./0016-domain-settings.ts";
+import { testDecisions } from "./0017-test-decisions.ts";
 import type { Migration } from "kysely/migration";
 
 /**
@@ -37,4 +38,5 @@ export const MIGRATIONS: Readonly<Record<string, Migration>> = {
   "0014_execution_environments": executionEnvironments,
   "0015_campaign_details": campaignDetails,
   "0016_domain_settings": domainSettings,
+  "0017_test_decisions": testDecisions,
 };

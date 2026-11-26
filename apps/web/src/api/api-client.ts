@@ -27,6 +27,7 @@ import type {
   RepositoryState,
   RepositoryTest,
   RepositoryTestList,
+  ReviewQueue,
   TestExecution,
   TestExecutionList,
   LastVerdict,
@@ -35,6 +36,7 @@ import type {
   AgentPromptList,
   TestLaunch,
   TestChange,
+  TestProposal,
   TestReading,
   TestSource,
   TestVersion,
@@ -303,6 +305,26 @@ export class ApiClient {
    */
   public async tests(): Promise<readonly RepositoryTest[]> {
     return (await this.#ask<RepositoryTestList>("/tests")).items;
+  }
+
+  /**
+   * Reads the queue of the review: the tests the agents wrote for a person to review, and those set aside.
+   *
+   * @returns The tests, the oldest design first, and how many of each.
+   */
+  public async reviews(): Promise<ReviewQueue> {
+    return this.#ask<ReviewQueue>("/reviews");
+  }
+
+  /**
+   * Reads what a person reads to decide of a test the agents wrote.
+   *
+   * @param id - The identifier of its tag `@oqas-id-…`.
+   * @returns Its scenario, its runs, the remarks of its reviewers and the files its design wrote; the failure carries the
+   * code `not_found` when no design gave the identifier.
+   */
+  public async proposal(id: string): Promise<TestProposal> {
+    return this.#ask<TestProposal>(`/reviews/${encodeURIComponent(id)}`);
   }
 
   /**
