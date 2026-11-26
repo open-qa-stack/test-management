@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, it } from "vitest";
-import type { Knowledge, PlannedScenario, TestRunner, ToolDefinition } from "@open-qa-stack/domain";
+import type { Knowledge, PlannedScenario, TestCheck, TestRunner, ToolDefinition } from "@open-qa-stack/domain";
 import { Journal } from "../src/common/journal.ts";
 import { ScreenWatch } from "../src/designer/screen-watch.ts";
 import { skeleton } from "../src/designer/scenario-sheet.ts";
@@ -598,24 +598,18 @@ describe("a scenario whose session ends before it is closed", () => {
     );
   });
 
-  it("keeps the last text submitted that a test may hold, with its verdict when it ran, and what was tried", async () => {
+  it("keeps the text of its last run, never one the gates refused after it, with its verdict and what was tried", async () => {
     const { proposals } = given(failing);
     await proposals.trialTool().execute({ content: written });
-    // A text the gates of the scenario refuse is one a test may hold; one that does not parse is not.
-    const one = `import { test } from "@playwright/test";\n\ntest("open", async () => {});\n`;
-    await proposals.trialTool().execute({ content: one });
+    await proposals.trialTool().execute({ content: `import { test } from "@playwright/test";\n\ntest("open", async () => {});\n` });
     await proposals.trialTool().execute({ content: "test(" });
     proposals.giveUp("SESSION-END");
     const [kept] = proposals.accepted;
     assert.deepEqual(
       [kept!.content, kept!.verdict, kept!.classes[0]!.class, kept!.classes[0]!.reason],
       [
-        // The harness wrote on it the tags of its scenario.
-        one.replace(
-          'test("open", ',
-          `test("open", { tag: ["@level-functional","@domain-ledger","@feature-listing","@app-ledger","@kind-other","@case-nominal","@data-read","@oqas-id-${ID}"] }, `,
-        ),
-        "not_run",
+        withTags(written, planned, ID),
+        "failed",
         "unfinished",
         'Its session ended before the scenario was closed. Tried: 1 run (failed on assertion at "1. Open the ledger"); refusals: TEST-STEPS ×1, TEST-VALUE ×1, TEST-SYNTAX ×1.',
       ],
@@ -668,13 +662,14 @@ describe("a scenario whose session ends before it is closed", () => {
     );
     const [kept] = proposals.accepted;
     assert.deepEqual(
-      [kept!.verdict, kept!.closedBy, kept!.classes[0]!.origin, kept!.classes[0]!.reason, kept!.content.endsWith("// 4\n")],
+      [kept!.verdict, kept!.closedBy, kept!.classes[0]!.origin, kept!.classes[0]!.reason, kept!.content],
       [
         "not_run",
         "TEST-STEPS",
         { by: "harness", check: "TEST-STEPS" },
         "The harness closed the scenario after 5 refusals for TEST-STEPS. Tried: no run; refusals: TEST-STEPS ×5, TEST-VALUE ×5.",
-        true,
+        // No text the gates refused reaches the repository: the skeleton is kept.
+        withTags(skeleton(planned, false), planned, ID),
       ],
     );
   });
@@ -751,9 +746,9 @@ describe("a test that writes data, run again once it passed", () => {
 
 describe("a scenario the agent that writes it gives up", () => {
   const planned = scenario("ledger", []);
-  const given = (runner: TestRunner, secrets: ProposalRules["secrets"] = []) => {
+  const given = (runner: TestRunner, secrets: ProposalRules["secrets"] = [], check?: TestCheck) => {
     const journal = new Journal();
-    const proposals = new TestProposals({ ...rules(runner), secrets }, journal, { scenarios: [planned] });
+    const proposals = new TestProposals({ ...rules(runner), secrets, ...(check === undefined ? {} : { check }) }, journal, { scenarios: [planned] });
     proposals.begin(BLIND);
     const giveUp = (reason: string) => proposals.tool().execute({ unfeasible: { reason } }) as Promise<string | { error: string }>;
     return { proposals, journal, giveUp, run: () => proposals.trialTool().execute({ content: acted(skeleton(planned, false)) }) };
@@ -777,6 +772,24 @@ describe("a scenario the agent that writes it gives up", () => {
     assert.ok(journal.entries().some((entry) => entry.message === `The scenario open-ledger was given up by the agent that writes it: ${REASON}`));
     // Once its scenario is closed, the session has nothing left to give up.
     assert.ok("error" in ((await giveUp(REASON)) as object));
+  });
+
+  it("keeps the text of its last run, not a later one the compiler refused", async () => {
+    // A filter option the types of Playwright do not have: a run would ignore it, the compiler refuses it.
+    const check: TestCheck = {
+      check: async ({ content }) =>
+        content.includes("hasValue") ? [{ kind: "compiler", code: "TS2353", line: 1, column: 1, message: "'hasValue' does not exist." }] : [],
+    };
+    const { proposals, giveUp, run } = given(failing, [], check);
+    await run();
+    const refused = await proposals.trialTool().execute({ content: `${acted(skeleton(planned, false))}// filter({ hasValue: "1" })\n` });
+    assert.match((refused as { error: string }).error, /^Refused \(TEST-CHECK\): .*compiler TS2353/);
+    await giveUp(REASON);
+    await giveUp(REASON);
+    assert.deepEqual(
+      proposals.accepted.map(({ verdict, content }) => [verdict, content]),
+      [["failed", withTags(acted(skeleton(planned, false)), planned, ID)]],
+    );
   });
 
   it("is given up before any run as well, its skeleton kept as the text it had", async () => {

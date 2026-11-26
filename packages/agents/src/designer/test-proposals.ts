@@ -140,8 +140,9 @@ interface Diagnosis {
  *
  * No test is lost. A scenario closed before its test was made to end — by the fifth refusal with no run that
  * gave a verdict, by three runs without a verdict, or by `giveUp` when its session ended first — keeps a
- * file classed `unfinished`: the last text submitted that held nothing a test may not hold, or the skeleton
- * when none was, with why it was closed and what was tried. Each test kept is classed, with the date, who
+ * file classed `unfinished`: the text of its last run, or the skeleton when none ran, with why it was closed
+ * and what was tried. A text the gates refused is never kept: the test repository holds only files that pass
+ * the compiler and the charter. Each test kept is classed, with the date, who
  * classed it and why.
  *
  * A test that passes and runs what the test of a scenario closed before runs — the same body by `testBody`,
@@ -158,8 +159,6 @@ export class TestProposals {
   private readonly cursor: DesignCursor;
   /** The session that writes the scenario open; none before `begin`, and once the scenario is closed. */
   private session: WritingSession | undefined;
-  /** The last text submitted for the scenario open that held nothing a test may not hold. */
-  private submitted: string | undefined;
   /** The codes that refused a call about the scenario open, in order. */
   private refusedCodes: string[] = [];
   /** The refusals of the calls about the scenario open since its test last ran. */
@@ -253,7 +252,6 @@ export class TestProposals {
    */
   public begin(session: WritingSession): void {
     this.session = session;
-    this.submitted = undefined;
     this.refusedCodes = [];
     this.streak.reset();
     this.journal.record("info", `The scenario ${this.cursor.scenario!.id} was opened; its test is ${this.cursor.path}.`);
@@ -760,8 +758,8 @@ export class TestProposals {
   }
 
   /**
-   * Keeps the test of the scenario open as unfinished: the last text submitted that held nothing a test may
-   * not hold, or the skeleton when none was, with why the scenario is closed and what was tried.
+   * Keeps the test of the scenario open as unfinished: the text of its last run, or the skeleton when none
+   * ran, with why the scenario is closed and what was tried.
    */
   private unfinished(open: Open, check: string, why: string): void {
     const runs = runsOf(open.cursor);
@@ -775,13 +773,14 @@ export class TestProposals {
   }
 
   /**
-   * Keeps the last text of a scenario closed without a test that counts, classed as given, with its runs. A repair that did not
-   * pass keeps the test as the repository has it: what the agent tried is in its runs, not in the file.
+   * Keeps the text of the last run of a scenario closed without a test that counts, or its skeleton when none ran, classed as
+   * given, with its runs: a text the gates refused never reaches the test repository. A repair that did not pass keeps the test
+   * as the repository has it: what the agent tried is in its runs, not in the file.
    */
   private setAside(open: Open, classing: Omit<Classed, "at">, closedBy: string): void {
     const content =
       this.rules.repairs?.get(open.scenario.id)?.content ??
-      this.submitted ??
+      open.cursor.runs.at(-1)?.content ??
       withTags(skeleton(open.scenario, this.rules.screenshots, fixturesFor(open.path, this.rules.fixtures)), open.scenario, this.idOf(open.scenario));
     const ran = open.cursor.runs.findLast((run) => run.content === content && judged(run));
     this.kept.push({
@@ -854,7 +853,6 @@ export class TestProposals {
       ...coded("TEST-ADDRESS", addressErrors(content, addresses)),
     ];
     if (written.length > 0) return written;
-    this.submitted = content;
     const { outline } = syntax;
     const sheet = skeleton(scenario, this.rules.screenshots, fixtures);
     // A locator of the skeleton comes from the plan: the screens of its exploration showed it.
