@@ -1336,6 +1336,8 @@
     "coherenceFault": "The coherence reviewer finds fault with the test of {{scenario}}: {{remark}}",
     "codeFault": "The code reviewer finds fault with the test of {{scenario}}: {{remark}}",
     "sharedLocator": "The harness warned the agent: {{count}} elements of the page answer the same locator, which shows {{shown}}.",
+    "earlierTestRun": "The test the project already had is run again, to check it still passes.",
+    "earlierTestsRun": "The {{count}} tests the project already had are run again, to check they still pass.",
     "allTestsRun": "The {{designed}} tests designed are run; none is left out.",
     "testsRun": "{{run}} of the {{designed}} tests designed are run; left out as unfinished, duplicate or unfeasible: {{left}}.",
     "verdictPassed": "Passed: {{title}}.",

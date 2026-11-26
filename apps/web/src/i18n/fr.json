@@ -1336,6 +1336,8 @@
     "coherenceFault": "Le relecteur de cohérence relève un défaut dans le test de {{scenario}} : {{remark}}",
     "codeFault": "Le relecteur de code relève un défaut dans le test de {{scenario}} : {{remark}}",
     "sharedLocator": "Le harnais a prévenu l’agent : {{count}} éléments de la page répondent au même repère, qui affiche {{shown}}.",
+    "earlierTestRun": "Le test que le projet avait déjà est rejoué, pour vérifier qu’il passe toujours.",
+    "earlierTestsRun": "Les {{count}} tests que le projet avait déjà sont rejoués, pour vérifier qu’ils passent toujours.",
     "allTestsRun": "Les {{designed}} tests conçus sont exécutés ; aucun n’est écarté.",
     "testsRun": "{{run}} des {{designed}} tests conçus sont exécutés ; écartés car inachevés, en double ou infaisables : {{left}}.",
     "verdictPassed": "Réussi : {{title}}.",

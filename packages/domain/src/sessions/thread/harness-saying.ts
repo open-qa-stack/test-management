@@ -43,6 +43,8 @@ export type SayingCode =
   | "codeFault"
   | "sharedLocator"
   | "allTestsRun"
+  | "earlierTestRun"
+  | "earlierTestsRun"
   | "testsRun"
   | "verdictPassed"
   | "verdictFailed"
@@ -113,6 +115,9 @@ const FORMS: readonly (readonly [SayingCode, RegExp])[] = [
   ["coherenceFault", new RegExp(`^The coherence reviewer found fault with the test of (?<scenario>${ID}): (?<remark>[^]+)$`)],
   ["codeFault", new RegExp(`^The code reviewer found fault with the test of (?<scenario>${ID}): (?<remark>[^]+)$`)],
   ["sharedLocator", /^The harness warned the agent \(\d+\) that (?<count>\d+) elements share .+, which shows (?<shown>.+)\.$/],
+  // The tests the repository already had, run again after those of the design, or alone when it gave none.
+  ["earlierTestRun", /^1 test the repository already had is run again(?: after them)?\.$/],
+  ["earlierTestsRun", /^(?<count>\d+) tests the repository already had are run again(?: after them)?\.$/],
   ["allTestsRun", /^(?<run>\d+) of the (?<designed>\d+) tests designed are run; left out as unfinished, duplicate or unfeasible: none\.$/],
   ["testsRun", /^(?<run>\d+) of the (?<designed>\d+) tests designed are run; left out as unfinished, duplicate or unfeasible: (?<left>.+)\.$/],
   // A verdict line names the test by its project, its file and its title: the title alone is what a person reads.

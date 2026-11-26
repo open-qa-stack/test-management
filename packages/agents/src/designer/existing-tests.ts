@@ -131,6 +131,22 @@ async function recordedTests(repositoryRoot: string, stateDir: string): Promise<
   return recorded;
 }
 
+/** The classes of a test a design kept for a person to decide without running it again: its file may be a skeleton, or runs what another runs. */
+export const SET_ASIDE_CLASSES: readonly string[] = ["unfinished", "duplicate", "unfeasible"];
+
+/**
+ * The tests the designs set aside: those the last design that wrote each classed `unfinished`, `duplicate` or `unfeasible`.
+ *
+ * @param repositoryRoot - Absolute path of the test repository.
+ * @param stateDir - Folder of the state, relative to the root.
+ * @returns Their paths.
+ */
+export async function setAsideTests(repositoryRoot: string, stateDir: string): Promise<ReadonlySet<string>> {
+  const last = new Map<string, string | undefined>();
+  for (const { test } of await recordedTests(repositoryRoot, stateDir)) last.set(test.path, test.classes.at(-1)?.class);
+  return new Set([...last].filter(([, kept]) => kept !== undefined && SET_ASIDE_CLASSES.includes(kept)).map(([path]) => path));
+}
+
 /**
  * The tests of earlier designs the repository still has and that passed, each by what it does and verifies:
  * what a new scenario is compared with, by the code, as it is with the scenarios of its own plan.

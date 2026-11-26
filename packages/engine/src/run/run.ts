@@ -31,6 +31,8 @@ import {
   Designer,
   DesignPasses,
   DesignRounds,
+  existingTests,
+  setAsideTests,
   type DesignerOptions,
   type DesignOutcome,
   type Inbox,
@@ -355,23 +357,33 @@ export class Run {
       const partial = !designed.ok;
       if (partial && (stoppedBy !== undefined || run.length === 0)) return ExitCode.interrupted;
       if (partial) journal.record("design", "info", "The design is incomplete: the tests it gave are run, and the run cannot end as passed.");
-      // A design whose plan holds no scenario gave no test: nothing is run, and nothing is verified.
-      if (run.length === 0) {
+      // The tests the repository already had are run again after the new ones, which may have broken what they verify; those a
+      // design set aside are not. A design that gave no new test, the brief being covered, has them run all the same.
+      const earlier = await this.earlierTests(config.repository, tests);
+      // A design whose plan holds no scenario, in a repository without a test, gave nothing to run: nothing is verified.
+      if (run.length === 0 && earlier.length === 0) {
         journal.record("design", "info", "No test is run: the design gave none.");
         return exitCodeOf([]);
       }
       const executed = await unlessStopped("execution", async () => {
-        journal.record(
-          "execution",
-          "info",
-          `${run.length} of the ${tests.length} tests designed are run; left out as unfinished, duplicate or unfeasible: ${leftOut.join(", ") || "none"}.`,
-        );
+        if (tests.length > 0)
+          journal.record(
+            "execution",
+            "info",
+            `${run.length} of the ${tests.length} tests designed are run; left out as unfinished, duplicate or unfeasible: ${leftOut.join(", ") || "none"}.`,
+          );
+        if (earlier.length > 0)
+          journal.record(
+            "execution",
+            "info",
+            `${earlier.length === 1 ? "1 test the repository already had is" : `${earlier.length} tests the repository already had are`} run again${run.length === 0 ? "" : " after them"}.`,
+          );
         // The dependencies the design installed serve the execution as well.
         const outcome = await new PinnedRun({
           config,
           environment,
           repositoryRoot: this.options.repositoryRoot,
-          tests: run,
+          tests: [...run, ...earlier],
           runner,
           env: this.options.env,
           preparation: trials.prepare(),
@@ -402,6 +414,20 @@ export class Run {
       exitCode = ExitCode.interrupted;
     }
     return await finish(exitCode);
+  }
+
+  /**
+   * The tests the repository had before the design: every test file of its applications but those the design wrote, and
+   * those a design set aside — unfinished, duplicate or unfeasible.
+   *
+   * @param repository - Where the configuration puts the tests and the state.
+   * @param designed - The paths of the tests the design wrote.
+   * @returns Their paths, in the order of the repository.
+   */
+  private async earlierTests(repository: ResolvedConfig["repository"], designed: readonly string[]): Promise<string[]> {
+    const { repositoryRoot } = this.options;
+    const aside = await setAsideTests(repositoryRoot, repository.stateDir);
+    return (await existingTests(repositoryRoot, repository.appsDir)).map(({ path }) => path).filter((path) => !designed.includes(path) && !aside.has(path));
   }
 
   /** A path of the test repository, relative to it and with forward slashes, as the state keeps it. */

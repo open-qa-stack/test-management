@@ -93,8 +93,11 @@ describe("a session that is opened", () => {
     assert.deepEqual(await hosted.sessions.say(second.id, { text: "The orders are the only domain." }), { number: 1 });
     const [firstEnded, secondEnded] = [await hosted.ended(first.id), await hosted.ended(second.id)];
     assert.deepEqual([firstEnded.state, firstEnded.result?.outcome], ["completed", "passed"]);
-    // The tests the first session wrote already cover what the second one plans: it writes none, and ends without a verdict.
-    assert.deepEqual([secondEnded.state, secondEnded.result?.tests], ["completed", []]);
+    // The tests the first session wrote already cover what the second one plans: it writes none, runs them again, and ends as they did.
+    assert.deepEqual(
+      [secondEnded.state, secondEnded.result?.outcome, secondEnded.result?.tests.map(({ verdict }) => verdict)],
+      ["completed", "passed", ["passed", "passed", "passed"]],
+    );
     const events = await hosted.events(second.id);
     const started = events.find((event) => event.type === "state_changed");
     assert.ok(started !== undefined && started.at >= firstEnded.lastEventAt, "one session at a time");
@@ -301,8 +304,12 @@ describe("a session a person resumes once it ended", () => {
     const resumed = await hosted.sessions.resume(opened.id, { text: "Add a scenario for the export." });
     assert.deepEqual([resumed.state, resumed.result], ["running", undefined]);
     const second = await hosted.ended(opened.id);
-    // The tests of the first turn already cover what the second one plans: it writes none, and its result names the branch it went on with.
-    assert.deepEqual([second.state, second.result?.tests, second.result?.branch], ["completed", [], branch]);
+    // The tests of the first turn already cover what the second one plans: it writes none, runs them again, and its result names the
+    // branch it went on with.
+    assert.deepEqual(
+      [second.state, second.result?.tests.map(({ verdict }) => verdict), second.result?.branch],
+      ["completed", ["passed", "passed", "passed"], branch],
+    );
     assert.deepEqual(
       git(hosted.root, "branch", "--format=%(refname:short)")
         .split("\n")
