@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { createElement, type FormEvent, type ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { AgentHomeScreen, type AgentHomeScreenProps } from "../../src/agent/agent-home-screen.tsx";
-import { elementsOf, linksOf, render, textOf } from "../render.ts";
+import { linksOf, render, textOf } from "../render.ts";
 import { COMPLETED, QUEUED, RUNNING, SESSION_ID } from "./session-fixture.ts";
 
 /** An earlier session that stopped without ending: nothing tells what it was asked. */
@@ -50,12 +50,20 @@ describe("the entry of the agent", () => {
     assert.match(html, /<h1 class="agent-home-title" tabindex="-1">Qu’est-ce qu’on teste \?<\/h1><form class="agent-home-prompt">/);
   });
 
-  it("offers a form that opens a session: a labelled request, required, and a button to send it", () => {
+  it("offers a form that opens a session: a labelled request, required, and a button to send it, idle while the request is empty", () => {
     const html = home();
     assert.match(html, /<label class="sr-only" for="agent-home-request">Dites aux agents quoi tester<\/label>/);
     assert.match(html, /<textarea id="agent-home-request" name="request" required="" placeholder="[^"]+"><\/textarea>/);
-    assert.match(html, /<button type="submit" class="btn primary">Démarrer une session<\/button>/);
-    assert.doesNotMatch(html, /role="alert"|disabled|Ouverture…/);
+    assert.match(html, /<button type="submit" class="btn primary" disabled="" aria-keyshortcuts="Control\+Enter Meta\+Enter">Démarrer une session<\/button>/);
+    assert.doesNotMatch(html, /role="alert"|Ouverture…/);
+  });
+
+  it("lets the request the address writes be sent at once, but not one of blanks", () => {
+    assert.match(
+      home([], { request: "tester la recherche" }),
+      /<button type="submit" class="btn primary" aria-keyshortcuts="[^"]+">Démarrer une session<\/button>/,
+    );
+    assert.match(home([], { request: "   " }), /<button type="submit" class="btn primary" disabled=""/);
   });
 
   it("asks under the request what of the project to keep the session to, once the configuration was read", () => {
@@ -74,26 +82,19 @@ describe("the entry of the agent", () => {
     assert.match(html, /<input type="hidden" name="environment" value="local"\/>/);
   });
 
-  it("hands the form to whoever opens the session when it is sent", () => {
-    const sent: FormEvent<HTMLFormElement>[] = [];
-    const [form] = elementsOf(entry({ onOpen: (event) => sent.push(event) }), "form");
-    const event = {} as FormEvent<HTMLFormElement>;
-    (form!["onSubmit"] as (event: FormEvent<HTMLFormElement>) => void)(event);
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0], event);
-    assert.equal(elementsOf(entry(), "form")[0]!["onSubmit"], undefined);
-  });
-
   it("locks the form and says it opens the session while the request is sent", () => {
     const html = home([], { opening: { state: "sending" } });
     assert.match(html, /<textarea id="agent-home-request" name="request" required="" disabled="" /);
-    assert.match(html, /<button type="submit" class="btn primary" disabled="">Ouverture…<\/button>/);
+    assert.match(html, /<button type="submit" class="btn primary" disabled="" aria-keyshortcuts="[^"]+">Ouverture…<\/button>/);
     assert.doesNotMatch(html, /Démarrer une session|role="alert"/);
   });
 
   it("says why the instance refused to open a session, and lets the person ask again", () => {
-    const html = home([], { opening: { state: "refused", message: "Une session est déjà en cours." } });
-    assert.match(html, /<span class="small agent-home-refused" role="alert">Une session est déjà en cours\.<\/span><button type="submit" class="btn primary">/);
+    const html = home([], { request: "tester la recherche", opening: { state: "refused", message: "Une session est déjà en cours." } });
+    assert.match(
+      html,
+      /<span class="small agent-home-refused" role="alert">Une session est déjà en cours\.<\/span><button type="submit" class="btn primary" aria-keyshortcuts/,
+    );
     assert.doesNotMatch(html, /disabled/);
   });
 

@@ -35,6 +35,7 @@
       "src/executions/trace-page.tsx",
       "src/agent/agent-home-page.tsx",
       "src/agent/scope-picker.tsx",
+      "src/agent/request-form.tsx",
       "src/campaigns/campaigns-page.tsx",
       "src/campaigns/campaign-page.tsx",
       "src/api/use-polled.ts"

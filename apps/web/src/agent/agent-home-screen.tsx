@@ -9,7 +9,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import type { Opening } from "./console-state.ts";
 import type { ScopeChoices } from "./scope-choices.ts";
-import { ScopePicker } from "./scope-picker.tsx";
+import { RequestForm } from "./request-form.tsx";
 import { SessionBar } from "./session-bar.tsx";
 import { scopeText, stateOf, waitText } from "./session-facts.ts";
 
@@ -66,38 +66,18 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
  */
 export function AgentHomeScreen({ project, sessions, unlisted, opening, request, onOpen, choices }: AgentHomeScreenProps): ReactNode {
   const live = sessions?.filter(({ state }) => state === "running") ?? [];
-  const sending = opening.state === "sending";
   return (
     <Page crumbs={[{ label: project }, { label: t("console.titles.entry") }]}>
       <div className="agent-home">
         <h1 className="agent-home-title" tabIndex={-1}>
           {t("home.title")}
         </h1>
-        <form className="agent-home-prompt" onSubmit={onOpen}>
-          <label className="sr-only" htmlFor="agent-home-request">
-            {t("home.requestLabel")}
-          </label>
-          <textarea
-            key={request}
-            id="agent-home-request"
-            name="request"
-            defaultValue={request}
-            required
-            disabled={sending}
-            placeholder={t("home.requestPlaceholder")}
-          />
-          {choices !== undefined && <ScopePicker choices={choices} disabled={sending} />}
-          <div className="agent-home-actions">
-            {opening.state === "refused" && (
-              <span className="small agent-home-refused" role="alert">
-                {opening.message}
-              </span>
-            )}
-            <button type="submit" className="btn primary" disabled={sending}>
-              {t(sending ? "home.sending" : "home.start")}
-            </button>
-          </div>
-        </form>
+        <RequestForm
+          opening={opening}
+          {...(request === undefined ? {} : { request })}
+          {...(onOpen === undefined ? {} : { onOpen })}
+          {...(choices === undefined ? {} : { choices })}
+        />
         <Card className="agent-home-sessions" title={t("home.sessions")} hint={live.length > 0 ? t("home.live", { count: live.length }) : t("home.hint")}>
           {sessions === undefined && (
             <div className="row small muted" role="status">

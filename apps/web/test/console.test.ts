@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { createElement, type FormEvent } from "react";
+import { createElement } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { AgentHomeScreen } from "../src/agent/agent-home-screen.tsx";
 import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "../src/console.tsx";
 import { COMPLETED, liveOf, RUNNING, SESSION_ID } from "./agent/session-fixture.ts";
-import { at, elementsOf, linksOf, render, textOf } from "./render.ts";
+import { at, linksOf, render, textOf } from "./render.ts";
 
 const SESSION = `#/agent/sessions/${SESSION_ID}`;
 
@@ -104,16 +103,12 @@ describe("the console", () => {
   });
 
   it("gives the entry of the agent where the opening of a session is, and what opens one", () => {
-    assert.match(consoleAt("#/agent", { opening: { state: "sending" } }), /<button type="submit" class="btn primary" disabled="">Ouverture…<\/button>/);
+    assert.match(
+      consoleAt("#/agent", { opening: { state: "sending" } }),
+      /<button type="submit" class="btn primary" disabled="" aria-keyshortcuts="[^"]+">Ouverture…<\/button>/,
+    );
     assert.match(consoleAt("#/", { opening: { state: "refused", message: "Demande vide." } }), /role="alert">Demande vide\.<\/span>/);
-    const sent: FormEvent<HTMLFormElement>[] = [];
     assert.match(consoleAt("#/agent", { onOpen: () => undefined }), /<form class="agent-home-prompt">/);
-    // The entry reads what a session may be kept to as it shows: its form is that of the screen it gives what opens a session.
-    const [form] = elementsOf(createElement(AgentHomeScreen, { project: "lakeside", opening: { state: "idle" }, onOpen: (event) => sent.push(event) }), "form");
-    const event = {} as FormEvent<HTMLFormElement>;
-    (form!["onSubmit"] as (event: FormEvent<HTMLFormElement>) => void)(event);
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0], event);
   });
 
   it("says why the API could not list the sessions on the entry of the agent", () => {

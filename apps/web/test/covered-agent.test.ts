@@ -152,8 +152,8 @@ describe("the code of the console is covered in full", () => {
       { id: "policies", label: "Polices", description: "Les contrats.", sources: [] },
       { id: "customers", label: "Clients", description: "Les clients.", sources: [] },
     ];
-    const [entry, picker] = await app().measure(
-      ["src/agent/agent-home-page.tsx", "src/agent/scope-picker.tsx"],
+    const [entry, picker, form] = await app().measure(
+      ["src/agent/agent-home-page.tsx", "src/agent/scope-picker.tsx", "src/agent/request-form.tsx"],
       async (page) => {
         // Before a cartography, no domain is named; one environment goes with the request as it is.
         await page.goto("http://console.test/#/agent");
@@ -176,8 +176,17 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("checkbox", { name: /^Devis/ }).check();
         await page.getByText("Niveaux : tous").click();
         await page.getByRole("checkbox", { name: "métier" }).check();
-        await page.getByRole("textbox", { name: "Dites aux agents quoi tester" }).fill("couvrir les devis");
+        // An empty request presses nothing; Enter alone writes a new line; a refusal is said; Ctrl+Enter sends.
+        const field = page.getByRole("textbox", { name: "Dites aux agents quoi tester" });
+        await field.fill("   ");
+        await field.press("Control+Enter");
+        await field.fill("couvrir les devis");
+        await field.press("Enter");
+        instance.refusal = "session_running";
         await page.getByRole("button", { name: "Démarrer une session" }).click();
+        await page.getByRole("alert").waitFor();
+        instance.refusal = undefined;
+        await field.press("Control+Enter");
         await page.waitForURL(/#\/agent\/sessions\//);
         // Without a configuration, the request goes alone.
         instance.unconfigured = true;
@@ -189,7 +198,7 @@ describe("the code of the console is covered in full", () => {
       instance.api,
     );
     assert.deepEqual(instance.asked.at(-1), { request: "couvrir les devis", environment: "staging", scope: { domains: ["quotes"], levels: ["business"] } });
-    assert.ok(entry!.lines.length > 0 && picker!.lines.length > 0, "the entry and the picker are in the build");
-    assert.deepEqual([entry!.uncovered, picker!.uncovered], [[], []]);
+    assert.ok(entry!.lines.length > 0 && picker!.lines.length > 0 && form!.lines.length > 0, "the entry, the picker and the form are in the build");
+    assert.deepEqual([entry!.uncovered, picker!.uncovered, form!.uncovered], [[], [], []]);
   });
 });

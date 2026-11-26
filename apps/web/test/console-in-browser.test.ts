@@ -181,6 +181,28 @@ describe("the console in a browser", () => {
     }
   });
 
+  it("starts a session with Ctrl+Enter in the request, once it holds a word, and with Enter alone writes a new line", async () => {
+    const instance = new PlayedInstance();
+    const page = await app().open(1280, "#/agent", instance.api);
+    try {
+      const field = page.getByRole("textbox", { name: "Dites aux agents quoi tester" });
+      const start = page.getByRole("button", { name: "Démarrer une session" });
+      assert.equal(await start.isEnabled(), false);
+      await field.fill("   ");
+      await field.press("Control+Enter");
+      assert.equal(await start.isEnabled(), false);
+      await field.fill("vérifier le changement d'adresse");
+      assert.equal(await start.isEnabled(), true);
+      await field.press("Enter");
+      assert.equal(await field.inputValue(), "vérifier le changement d'adresse\n");
+      await field.press("Control+Enter");
+      await page.getByRole("heading", { level: 1, name: /^Session du / }).waitFor();
+      assert.deepEqual(instance.asked, [{ environment: "local", request: "vérifier le changement d'adresse" }]);
+    } finally {
+      await page.close();
+    }
+  });
+
   it("takes a message for a queued session, goes on with its thread once it started, and closes it when it completes", async () => {
     const instance = new PlayedInstance();
     const page = await app().open(1280, "#/agent", instance.api);
