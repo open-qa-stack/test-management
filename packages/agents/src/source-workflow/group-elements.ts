@@ -1,5 +1,6 @@
-import type { AgentEvent, AgentRuntime, KnowledgeBaseSourceType, ModelUsage, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, KnowledgeBaseSourceType, Language, ModelUsage, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
+import { knowledgeLanguageRule } from "../common/language-rules.ts";
 import { runAgentTask, taskEnd } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
 import { totalUsage, usageOf } from "../common/model-usage.ts";
@@ -10,6 +11,8 @@ import { batchRequest, groupingInstructions, groupingValues } from "./grouping-p
 
 /** What the grouping of the elements of a source needs. */
 export interface GroupElementsOptions {
+  /** The language the knowledge is written in: that of the person. */
+  readonly language: Language;
   /** Identifier of the source. */
   readonly sourceId: string;
   /** What the source is, which the instructions name its elements by. */
@@ -112,7 +115,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     const events: AgentEvent[] = [];
     const task = {
       agent: "source-grouping" as const,
-      instructions: groupingInstructions(options.sourceType),
+      instructions: `${groupingInstructions(options.sourceType)}\n\n${knowledgeLanguageRule(options.language)}`,
       values: groupingValues(options.sourceType),
       tools: [placement.tool(), ...options.notes],
       request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping, options.former), forms),

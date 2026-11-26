@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, ManifestDomain, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, Language, ManifestDomain, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import type { ExportedElement, SourceExport } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 import { cites, exportVocabulary } from "./cited-names.ts";
@@ -12,6 +12,8 @@ import { writeDomain } from "./write-domain.ts";
 
 /** What the workflow of a source that has an export needs. */
 export interface ExportedSourceOptions {
+  /** The language the knowledge is written in: that of the person. */
+  readonly language: Language;
   /** The source. */
   readonly source: SourceManifest["source"];
   /** Its export. */

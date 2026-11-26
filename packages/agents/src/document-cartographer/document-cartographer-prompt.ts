@@ -27,7 +27,7 @@ The grain of an element
 - Neither a whole chapter that holds everything, nor a single sentence. When a document is organised by a template, cut it at the level where the functional subjects appear, and place each in the domain of its subject.
 
 The file of a domain
-- Markdown, under {{max_length}} characters, in English. Name every element of the domain between backticks, exactly as the harness names it: the path of a document, such as \`orders/place-order.md\`, or the path and the title of a section, such as \`specs.md § Place an order\`.
+- Markdown, under {{max_length}} characters. Name every element of the domain between backticks, exactly as the harness names it: the path of a document, such as \`orders/place-order.md\`, or the path and the title of a section, such as \`specs.md § Place an order\`.
 - Say what each element states that a test can verify: the rules, the values, the messages, the conditions. Say only what you read.
 
 Keep with remember what the agents after you should know and no single document says, such as a rule that contradicts another or a term the team uses its own way. Not everything: a few facts that matter.`,

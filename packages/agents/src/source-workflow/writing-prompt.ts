@@ -15,7 +15,7 @@ Rules:
 - Say only what the request shows. Never invent an element, a name or a value: a name written in code that the source does not have is refused.
 - {{in_code}}
 - A useful file has {{useful}}. Leave out a part you have nothing to say about.
-- Write in English, under {{max_length}} characters.
+- Write under {{max_length}} characters.
 - Keep with remember what the agents after you should know and no element says by itself, such as a rule several elements share or a name the team uses its own way. Not everything: a few facts that matter.`,
   variables: ["elements", "cited", "in_code", "useful", "max_length"],
 } as const satisfies PromptTemplate;

@@ -17,6 +17,7 @@ import {
   type MemoryStorePort,
 } from "@open-qa-stack/domain";
 import { DocumentSet, type BrowserAccess, type KnowledgeAccess, type SourceExport, type SourceInventory } from "@open-qa-stack/tools";
+import { knowledgeLanguageRule } from "../common/language-rules.ts";
 import { agentMemory } from "../common/agent-memory.ts";
 import { configSecrets } from "../common/config-secrets.ts";
 import { runAgentTask, taskEnd, taskLimits } from "../common/agent-task.ts";
@@ -185,7 +186,7 @@ export class SourceCartographer {
     const notes = this.notes(now);
     const task = {
       agent: "source-cartographer" as const,
-      instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
+      instructions: `${SOURCE_CARTOGRAPHER_INSTRUCTIONS}\n\n${knowledgeLanguageRule(this.options.config.language)}`,
       values: SOURCE_CARTOGRAPHER_VALUES,
       tools: [...subject.tools, ...notes, submission.tool()],
       request: sourceCardRequest(source.id, source.type, subject.inventory()),
@@ -318,6 +319,7 @@ export class SourceCartographer {
     const { manifest, usage, run, stoppedBy } = await workflow({
       source: { id: source.id, type: source.type },
       folder: new SourceFolder(join(repositoryRoot, config.repository.knowledgeDir, CARDS_FOLDER, source.id), secrets),
+      language: config.language,
       runtime: this.options.runtime,
       limits: taskLimits(config),
       secrets,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
+import { knowledgeLanguageRule } from "../src/common/language-rules.ts";
 import { AgentRuntimeError, type AgentEvent, type AgentRuntime, type SourceManifest } from "@open-qa-stack/domain";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { MAX_REMINDERS } from "../src/common/agent-task.ts";
@@ -154,6 +155,8 @@ async function written(answers: readonly (string | AgentEvent)[]) {
   const runtime: AgentRuntime = {
     openSession: async (options) => {
       assert.deepEqual(options.tools, []);
+      // The file is written in the language of the person.
+      assert.ok(options.instructions.endsWith(`\n\n${knowledgeLanguageRule("fr")}`), options.instructions);
       return {
         async *send(): AsyncIterable<AgentEvent> {
           const next = answers[turn++]!;
@@ -171,6 +174,7 @@ async function written(answers: readonly (string | AgentEvent)[]) {
     close: async () => undefined,
   };
   const outcome = await writeDomain({
+    language: "fr",
     sourceId: "shop-db",
     sourceType: "postgresql",
     notes: [],

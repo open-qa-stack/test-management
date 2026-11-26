@@ -38,7 +38,7 @@ What you observed
 - Only what you saw: never what the application should do, nor what you suppose. The harness refuses a text the screen never showed.
 
 The file of a domain
-- Markdown, under {{max_length}} characters, in English. Name every element of the domain between backticks, exactly as the harness names it: a route, such as \`/customers\`, or a route and what is done there, such as \`/customers § Search a customer\`.
+- Markdown, under {{max_length}} characters. Name every element of the domain between backticks, exactly as the harness names it: a route, such as \`/customers\`, or a route and what is done there, such as \`/customers § Search a customer\`.
 - Say how a user reaches each screen and what it lets them do. The harness adds your observations at the end.
 
 Keep with remember what the agents after you should know and no screen says by itself, such as data you found that a test can rely on, or a pitfall of the application. Not everything: a few facts that matter.`,
