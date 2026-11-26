@@ -6,6 +6,7 @@ import { Database } from "../../src/database/database.ts";
 import { DatabaseStatus } from "../../src/database/database-status.ts";
 import { DatabaseUnavailableError } from "../../src/database/database-unavailable-error.ts";
 import { DatabaseUrl } from "../../src/database/database-url.ts";
+import { postgresPool } from "../../src/database/postgres/postgres-pool.ts";
 import { runMigrations } from "../../src/database/run-migrations.ts";
 import { SchemaMigrations } from "../../src/database/schema-migrations.ts";
 import { SessionStore } from "../../src/sessions/session-store.ts";
@@ -67,6 +68,34 @@ describe("the pool of connections to a PostgreSQL server", () => {
     const database = new Database(urlOf(`postgres://oqas@localhost:${await closedPort()}/oqas`), new RecordingLogger());
     await assert.rejects(sql`select 1`.execute(database.kysely), { message: "The database is unreachable: ECONNREFUSED" });
     await database.close();
+  });
+
+  it("says that the database is unreachable when the server drops a connection under a statement, and lets other errors through", async () => {
+    const own = await isolatedDatabase();
+    const logger = new RecordingLogger();
+    const pool = postgresPool(urlOf(own.url), logger);
+    try {
+      const sleeping = await pool.connect();
+      const statement = assert.rejects(sleeping.query("select pg_sleep(30)", []), (error: unknown) => {
+        assert.ok(error instanceof DatabaseUnavailableError);
+        assert.equal(error.message, "The database is unreachable: terminating connection due to administrator command");
+        return true;
+      });
+      await refuseConnections(own.url);
+      await statement;
+      await eventually(() => assert.deepEqual(logger.lines, ["warn The database is unreachable: Connection terminated unexpectedly"]));
+      sleeping.release(true);
+      await acceptConnections(own.url);
+      const awake = await pool.connect();
+      await assert.rejects(
+        awake.query("select * from nowhere", []),
+        (error: unknown) => !(error instanceof DatabaseUnavailableError) && /nowhere/.test(String(error)),
+      );
+      awake.release();
+    } finally {
+      await pool.end();
+      await own.drop();
+    }
   });
 
   it("reports a connection that drops while it is idle", async () => {

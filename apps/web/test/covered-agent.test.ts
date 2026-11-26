@@ -190,9 +190,11 @@ describe("the code of the console is covered in full", () => {
         await page.waitForURL(/#\/agent\/sessions\//);
         // Without a configuration, the request goes alone.
         instance.unconfigured = true;
+        const refused = page.waitForResponse((response) => response.url().endsWith("/api/configuration") && response.status() === 500);
         await page.goto("http://console.test/#/agent");
         await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
-        await page.waitForTimeout(200);
+        await refused;
+        await page.evaluate(() => new Promise((settled) => requestAnimationFrame(settled)));
         assert.equal(await page.locator(".scope-picker").count(), 0);
       },
       instance.api,

@@ -103,7 +103,7 @@ content-type: application/json; charset=utf-8
 | `status` | `ready` or `not_ready`. |
 | `checks.database` | `up`: the database answers and its schema is up to date. `unreachable`: no connection can be opened. `migrations_pending`: the database answers, but has not applied every migration. |
 
-Each change of the state of the database is logged once, from the check at startup on, as a warning when the instance is not ready.
+Each change of the state of the database is logged once, from the check at startup on, as a warning when the instance is not ready. A PostgreSQL server that drops a connection, idle or under a statement, is logged as a warning too, and the statement it ended is answered `503 unavailable`, as when no connection can be opened; the process goes on.
 
 With a SQLite file, the route says little more than the health route: the API does not start without its file nor with a migration pending, and holds the file open from then on, so an instance that started answers `ready` as long as its process runs. It is kept so that whatever watches an instance asks the same question whichever database it has.
 
