@@ -1,4 +1,4 @@
-import type { DesignedTest } from "@open-qa-stack/agents";
+import { SET_ASIDE_CLASSES, type DesignedTest } from "@open-qa-stack/agents";
 
 /** The designed tests the execution runs, and those it leaves out. */
 export interface RunnableTests {
@@ -20,7 +20,7 @@ export interface RunnableTests {
  * @returns The paths to run, and those left out.
  */
 export function runnableTests(tests: readonly DesignedTest[]): RunnableTests {
-  const leftOut = (test: DesignedTest): boolean => ["unfinished", "duplicate", "unfeasible"].includes(test.classes.at(-1)!.class);
+  const leftOut = (test: DesignedTest): boolean => SET_ASIDE_CLASSES.includes(test.classes.at(-1)!.class);
   return {
     run: tests.filter((test) => !leftOut(test)).map((test) => test.path),
     leftOut: tests.filter(leftOut).map((test) => test.path),

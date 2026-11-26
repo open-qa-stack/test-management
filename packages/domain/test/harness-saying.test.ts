@@ -47,6 +47,8 @@ const SAID: readonly (readonly [string, Saying])[] = [
     "The plan is full at 2, and had no room for: open-order, cancel-order.",
     { code: "planNoRoom", values: { count: "2", scenarios: "open-order, cancel-order" } },
   ],
+  ["1 test the repository already had is run again after them.", { code: "earlierTestRun", values: {} }],
+  ["4 tests the repository already had are run again.", { code: "earlierTestsRun", values: { count: "4" } }],
   ["Round 2: 0 new, 3 in the batch.", { code: "roundEnded", values: { round: "2", fresh: "0", total: "3" } }],
   ["Round 1: 3 new, 3 of 40 in the batch.", { code: "roundEndedBounded", values: { round: "1", fresh: "3", total: "3", max: "40" } }],
   ["Visual tests: 1 new, 4 in the batch.", { code: "visualEnded", values: { fresh: "1", total: "4" } }],

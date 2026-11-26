@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import { AGENT_PROMPTS } from "@open-qa-stack/agents";
 import { AGENT_KEYS } from "@open-qa-stack/domain";
 import { answer, closedPort, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
-import { MODEL, workspace, configText, chain, idleRound, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
+import { MODEL, workspace, configText, chain, git, idleRound, plugged, ran, repository, spec, stateOf, journalOf, untracked } from "./run-support.ts";
 
 describe("solo command, criterion 1 — without a configuration, the command stops with 3 and touches nothing", () => {
   it("calls no model, runs nothing, and creates no file", async () => {
@@ -152,6 +152,37 @@ describe("solo command, criteria 7 and 8 — a limit that stops a task is journa
     assert.match(run.err, /reached its iterations limit/);
     assert.equal(run.runner.finalRuns, 0);
     assert.ok(stateOf(run.root).tests.every((test) => test.verdict !== "passed"));
+  });
+});
+
+describe("the tests the repository already had", () => {
+  it("are run again after the new ones, but those a design set aside", async () => {
+    const folder = "apps/shop/tests/orders/listing";
+    const run = await ran(chain(), {
+      environment: "local",
+      root: (config) => {
+        const root = repository(config);
+        mkdirSync(join(root, folder), { recursive: true });
+        writeFileSync(join(root, folder, "earlier.spec.ts"), spec("earlier"));
+        writeFileSync(join(root, folder, "aside.spec.ts"), spec("aside"));
+        // An earlier design kept the second unfinished, for a person to decide.
+        mkdirSync(join(root, ".oqas", "designs"), { recursive: true });
+        const state = { tests: [{ path: `${folder}/aside.spec.ts`, classes: [{ class: "unfinished" }] }] };
+        writeFileSync(join(root, ".oqas", "designs", "design-20261101T000000Z.json"), JSON.stringify(state));
+        git(root, "add", "-A");
+        git(root, "commit", "-q", "-m", "test: add the tests of an earlier design");
+        return root;
+      },
+    });
+    assert.equal(run.code, 0, run.err);
+    assert.deepEqual(
+      stateOf(run.root).tests.map(({ id }) => /([\w-]+)\.spec\.ts/.exec(id)![1]),
+      ["test-1", "test-2", "test-3", "earlier"],
+    );
+    assert.ok(
+      journalOf(run.root).some(({ message }) => message === "1 test the repository already had is run again after them."),
+      run.err,
+    );
   });
 });
 
