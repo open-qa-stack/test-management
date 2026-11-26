@@ -33,7 +33,7 @@ export const DOCUMENT: OqasConfig = {
   repository: { appsDir: "tests" },
   design: { levels: ["smoke", "business"] },
   model: { mode: "provider-key", provider: "openai", baseUrl: "http://127.0.0.1:9/v1", model: "test-model", apiKeyEnv: "MODEL_KEY", capabilities: ["vision"] },
-  autonomy: { level: "bounded", task: { maxMinutes: 10 }, guardrailMinutes: 60 },
+  autonomy: { level: "bounded", task: { maxMinutes: 10 }, batch: { maxTests: 20 }, guardrailMinutes: 60 },
 };
 
 /** The revisions of that configuration, the latest first. */

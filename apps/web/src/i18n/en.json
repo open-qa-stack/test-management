@@ -439,7 +439,11 @@
         "guardrailHint": "Beyond it, the tasks of the agents stop.",
         "maxMinutes": "Minutes per task",
         "maxIterations": "Calls to the model per task",
-        "maxActions": "Browser actions per task"
+        "maxActions": "Browser actions per task",
+        "maxTests": "New tests per run",
+        "maxTestsHint": "The design stops once a run wrote that many.",
+        "maxIdleRounds": "Rounds without a new test",
+        "maxIdleRoundsHint": "The design stops after that many rounds in a row bring nothing new; each round costs model calls."
       },
       "design": {
         "title": "Design levels",
