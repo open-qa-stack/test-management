@@ -1,5 +1,6 @@
-import type { AgentEvent, AgentRuntime, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, Language, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { documentTools, type DocumentSet } from "@open-qa-stack/tools";
+import { knowledgeLanguageRule } from "../common/language-rules.ts";
 import type { Journal } from "../common/journal.ts";
 import type { SessionsUse } from "../source-workflow/group-elements.ts";
 import { runMapSession } from "../source-workflow/map-session.ts";
@@ -11,6 +12,8 @@ import { DocumentWatch } from "./document-watch.ts";
 
 /** What the cartography of the documents of a source needs. */
 export interface MapDocumentsOptions {
+  /** The language the knowledge is written in: that of the person. */
+  readonly language: Language;
   /** The source. */
   readonly source: SourceManifest["source"];
   /** Its documents. */
@@ -56,7 +59,7 @@ export async function mapDocuments(options: MapDocumentsOptions): Promise<Sessio
   const map = new DocumentMap({ sourceId: source.id, documents, files: listing.files, sections, watch, secrets: options.secrets, journal });
   const task = {
     agent: "document-cartographer" as const,
-    instructions: documentCartographerInstructions(source.id),
+    instructions: `${documentCartographerInstructions(source.id)}\n\n${knowledgeLanguageRule(options.language)}`,
     values: documentCartographerValues(source.id),
     tools: [...watch.watched(documentTools(source.id, documents)), ...options.notes, ...map.tools()],
     request: documentMapRequest(source.id, listing.files),

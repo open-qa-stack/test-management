@@ -1,4 +1,5 @@
-import type { AgentEvent, AgentRuntime, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, Language, SourceManifest, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import { knowledgeLanguageRule } from "../common/language-rules.ts";
 import type { Journal } from "../common/journal.ts";
 import type { SessionsUse } from "../source-workflow/group-elements.ts";
 import { runMapSession } from "../source-workflow/map-session.ts";
@@ -10,6 +11,8 @@ import { ScreenTrail, type ExplorationMode } from "./screen-trail.ts";
 
 /** What the exploration of the user interface of an application needs. */
 export interface MapApplicationOptions {
+  /** The language the knowledge is written in: that of the person. */
+  readonly language: Language;
   /** The source: the application, as the manifest names it. */
   readonly source: SourceManifest["source"];
   /** Name of the environment explored. */
@@ -60,7 +63,7 @@ export async function mapApplication(options: MapApplicationOptions): Promise<Se
   const map = new ApplicationMap({ sourceId: source.id, trail, secrets: options.secrets, journal });
   const task = {
     agent: "application-explorer" as const,
-    instructions: applicationExplorerInstructions(source.id, options.mode),
+    instructions: `${applicationExplorerInstructions(source.id, options.mode)}\n\n${knowledgeLanguageRule(options.language)}`,
     values: applicationExplorerValues(source.id, options.mode),
     tools: [...trail.watched(options.browser), ...options.notes, ...map.tools()],
     request: explorationRequest(source.id, options.environment, options.uiUrl),

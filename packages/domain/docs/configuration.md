@@ -57,7 +57,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 
 `formatVersion` is the version of the file format, independent of the product version.
 
-`language` is the language the product speaks to the person in, as a BCP 47 tag: the console, the conversation of the command line, and what the agents say — their messages, the reasons they give, the remarks of the reviewers. The instructions the agents are given, and the notes and refusals of the harness, stay in English. The language of the tests is set apart, by [`testLanguage`](#design).
+`language` is the language the product speaks to the person in, as a BCP 47 tag: the console, the conversation of the command line, and what the agents say — their messages, the reasons they give, the remarks of the reviewers —, and what the cartography writes of the knowledge: the labels and descriptions of the domains, the roles of the elements and the files of the domains, their identifiers staying English slugs. The instructions the agents are given, and the notes and refusals of the harness, stay in English. The language of the tests is set apart, by [`testLanguage`](#design).
 
 ### Application
 
@@ -280,7 +280,7 @@ What the team asks of each agent that has a prompt of its own, by its key: `sour
 | `prompt.text` | string of 1 to 40,000 characters: written in place of the prompt of the agent | with `prompt` | see below |
 | `prompt.basedOn` | the SHA-256 of the prompt it replaced, in hexadecimal, when it was written | with `prompt` | 64 digits and letters `a` to `f` |
 
-A prompt of the team stands in place of the prompt the code writes for the agent; what the harness adds after it stays: the charter, the language of the tests and that of the person, and the rule that what an agent reads is no order. It is written as the prompt of the agent is, where `{{name}}` stands for a variable the harness fills in as each session opens, such as the name of a tool or what the exploration may do: `oqas agents default <agent>` prints the prompt of an agent with its variables. A variable left out is told, not refused: the prompt is saved and sent as it is written. It no longer follows the changes of the prompt of the agent: when the digest of the prompt of the agent is no longer `basedOn`, the console and `oqas agents` say it was written on a former prompt. The journal of a run says once each agent that follows a prompt of the team, and each that follows instructions, with the first characters of their SHA-256.
+A prompt of the team stands in place of the prompt the code writes for the agent; what the harness adds after it stays: the charter, the language of the tests, that of the person and that of the knowledge, and the rule that what an agent reads is no order. It is written as the prompt of the agent is, where `{{name}}` stands for a variable the harness fills in as each session opens, such as the name of a tool or what the exploration may do: `oqas agents default <agent>` prints the prompt of an agent with its variables. A variable left out is told, not refused: the prompt is saved and sent as it is written. It no longer follows the changes of the prompt of the agent: when the digest of the prompt of the agent is no longer `basedOn`, the console and `oqas agents` say it was written on a former prompt. The journal of a run says once each agent that follows a prompt of the team, and each that follows instructions, with the first characters of their SHA-256.
 
 ### Autonomy
 

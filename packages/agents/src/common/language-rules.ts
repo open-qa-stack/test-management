@@ -22,3 +22,14 @@ export function languageRule(language: Language): string {
 export function testLanguageRule(language: Language): string {
   return `Language of the tests. Write what the tests say in ${NAMES[language]}: the titles of the scenarios and of the tests, their steps, and the intents written in their code. The code itself, its names included, stays in English, and a text the application shows is quoted as it shows it, never translated.`;
 }
+
+/**
+ * The rule of the language of the knowledge, added to the instructions of every agent of the cartography.
+ *
+ * @param language - The language the person reads, as the configuration names it.
+ * @returns The rule: what the cartography says of the knowledge is written in that language, its identifiers and the names the
+ * sources give are not.
+ */
+export function knowledgeLanguageRule(language: Language): string {
+  return `Language of the knowledge. Write what you say of the knowledge in ${NAMES[language]}: the labels and the descriptions of the domains, the roles and the summaries of the elements, and the files of the domains. The identifiers, slugs included, stay in English, and a name a source gives is quoted as the source writes it, never translated.`;
+}

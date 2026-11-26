@@ -56,6 +56,7 @@ afterAll(() => {
 async function mapped(folder: SourceFolder, elements: readonly ExportedElement[] = TWO, model: AgentRuntime = runtime) {
   const journal = new Journal();
   const outcome = await mapExportedSource({
+    language: "en",
     source: { id: "shop-db", type: "postgresql" },
     exported: { elements, fingerprint: "sha256:1" },
     partial: false,

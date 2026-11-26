@@ -19,6 +19,7 @@ import {
   type MemoryStorePort,
 } from "@open-qa-stack/domain";
 import { browserTools, knowledgeTools, scopedToolName, type BrowserAccess, type KnowledgeAccess } from "@open-qa-stack/tools";
+import { knowledgeLanguageRule } from "../common/language-rules.ts";
 import { agentMemory } from "../common/agent-memory.ts";
 import { ScreenTrail } from "../application-explorer/screen-trail.ts";
 import { configSecrets } from "../common/config-secrets.ts";
@@ -205,7 +206,7 @@ export class Cartographer {
     const { inbox } = this.options;
     const task = {
       agent: "cartography-orchestrator" as const,
-      instructions: CARTOGRAPHER_INSTRUCTIONS,
+      instructions: `${CARTOGRAPHER_INSTRUCTIONS}\n\n${knowledgeLanguageRule(config.language)}`,
       values: CARTOGRAPHER_VALUES,
       tools: [sourceDomainTool(cards, written), ...knowledgeTools(declared(sources), access), ...browser.tools, ...notes, submission.tool()],
       request: cartographyRequest(environment, sources, cards),

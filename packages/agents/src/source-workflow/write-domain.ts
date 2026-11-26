@@ -1,5 +1,6 @@
-import type { AgentEvent, AgentRuntime, KnowledgeBaseSourceType, ManifestDomain, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, KnowledgeBaseSourceType, Language, ManifestDomain, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
+import { knowledgeLanguageRule } from "../common/language-rules.ts";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
 import { citedNameProblems, type ExportVocabulary } from "./cited-names.ts";
@@ -10,6 +11,8 @@ import { domainRequest, writingInstructions, writingValues } from "./writing-pro
 
 /** What the writing of the file of a domain needs. */
 export interface WriteDomainOptions {
+  /** The language the knowledge is written in: that of the person. */
+  readonly language: Language;
   /** Identifier of the source. */
   readonly sourceId: string;
   /** What the source is, which the instructions name its elements by. */
@@ -99,7 +102,7 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
   };
   const task = {
     agent: "domain-writer" as const,
-    instructions: writingInstructions(options.sourceType),
+    instructions: `${writingInstructions(options.sourceType)}\n\n${knowledgeLanguageRule(options.language)}`,
     values: writingValues(options.sourceType),
     tools: [...options.notes],
     request: redactText(domainRequest(sourceId, domain, options.members, options.others), options.secrets.flatMap(secretForms)),

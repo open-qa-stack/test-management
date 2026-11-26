@@ -59,6 +59,7 @@ async function grouped(turns: readonly Turn[], exported: SourceExport, grouping 
   const received: AgentEvent[] = [];
   let batchesOver = 0;
   const used = await groupElements({
+    language: "en",
     sourceId: "shop-db",
     sourceType: "postgresql",
     notes: [],
