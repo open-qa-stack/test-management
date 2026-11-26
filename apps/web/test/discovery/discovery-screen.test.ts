@@ -21,7 +21,7 @@ const MAPPING: CartographyState = {
     { id: "contract", type: "openapi", state: "mapped", mappedAt: "2026-11-22T09:00:00.000Z" },
     { id: "orders", type: "postgresql", state: "mapping" },
   ],
-  index: { producedAt: "2026-11-22T09:00:00.000Z", status: "complete" },
+  knowledgeBase: { producedAt: "2026-11-22T09:00:00.000Z", status: "complete" },
 };
 
 /** Two domains the cartography found, the second of sources of two applications and of the whole project. */
@@ -102,7 +102,7 @@ describe("the discovery of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Domaines Clients La recherche et la fiche d’un client\. shop D’où il vient : 1 source contract · shop — customers Renommer Exclure Commandes La commande et son suivi\. shop warehouse Tout le projet D’où il vient : 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Renommer Exclure Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Connaissances mises en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
+      /Domaines Clients La recherche et la fiche d’un client\. shop D’où il vient : 1 source contract · shop — customers Renommer Exclure Commandes La commande et son suivi\. shop warehouse Tout le projet D’où il vient : 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Renommer Exclure Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Base de connaissance mise en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
     );
     assert.match(html, /<input id="domain-customers" type="checkbox" name="domain" value="customers"\/>/);
     assert.match(html, /<button type="submit" class="btn primary" disabled="">Générer les tests<\/button>/);

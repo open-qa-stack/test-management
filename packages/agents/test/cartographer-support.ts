@@ -7,7 +7,7 @@ import { afterAll } from "vitest";
 import { CopilotAgentRuntime, ModelGateway } from "@open-qa-stack/harness";
 import {
   validateConfig,
-  type DomainIndexSubmission,
+  type KnowledgeBaseSubmission,
   type MappedKnowledge,
   type ResolvedConfig,
   type SourceCard,
@@ -16,7 +16,7 @@ import {
 } from "@open-qa-stack/domain";
 import { answer, KeptMemories, scriptedServer, testSite, toolCalls, type ScriptedServer, type TestSite } from "@open-qa-stack/testing";
 import { fingerprintOf, knowledgeInventory, type SqlClient } from "@open-qa-stack/tools";
-import { Cartographer, INDEX_FILE_NAME, type CartographyOutcome, type Inbox } from "../src/index.ts";
+import { Cartographer, KNOWLEDGE_BASE_FILE_NAME, type CartographyOutcome, type Inbox } from "../src/index.ts";
 
 export const MODEL = "test-model";
 
@@ -198,7 +198,7 @@ export function cardSubmission(id: string): SourceCardSubmission {
 
 /** Writes in the repository an up-to-date card of each source named. */
 export async function writeCards(root: string, config: ResolvedConfig, database: SqlClient, ids: readonly string[]): Promise<void> {
-  mkdirSync(join(root, ".oqas", "index", "sources"), { recursive: true });
+  mkdirSync(join(root, ".oqas", "knowledge", "sources"), { recursive: true });
   for (const id of ids) {
     const knowledge = config.knowledge.find((source): source is MappedKnowledge => source.id === id && source.type !== "logs");
     const fingerprint =
@@ -215,11 +215,11 @@ export async function writeCards(root: string, config: ResolvedConfig, database:
       status: "complete",
       ...cardSubmission(id),
     };
-    writeFileSync(join(root, ".oqas", "index", "sources", `${id}.json`), JSON.stringify(card));
+    writeFileSync(join(root, ".oqas", "knowledge", "sources", `${id}.json`), JSON.stringify(card));
   }
 }
 
-export const SUBMISSION: DomainIndexSubmission = {
+export const SUBMISSION: KnowledgeBaseSubmission = {
   domains: [
     {
       id: "orders",
@@ -277,12 +277,12 @@ export function explored() {
 }
 
 /** The submission without any reference to the sources named. */
-export function without(...sources: string[]): DomainIndexSubmission {
-  const kept = (references: DomainIndexSubmission["unassigned"]) => references.filter((r) => !sources.includes(r.source));
+export function without(...sources: string[]): KnowledgeBaseSubmission {
+  const kept = (references: KnowledgeBaseSubmission["unassigned"]) => references.filter((r) => !sources.includes(r.source));
   return { domains: SUBMISSION.domains.map((domain) => ({ ...domain, references: kept(domain.references) })), unassigned: kept(SUBMISSION.unassigned) };
 }
 
-export const submit = (submission: unknown, id = "x1") => ({ id, name: "submit_index", arguments: submission });
+export const submit = (submission: unknown, id = "x1") => ({ id, name: "submit_knowledge_base", arguments: submission });
 
 /** The calls of the agent that explores the shop once it opened its home: the home in a domain, and the orders its link leads to set aside. */
 export const HOME_MAPPED = [
@@ -351,11 +351,11 @@ export const happy = () => [{ body: toolCalls(MODEL, [submit(MERGES)]) }, { body
 
 export const messages = (outcome: CartographyOutcome) => outcome.journal.map((entry) => entry.message).join("\n");
 
-export const indexFile = (root: string) => join(root, ".oqas", "index", INDEX_FILE_NAME);
+export const knowledgeBaseFile = (root: string) => join(root, ".oqas", "knowledge", KNOWLEDGE_BASE_FILE_NAME);
 
 /** The fingerprint of the card of a source, as written in the repository: a digest of its JSON content. */
 export const cardPrint = (root: string, id: string) =>
-  fingerprintOf(JSON.stringify(JSON.parse(readFileSync(join(root, ".oqas", "index", "sources", `${id}.json`), "utf8"))));
+  fingerprintOf(JSON.stringify(JSON.parse(readFileSync(join(root, ".oqas", "knowledge", "sources", `${id}.json`), "utf8"))));
 
 export const toolsOffered = (server: ScriptedServer, request: number) =>
   (server.requests[request]!.body as { tools: { function: { name: string } }[] }).tools.map((tool) => tool.function.name);
@@ -392,7 +392,7 @@ export const traceOf = (outcome: CartographyOutcome): TraceLine[] =>
     .filter((line) => line !== "")
     .map((line) => JSON.parse(line) as TraceLine);
 
-export const PHASES = ["survey", "card", "consolidation", "index"];
+export const PHASES = ["survey", "card", "consolidation", "knowledge-base"];
 
 /** Whether every phase started, for a source or for the whole run, has its end. */
 export const everyStartEnds = (lines: readonly TraceLine[]) => {

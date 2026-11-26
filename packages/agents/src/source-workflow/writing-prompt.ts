@@ -1,4 +1,4 @@
-import type { IndexSourceType, ManifestDomain } from "@open-qa-stack/domain";
+import type { KnowledgeBaseSourceType, ManifestDomain } from "@open-qa-stack/domain";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "./domain-file-control.ts";
 import { batchSummary } from "./element-batches.ts";
@@ -26,7 +26,7 @@ Rules:
  * @param type - What the source is, which names its elements.
  * @returns The value of each variable.
  */
-export function writingValues(type: IndexSourceType): PromptValues<typeof WRITING_PROMPT> {
+export function writingValues(type: KnowledgeBaseSourceType): PromptValues<typeof WRITING_PROMPT> {
   const words = sourceWords(type);
   return {
     elements: words.elements,
@@ -43,7 +43,7 @@ export function writingValues(type: IndexSourceType): PromptValues<typeof WRITIN
  * @param type - What the source is, which names its elements.
  * @returns The instructions.
  */
-export function writingInstructions(type: IndexSourceType): string {
+export function writingInstructions(type: KnowledgeBaseSourceType): string {
   return promptOf(WRITING_PROMPT, writingValues(type));
 }
 

@@ -1,4 +1,4 @@
-export { Cartographer, INDEX_FILE_NAME, type CartographerOptions, type CartographyOutcome } from "./cartographer/cartographer.ts";
+export { Cartographer, KNOWLEDGE_BASE_FILE_NAME, type CartographerOptions, type CartographyOutcome } from "./cartographer/cartographer.ts";
 export { runSources, type RunSource } from "./cartographer/run-sources.ts";
 export { AGENT_PROMPTS } from "./common/agent-prompts.ts";
 export { promptOf, type PromptTemplate } from "./common/prompt-template.ts";
@@ -28,7 +28,7 @@ export type { ErrorClass } from "./designer/run-failure.ts";
 export { PlanReviewer, type ReviewSession } from "./plan-reviewer/plan-reviewer.ts";
 export { PLAN_REVIEWER_INSTRUCTIONS, REPORT_TOOL } from "./plan-reviewer/plan-reviewer-prompt.ts";
 export { PROPOSE_TOOL, RUN_TOOL } from "./designer/test-proposals.ts";
-export { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./designer/index-map.ts";
+export { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./designer/knowledge-map.ts";
 export { PLAN_TOOL } from "./designer/plan-proposal.ts";
 export { existingTests, type ExistingTest } from "./designer/existing-tests.ts";
 export { TestRepository } from "./designer/test-repository.ts";

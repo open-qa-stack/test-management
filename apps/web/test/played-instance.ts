@@ -45,7 +45,7 @@ export class PlayedInstance {
 
   /** Whether the instance refuses the next change of a domain, once. */
   public domainRefused = false;
-  /** Where the cartography of its knowledge stands: one source mapped, another waiting, the index not written yet. */
+  /** Where the cartography of its knowledge stands: one source mapped, another waiting, the knowledge base not written yet. */
   public mapping: CartographyState = {
     environment: "local",
     sources: [

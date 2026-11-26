@@ -115,7 +115,7 @@ export async function checked({
   return checks.some(({ check }) => check.state === "failed") ? ExitCode.prerequisite : ExitCode.passed;
 }
 
-/** `oqas knowledge mapping`: tells where the cartography of the knowledge stands, source by source, and its index. */
+/** `oqas knowledge mapping`: tells where the cartography of the knowledge stands, source by source, and its knowledge base. */
 export function mapped(state: CartographyState, options: Arguments, io: CommandIo): ExitCodeValue {
   print({ options, io }, mappingLines(state).join("\n"), state);
   return ExitCode.passed;

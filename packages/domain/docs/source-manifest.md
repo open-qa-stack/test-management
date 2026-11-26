@@ -1,6 +1,6 @@
 # Source manifest
 
-The manifest of a source lists the elements the harness exported from it without the model, each with the fingerprint and the file of its definition, and where the grouping of the source left it. The cartographer of a source writes it at `<indexDir>/sources/<id>/manifest.json` (`.oqas/index/sources/<id>/manifest.json` by default), beside the `export/` folder it describes: once when it writes the export, then when the workflow of the source is over. Only a source that has an export has a manifest: a database. Its JSON Schema is `schema/oqas-source-manifest.schema.json`; `validateSourceManifest` applies it, then refuses a domain or an element named twice, and an element in a domain the manifest does not have.
+The manifest of a source lists the elements the harness exported from it without the model, each with the fingerprint and the file of its definition, and where the grouping of the source left it. The cartographer of a source writes it at `<knowledgeDir>/sources/<id>/manifest.json` (`.oqas/knowledge/sources/<id>/manifest.json` by default), beside the `export/` folder it describes: once when it writes the export, then when the workflow of the source is over. Only a source that has an export has a manifest: a database. Its JSON Schema is `schema/oqas-source-manifest.schema.json`; `validateSourceManifest` applies it, then refuses a domain or an element named twice, and an element in a domain the manifest does not have.
 
 | Key | Content |
 |---|---|

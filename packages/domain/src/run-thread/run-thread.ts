@@ -21,7 +21,7 @@ const AGENTS: Readonly<Record<Exclude<TracePhase, "review">, AgentRole>> = {
   survey: "cartographer",
   card: "cartographer",
   consolidation: "cartographer",
-  index: "cartographer",
+  "knowledge-base": "cartographer",
   plan: "planner",
   write: "writer",
 };

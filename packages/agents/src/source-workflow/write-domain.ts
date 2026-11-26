@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, IndexSourceType, ManifestDomain, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, KnowledgeBaseSourceType, ManifestDomain, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, type ExportedElement } from "@open-qa-stack/tools";
 import { runAgentTask } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
@@ -13,7 +13,7 @@ export interface WriteDomainOptions {
   /** Identifier of the source. */
   readonly sourceId: string;
   /** What the source is, which the instructions name its elements by. */
-  readonly sourceType: IndexSourceType;
+  readonly sourceType: KnowledgeBaseSourceType;
   /** The domain. */
   readonly domain: ManifestDomain;
   /** Its elements, each with its role. */

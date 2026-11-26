@@ -8,7 +8,7 @@ export type AgentRole = "cartographer" | "planner" | "plan_reviewer" | "writer" 
  * then the plan, its reviews and the writing of each test.
  */
 export type SessionPhase =
-  "configuration" | "prerequisites" | "survey" | "card" | "consolidation" | "index" | "plan" | "review" | "write" | "execution" | "summary";
+  "configuration" | "prerequisites" | "survey" | "card" | "consolidation" | "knowledge-base" | "plan" | "review" | "write" | "execution" | "summary";
 
 /** A source a scenario relies on, and the element of it the plan names. */
 export interface PlannedSource {
@@ -63,7 +63,7 @@ export interface PlannedScenario {
   readonly kind?: string;
   /** Whether its test only reads the data of the environment, `read`, or changes some, `write`. */
   readonly effect?: string;
-  /** The domain of the index it comes from. */
+  /** The domain of the knowledge base it comes from. */
   readonly domain?: string;
   /** The functionality of that domain it verifies. */
   readonly feature?: string;

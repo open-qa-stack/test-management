@@ -10,7 +10,7 @@ const workspace = mkdtempSync(join(tmpdir(), "oqas-mapped-"));
 afterAll(() => rmSync(workspace, { recursive: true, force: true }));
 
 describe("a test repository marked mapped", () => {
-  it("has a card for each source the cartography reads in the first environment, and an index", () => {
+  it("has a card for each source the cartography reads in the first environment, and a knowledge base", () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     const config = JSON.parse(fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/")) as { applications: object[]; knowledge: object[] };
     const web = {
@@ -28,7 +28,7 @@ describe("a test repository marked mapped", () => {
     writeFileSync(join(root, "oqas.json"), JSON.stringify({ ...config, applications: [...config.applications, web], knowledge }));
     markMapped(root);
     // A source attached to no environment is read in each; the database is attached to the second alone, and logs are not mapped.
-    assert.deepEqual(readdirSync(join(root, ".oqas", "index", "sources")).sort(), ["guides.json", "order-specs.json", "store.json"]);
-    assert.ok(existsSync(join(root, ".oqas", "index", "domain-index.json")));
+    assert.deepEqual(readdirSync(join(root, ".oqas", "knowledge", "sources")).sort(), ["guides.json", "order-specs.json", "store.json"]);
+    assert.ok(existsSync(join(root, ".oqas", "knowledge", "knowledge-base.json")));
   });
 });

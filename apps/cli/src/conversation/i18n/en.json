@@ -40,8 +40,8 @@
     "remember": "Noted something for later",
     "recall": "Read what was noted",
     "writeDomain": "Wrote the domain {{id}}",
-    "submitIndex_one": "Handed in an index of {{count}} domain",
-    "submitIndex_other": "Handed in an index of {{count}} domains"
+    "submitKnowledgeBase_one": "Handed in a knowledge base of {{count}} domain",
+    "submitKnowledgeBase_other": "Handed in a knowledge base of {{count}} domains"
   },
   "steps": {
     "phases": {
@@ -50,7 +50,7 @@
       "survey": "Cartography · sources",
       "card": "Cartography · card",
       "consolidation": "Cartography · domains",
-      "index": "Cartography · index",
+      "knowledge-base": "Cartography · knowledge base",
       "plan": "Plan",
       "review": "Plan review",
       "write": "Writing a test",

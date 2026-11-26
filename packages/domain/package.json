@@ -11,7 +11,7 @@
     ".": "./src/index.ts",
     "./sessions": "./src/sessions/index.ts",
     "./oqas.schema.json": "./schema/oqas.schema.json",
-    "./oqas-domain-index.schema.json": "./schema/oqas-domain-index.schema.json",
+    "./oqas-knowledge-base.schema.json": "./schema/oqas-knowledge-base.schema.json",
     "./oqas-source-card.schema.json": "./schema/oqas-source-card.schema.json",
     "./oqas-source-manifest.schema.json": "./schema/oqas-source-manifest.schema.json"
   },

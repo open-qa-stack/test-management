@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { CARDS_FOLDER, INDEX_FILE_NAME, runSources } from "@open-qa-stack/agents";
+import { CARDS_FOLDER, KNOWLEDGE_BASE_FILE_NAME, runSources } from "@open-qa-stack/agents";
 import {
   parseJson,
   resolvedConfig,
-  validateDomainIndex,
+  validateKnowledgeBase,
   validateSourceCard,
   type CartographyState,
   type MappedSource,
@@ -19,12 +19,12 @@ async function jsonAt(path: string): Promise<unknown> {
 
 /**
  * Where the cartography of the knowledge stands, source by source, as the console shows it while it maps: each source
- * the cartography reads in the first environment, with its card or none yet, and the index that puts the cards
+ * the cartography reads in the first environment, with its card or none yet, and the knowledge base that puts the cards
  * together. Whatever shows it — the console, a command — calls this and holds no rule of its own.
  *
  * @remarks
  * A source with a card is mapped, or truncated when a limit stopped its card; one without is mapping while a session
- * maps the knowledge, and waiting otherwise. A card or an index that cannot be read is none.
+ * maps the knowledge, and waiting otherwise. A card or a knowledge base that cannot be read is none.
  */
 export class KnowledgeMapping {
   readonly #repository: string | undefined;
@@ -32,7 +32,7 @@ export class KnowledgeMapping {
   readonly #sessions: Pick<SessionStorePort, "sessions">;
 
   /**
-   * @param repository - Absolute path of the test repository, which holds the cards and the index; `undefined` for a host that has none.
+   * @param repository - Absolute path of the test repository, which holds the cards and the knowledge base; `undefined` for a host that has none.
    * @param configuration - The operations on the configuration, whose revision in force names the sources.
    * @param sessions - The store of the sessions, which tells whether a session maps the knowledge now.
    */
@@ -52,7 +52,7 @@ export class KnowledgeMapping {
     const config = resolvedConfig(revision.document);
     // The schema asks each application for an environment, and the configuration for an application.
     const environment = config.applications[0]!.environments[0]!.name;
-    const folder = join(this.#repository, config.repository.indexDir);
+    const folder = join(this.#repository, config.repository.knowledgeDir);
     const mapping = (await this.#sessions.sessions()).some((session) => session.purpose === "map" && session.state === "running");
     const sources = await Promise.all(
       runSources(config, environment).map(async ({ id, type }): Promise<MappedSource> => {
@@ -61,7 +61,11 @@ export class KnowledgeMapping {
         return { id, type, state: card.value.status === "complete" ? "mapped" : "truncated", mappedAt: card.value.producedAt };
       }),
     );
-    const index = validateDomainIndex(await jsonAt(join(folder, INDEX_FILE_NAME)));
-    return { environment, sources, ...(index.ok ? { index: { producedAt: index.value.producedAt, status: index.value.status } } : {}) };
+    const knowledgeBase = validateKnowledgeBase(await jsonAt(join(folder, KNOWLEDGE_BASE_FILE_NAME)));
+    return {
+      environment,
+      sources,
+      ...(knowledgeBase.ok ? { knowledgeBase: { producedAt: knowledgeBase.value.producedAt, status: knowledgeBase.value.status } } : {}),
+    };
   }
 }

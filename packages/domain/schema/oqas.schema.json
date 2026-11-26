@@ -858,7 +858,7 @@
           "minLength": 1,
           "description": "Path relative to the test repository root, which it may not leave."
         },
-        "indexDir": {
+        "knowledgeDir": {
           "type": "string",
           "minLength": 1,
           "description": "Path relative to the test repository root, which it may not leave."

@@ -352,8 +352,8 @@
     "remember": "Noted something for later",
     "recall": "Read what was noted",
     "writeDomain": "Wrote the domain {{id}}",
-    "submitIndex_one": "Handed in an index of {{count}} domain",
-    "submitIndex_other": "Handed in an index of {{count}} domains"
+    "submitKnowledgeBase_one": "Handed in a knowledge base of {{count}} domain",
+    "submitKnowledgeBase_other": "Handed in a knowledge base of {{count}} domains"
   },
   "problems": {
     "unknown_session": "The project keeps no session of that name.",
@@ -465,7 +465,7 @@
         "blocksDir": "Folder of the blocks",
         "journeysDir": "Folder of the journeys",
         "stateDir": "Folder of the state",
-        "indexDir": "Folder of the index"
+        "knowledgeDir": "Folder of the knowledge base"
       }
     },
     "model": {
@@ -850,9 +850,9 @@
       "mapping": "Being mapped",
       "mapped": "Mapped",
       "truncated": "Mapped in part",
-      "noIndex": "Nothing is mapped yet: each source added is mapped at once, then all of them are put together by domain.",
-      "index": "Knowledge put together by domain on {{date}}.",
-      "partIndex": "Knowledge put together by domain on {{date}}, in part: a limit stopped the cartography."
+      "noKnowledgeBase": "Nothing is mapped yet: each source added is mapped at once, then all of them are put together by domain.",
+      "knowledgeBase": "Knowledge base put together by domain on {{date}}.",
+      "partKnowledgeBase": "Knowledge base put together by domain on {{date}}, in part: a limit stopped the cartography."
     },
     "add": "Add knowledge",
     "addHint": "choose what the agents will read",
@@ -1305,7 +1305,7 @@
     "summaryWritten": "The summary of the session is written.",
     "cardKept": "The card of {{source}} is up to date; it is kept.",
     "domainFileKept": "The file of the domain {{domain}} is up to date; it is kept.",
-    "indexKept": "The index of the domains is complete and up to date; it is kept.",
+    "knowledgeBaseKept": "The knowledge base is complete and up to date; it is kept.",
     "scenarioOpened": "The scenario {{scenario}} is opened; its test will be {{test}}.",
     "testWritten": "The test {{test}} is written.",
     "testPassed": "The test {{test}} was run: it passes.",
@@ -1412,7 +1412,7 @@
       "survey": "Cartography · sources",
       "card": "Cartography · card",
       "consolidation": "Cartography · domains",
-      "index": "Cartography · index",
+      "knowledge-base": "Cartography · knowledge base",
       "plan": "Plan",
       "review": "Plan review",
       "write": "Writing a test",

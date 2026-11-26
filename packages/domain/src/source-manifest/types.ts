@@ -1,4 +1,4 @@
-import type { IndexSourceType } from "../domain-index/types.ts";
+import type { KnowledgeBaseSourceType } from "../knowledge-base/types.ts";
 
 /** Version of the source manifest format, independent of the product version. */
 export type SourceManifestFormatVersion = 1;
@@ -41,7 +41,7 @@ export interface ManifestElement {
 /** The manifest of one source: the elements the harness exported from it, and where their grouping left each. */
 export interface SourceManifest {
   formatVersion: SourceManifestFormatVersion;
-  source: { id: string; type: IndexSourceType };
+  source: { id: string; type: KnowledgeBaseSourceType };
   /** Fingerprint of the source when it was exported. */
   fingerprint: string;
   /** Date and time of production, ISO 8601 in UTC. */

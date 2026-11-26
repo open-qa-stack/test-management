@@ -352,8 +352,8 @@
     "remember": "A noté quelque chose pour la suite",
     "recall": "A lu ce qui était noté",
     "writeDomain": "A écrit le domaine {{id}}",
-    "submitIndex_one": "A remis un index de {{count}} domaine",
-    "submitIndex_other": "A remis un index de {{count}} domaines"
+    "submitKnowledgeBase_one": "A remis une base de connaissance de {{count}} domaine",
+    "submitKnowledgeBase_other": "A remis une base de connaissance de {{count}} domaines"
   },
   "problems": {
     "unknown_session": "Le projet ne garde aucune session de ce nom.",
@@ -465,7 +465,7 @@
         "blocksDir": "Dossier des blocs",
         "journeysDir": "Dossier des parcours",
         "stateDir": "Dossier d’état",
-        "indexDir": "Dossier de l’index"
+        "knowledgeDir": "Dossier de la base de connaissance"
       }
     },
     "model": {
@@ -850,9 +850,9 @@
       "mapping": "Cartographie en cours",
       "mapped": "Cartographiée",
       "truncated": "Cartographiée en partie",
-      "noIndex": "Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt, puis l’ensemble est mis en commun par domaine.",
-      "index": "Connaissances mises en commun par domaine le {{date}}.",
-      "partIndex": "Connaissances mises en commun par domaine le {{date}}, en partie : une limite a arrêté la cartographie."
+      "noKnowledgeBase": "Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt, puis l’ensemble est mis en commun par domaine.",
+      "knowledgeBase": "Base de connaissance mise en commun par domaine le {{date}}.",
+      "partKnowledgeBase": "Base de connaissance mise en commun par domaine le {{date}}, en partie : une limite a arrêté la cartographie."
     },
     "add": "Ajouter une connaissance",
     "addHint": "choisissez ce que les agents liront",
@@ -1305,7 +1305,7 @@
     "summaryWritten": "Le bilan de la session est écrit.",
     "cardKept": "La fiche de {{source}} est à jour ; elle est conservée.",
     "domainFileKept": "Le fichier du domaine {{domain}} est à jour ; il est conservé.",
-    "indexKept": "L’index des domaines est complet et à jour ; il est conservé.",
+    "knowledgeBaseKept": "La base de connaissance est complète et à jour ; elle est conservée.",
     "scenarioOpened": "Le scénario {{scenario}} est ouvert ; son test sera {{test}}.",
     "testWritten": "Le test {{test}} est écrit.",
     "testPassed": "Le test {{test}} a été exécuté : il réussit.",
@@ -1412,7 +1412,7 @@
       "survey": "Cartographie · sources",
       "card": "Cartographie · fiche",
       "consolidation": "Cartographie · domaines",
-      "index": "Cartographie · index",
+      "knowledge-base": "Cartographie · base de connaissance",
       "plan": "Plan",
       "review": "Relecture du plan",
       "write": "Écriture d’un test",

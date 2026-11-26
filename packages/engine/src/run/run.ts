@@ -64,9 +64,9 @@ export interface RunOptions {
   readonly repositoryRoot: string;
   /** The environment to run against; the only one declared by default. */
   readonly environment?: string;
-  /** What to test, in the developer's words; the designer works on the whole domain index without it. */
+  /** What to test, in the developer's words; the designer works on the whole knowledge base without it. */
   readonly brief?: string;
-  /** `map` for a run that maps the knowledge alone: it ends once the index is written, and designs no test. */
+  /** `map` for a run that maps the knowledge alone: it ends once the knowledge base is written, and designs no test. */
   readonly purpose?: "map";
   /**
    * The branch of an earlier run whose tests this one goes on with: the design checks it out and commits on it, and
@@ -281,14 +281,14 @@ export class Run {
           ...observed,
         }).run();
         this.relay(journal, "cartography", outcome.journal);
-        return { value: outcome, ok: outcome.index !== undefined };
+        return { value: outcome, ok: outcome.knowledgeBase !== undefined };
       });
       if (!mapped.ok) {
         const limit = mapped.value.stoppedBy;
         if (limit !== undefined) found = { stoppedBy: { step: "cartography", limit } };
         return ExitCode.interrupted;
       }
-      found = { index: this.inRepository(mapped.value.indexPath!) };
+      found = { knowledgeBase: this.inRepository(mapped.value.knowledgeBasePath!) };
       if (this.options.purpose === "map") return ExitCode.passed;
       const trials = new TrialRunner({ config, environment, repositoryRoot: this.options.repositoryRoot, runner, env: this.options.env });
       const designed = await unlessStopped("design", async () => {

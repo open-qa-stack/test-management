@@ -1,4 +1,4 @@
-import type { IndexModel, IndexRun, Verdict } from "@open-qa-stack/domain";
+import type { KnowledgeBaseModel, KnowledgeBaseRun, Verdict } from "@open-qa-stack/domain";
 import type { ErrorClass } from "./run-failure.ts";
 
 /** Folder of the design states, in the state folder of the test repository. */
@@ -118,7 +118,7 @@ export interface DesignState {
   readonly formatVersion: 4;
   /** Date and time of the design, ISO 8601 in UTC. */
   readonly producedAt: string;
-  /** Name of the environment of the domain index. */
+  /** Name of the environment of the knowledge base. */
   readonly environment: string;
   /** The brief the design started from, in the developer's words, when one was given. */
   readonly brief?: string;
@@ -129,9 +129,9 @@ export interface DesignState {
   /** The revision the branch was created from. */
   readonly base: string;
   /** The model the tests were designed with, without any secret. */
-  readonly model: IndexModel;
+  readonly model: KnowledgeBaseModel;
   /** What the sessions of the design used together, as the harness measured it. */
-  readonly run: IndexRun;
+  readonly run: KnowledgeBaseRun;
   /** The test of each scenario closed, in the order of the plan. */
   readonly tests: readonly DesignedTest[];
 }

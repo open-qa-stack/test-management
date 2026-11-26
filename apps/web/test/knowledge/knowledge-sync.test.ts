@@ -35,7 +35,7 @@ class PlayedApi {
 
 const settled = (): Promise<unknown> => vi.advanceTimersByTimeAsync(0);
 
-/** Where the cartography of the knowledge stands: one source mapped, the index not written yet. */
+/** Where the cartography of the knowledge stands: one source mapped, the knowledge base not written yet. */
 const MAPPING = { environment: "local", sources: [{ id: "manuals", type: "document", state: "mapped", mappedAt: "2026-11-22T09:00:00.000Z" }] } as const;
 
 describe("what keeps the screens of the knowledge in step with their instance", () => {

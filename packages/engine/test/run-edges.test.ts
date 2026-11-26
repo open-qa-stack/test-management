@@ -80,7 +80,7 @@ describe("the edges of a run", () => {
     assert.match(run.err, /\[design\] error: The design stopped on an unexpected error: spawn npm EACCES/);
     assert.match(run.err, /\[design\] finished: The design did not succeed\./);
     const state = stateOf(run.root);
-    assert.deepEqual([state.exitCode, state.index, state.steps.at(-1)?.step], [5, ".oqas/index/domain-index.json", "design"]);
+    assert.deepEqual([state.exitCode, state.knowledgeBase, state.steps.at(-1)?.step], [5, ".oqas/knowledge/knowledge-base.json", "design"]);
   });
 
   it("counts the requests of a step that throws once its sessions ran", async () => {
@@ -172,14 +172,14 @@ describe("the edges of a run", () => {
     }
   });
 
-  it("stops with 5 when no index is written, and designs nothing", async () => {
+  it("stops with 5 when no knowledge base is written, and designs nothing", async () => {
     const replies = [{ body: { data: [] } }, ...Array.from({ length: 6 }, () => ({ body: answer(MODEL, "Nothing to say.") }))];
     const run = await ran(replies, { environment: "local" });
     assert.equal(run.code, 5);
-    assert.match(run.err, /No index was written/);
+    assert.match(run.err, /No knowledge base was written/);
     assert.ok(!run.err.includes("[design]"));
-    assert.equal(stateOf(run.root).index, undefined);
-    // The requests of a cartography that wrote no index are counted all the same.
+    assert.equal(stateOf(run.root).knowledgeBase, undefined);
+    // The requests of a cartography that wrote no knowledge base are counted all the same.
     assert.ok(stateOf(run.root).steps.find((step) => step.step === "cartography")!.modelRequests > 0);
   });
 });

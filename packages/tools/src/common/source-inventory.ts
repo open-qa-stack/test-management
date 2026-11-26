@@ -1,7 +1,7 @@
 import type { SourceExport } from "./source-export.ts";
 
 /**
- * What a knowledge source holds, read without the model: the elements a card or an index must place, the
+ * What a knowledge source holds, read without the model: the elements a card or a knowledge base must place, the
  * structural facts known of each, and the fingerprint of the source.
  */
 export interface SourceInventory {

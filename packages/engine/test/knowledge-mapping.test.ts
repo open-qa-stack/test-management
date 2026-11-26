@@ -16,9 +16,9 @@ afterEach(async () => {
 /** Where the cartography of the test repository of the host stands. */
 const stateOf = (on: Hosted) => new KnowledgeMapping(on.root, on.settings, on.store).state();
 
-/** Rewrites a JSON file of the index folder of the test repository. */
+/** Rewrites a JSON file of the knowledge base folder of the test repository. */
 function rewrite(root: string, path: string, change: (value: Record<string, unknown>) => Record<string, unknown>): void {
-  const file = join(root, ".oqas", "index", path);
+  const file = join(root, ".oqas", "knowledge", path);
   writeFileSync(file, JSON.stringify(change(JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>)));
 }
 
@@ -32,7 +32,7 @@ describe("where the cartography of the knowledge stands", () => {
     assert.deepEqual((await stateOf(hosted)).sources, [{ id: "order-specs", type: "document", state: "mapping" }]);
   });
 
-  it("is a source mapped once its card is written, in part when a limit stopped it, and the index that puts the cards together", async () => {
+  it("is a source mapped once its card is written, in part when a limit stopped it, and the knowledge base that puts the cards together", async () => {
     hosted = await Hosted.create(chain().slice(0, 6), { host: { mapsKnowledge: true } });
     await hosted.sessions.start();
     // The host opens the session that maps the knowledge once it started.
@@ -45,14 +45,14 @@ describe("where the cartography of the knowledge stands", () => {
     const mapped = await stateOf(hosted);
     assert.equal(mapped.sources[0]?.state, "mapped");
     assert.match(String(mapped.sources[0]?.mappedAt), /^\d{4}-\d\d-\d\dT/);
-    assert.equal(mapped.index?.status, "complete");
-    assert.match(String(mapped.index?.producedAt), /^\d{4}-\d\d-\d\dT/);
+    assert.equal(mapped.knowledgeBase?.status, "complete");
+    assert.match(String(mapped.knowledgeBase?.producedAt), /^\d{4}-\d\d-\d\dT/);
     rewrite(hosted.root, "sources/order-specs.json", (card) => ({ ...card, status: "truncated" }));
-    rewrite(hosted.root, "domain-index.json", (index) => ({ ...index, status: "truncated" }));
+    rewrite(hosted.root, "knowledge-base.json", (index) => ({ ...index, status: "truncated" }));
     const truncated = await stateOf(hosted);
-    assert.deepEqual([truncated.sources[0]?.state, truncated.index?.status], ["truncated", "truncated"]);
-    writeFileSync(join(hosted.root, ".oqas", "index", "domain-index.json"), "not json");
-    assert.equal((await stateOf(hosted)).index, undefined, "an index that cannot be read is none");
+    assert.deepEqual([truncated.sources[0]?.state, truncated.knowledgeBase?.status], ["truncated", "truncated"]);
+    writeFileSync(join(hosted.root, ".oqas", "knowledge", "knowledge-base.json"), "not json");
+    assert.equal((await stateOf(hosted)).knowledgeBase, undefined, "a knowledge base that cannot be read is none");
   });
 
   it("is no source for a host without a test repository, nor without a configuration", async () => {

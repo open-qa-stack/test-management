@@ -1,4 +1,4 @@
-import type { DomainIndexSubmission, IndexError } from "./types.ts";
+import type { KnowledgeBaseSubmission, KnowledgeBaseError } from "./types.ts";
 
 /** What the harness read itself from some sources, without the model: contract tags and path prefixes, tables. */
 export type SourceInventory = ReadonlyMap<string, readonly string[]>;
@@ -8,7 +8,7 @@ export type SourceInventory = ReadonlyMap<string, readonly string[]>;
  *
  * @remarks
  * Every item of an inventoried source must appear in a domain or in `unassigned`, and every item a
- * submission gives for such a source must be one of its items, so that the index neither forgets nor
+ * submission gives for such a source must be one of its items, so that the knowledge base neither forgets nor
  * invents a tag or a table. References to sources that are not inventoried, such as interfaces or
  * documents, are free, but must name a source of the run.
  *
@@ -17,8 +17,8 @@ export type SourceInventory = ReadonlyMap<string, readonly string[]>;
  * @param sources - Identifiers of every source of the run.
  * @returns Every error found, each with its location; none when the submission places everything.
  */
-export function placementErrors(submission: DomainIndexSubmission, inventory: SourceInventory, sources: ReadonlySet<string>): IndexError[] {
-  const errors: IndexError[] = [];
+export function placementErrors(submission: KnowledgeBaseSubmission, inventory: SourceInventory, sources: ReadonlySet<string>): KnowledgeBaseError[] {
+  const errors: KnowledgeBaseError[] = [];
   const groups = [
     ...submission.domains.flatMap((domain, i) => domain.references.map((references, j) => [`/domains/${i}/references/${j}`, references] as const)),
     ...submission.unassigned.map((references, j) => [`/unassigned/${j}`, references] as const),
@@ -47,7 +47,7 @@ export function placementErrors(submission: DomainIndexSubmission, inventory: So
  * @param inventory - The items of each inventoried source.
  * @returns The sources that have items in no domain nor in `unassigned`, each with those items, in the order of the inventory.
  */
-export function unplacedItems(submission: DomainIndexSubmission, inventory: SourceInventory): Map<string, string[]> {
+export function unplacedItems(submission: KnowledgeBaseSubmission, inventory: SourceInventory): Map<string, string[]> {
   const placed = new Set(
     [...submission.domains.flatMap((domain) => domain.references), ...submission.unassigned].flatMap(({ source, items }) =>
       items.map((item) => `${source}\u0000${item}`),

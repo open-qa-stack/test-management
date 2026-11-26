@@ -3,7 +3,7 @@ import type { RunScope, Step } from "../run/run-entry.ts";
 import type { TracePhase } from "../run/trace-line.ts";
 import type { CommandStep, RelayedPhase, RunLine } from "./thread-line.ts";
 
-const TRACED: readonly TracePhase[] = ["survey", "card", "consolidation", "index", "plan", "review", "write"];
+const TRACED: readonly TracePhase[] = ["survey", "card", "consolidation", "knowledge-base", "plan", "review", "write"];
 
 const STEPS: readonly CommandStep[] = ["configuration", "prerequisites", "execution", "summary"];
 

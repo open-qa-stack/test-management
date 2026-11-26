@@ -38,8 +38,8 @@ export interface RunState {
   readonly exitCode: ExitCodeValue;
   /** Each step that ran, with how long it took and how many requests it sent to the model. */
   readonly steps: readonly { readonly step: Step; readonly durationMs: number; readonly modelRequests: number }[];
-  /** The domain index, relative to the test repository, when it was written. */
-  readonly index?: string;
+  /** The knowledge base, relative to the test repository, when it was written. */
+  readonly knowledgeBase?: string;
   /** The local branch the tests were written on, when they were. */
   readonly branch?: string;
   /** The test files designed, relative to the test repository. */

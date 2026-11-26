@@ -656,7 +656,11 @@ describe("the notes of the harness about each source", () => {
       ["note", "note"],
     );
     assert.deepEqual(
-      kinds([...kept("a"), { type: "phase_started", phase: "index" }, { type: "note", phase: "index", text: "The card of a is up to date; it was kept." }]),
+      kinds([
+        ...kept("a"),
+        { type: "phase_started", phase: "knowledge-base" },
+        { type: "note", phase: "knowledge-base", text: "The card of a is up to date; it was kept." },
+      ]),
       ["note", "pass", "note"],
     );
     assert.deepEqual(kinds([...kept("a"), { type: "phase_started", phase: "card", source: "b" }, { type: "note", phase: "card", text: "Nothing of it." }]), [

@@ -274,7 +274,7 @@ describe("the grouping of a base, batch by batch", () => {
 
   it("derives the card from the manifest: the role of each table as its summary, its facts, and the tables set aside in unassigned", async () => {
     const { outcome } = await cartography(happy());
-    assert.match(outcome.cardPath!, new RegExp(`\\.oqas/index/${CARDS_FOLDER}/shop-db\\.json$`));
+    assert.match(outcome.cardPath!, new RegExp(`\\.oqas/knowledge/${CARDS_FOLDER}/shop-db\\.json$`));
     assert.deepEqual(validateSourceCard(JSON.parse(readFileSync(outcome.cardPath!, "utf8")) as unknown), { ok: true, value: outcome.card });
     assert.deepEqual(outcome.card!.domains[0], {
       ...DOMAINS[0]!,
@@ -347,7 +347,7 @@ describe("the grouping of a base, batch by batch", () => {
     assert.match(messages(failed.outcome), /The session of batch 1 of 1 failed: [^\n]*\nbatch 1 of 1 was closed with 3 elements unplaced/);
     assert.match(messages(failed.outcome), /No card was written: no element of shop-db was placed\.$/);
     assert.deepEqual([failed.outcome.card, failed.outcome.cardPath], [undefined, undefined]);
-    const left = JSON.parse(readFileSync(join(root, ".oqas", "index", CARDS_FOLDER, "shop-db", "manifest.json"), "utf8")) as SourceManifest;
+    const left = JSON.parse(readFileSync(join(root, ".oqas", "knowledge", CARDS_FOLDER, "shop-db", "manifest.json"), "utf8")) as SourceManifest;
     assert.deepEqual([left.status, left.elements[0]!.unplaced], ["truncated", "The session ended before they were placed."]);
     const limited = await cartography([happy()[0]!, ...happy().slice(3)], { limits: { maxIterations: 1, maxMinutes: 10, maxActions: 200 } });
     assert.match(messages(limited.outcome), /The session of batch 1 of 1 reached its iterations limit\./);
@@ -1362,7 +1362,7 @@ describe("how mapSources runs the tasks", () => {
       mkdirSync(join(root, name));
       writeFileSync(join(root, name, "notes.txt"), "No document.\n");
     }
-    mkdirSync(join(root, ".oqas", "index", "sources", "a.json"), { recursive: true });
+    mkdirSync(join(root, ".oqas", "knowledge", "sources", "a.json"), { recursive: true });
     const unused: AgentRuntime = { openSession: () => Promise.reject(new Error("no session expected")), close: async () => undefined };
     const documents = ["a", "b"].map((id): ReachableKnowledge => ({ id, type: "document", path: id, attachments: [{ application: "shop" }] }));
     await assert.rejects(
@@ -1376,12 +1376,12 @@ describe("how mapSources runs the tasks", () => {
       }),
       /EISDIR/,
     );
-    assert.ok(existsSync(join(root, ".oqas", "index", "sources", "b.json")));
+    assert.ok(existsSync(join(root, ".oqas", "knowledge", "sources", "b.json")));
   });
 });
 
-describe("what no index is made of", () => {
-  it("writes no index when the sources were mapped into no domain, without consolidating", async () => {
+describe("what no knowledge base is made of", () => {
+  it("writes no knowledge base when the sources were mapped into no domain, without consolidating", async () => {
     const root = mkdtempSync(join(workspace, "repo-"));
     mkdirSync(join(root, "notes"));
     writeFileSync(join(root, "notes", "readme.txt"), "No document.\n");
@@ -1391,8 +1391,8 @@ describe("what no index is made of", () => {
       knowledge: [{ id: "notes", type: "document", path: "notes", attachments: [{ application: "shop" }] } as ReachableKnowledge],
     };
     const outcome = await new Cartographer({ memory: new KeptMemories(), config, environment: "local", repositoryRoot: root, env: {}, runtime: unused }).run();
-    assert.equal(outcome.index, undefined);
-    assert.match(outcome.journal.map((entry) => entry.message).join("\n"), /No index was written: the sources were mapped into no domain\./);
+    assert.equal(outcome.knowledgeBase, undefined);
+    assert.match(outcome.journal.map((entry) => entry.message).join("\n"), /No knowledge base was written: the sources were mapped into no domain\./);
   });
 
   it("truncates the card of source code too large to be read whole", async () => {

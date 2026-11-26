@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRuntime, IndexSourceType, ModelUsage, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentEvent, AgentRuntime, KnowledgeBaseSourceType, ModelUsage, StopReason, TaskLimits, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms, type SourceExport } from "@open-qa-stack/tools";
 import { runAgentTask, taskEnd } from "../common/agent-task.ts";
 import type { Journal } from "../common/journal.ts";
@@ -13,7 +13,7 @@ export interface GroupElementsOptions {
   /** Identifier of the source. */
   readonly sourceId: string;
   /** What the source is, which the instructions name its elements by. */
-  readonly sourceType: IndexSourceType;
+  readonly sourceType: KnowledgeBaseSourceType;
   /** The export of the source. */
   readonly exported: SourceExport;
   /** The grouping the placements go to; its settled elements are not asked again. */

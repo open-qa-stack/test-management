@@ -1,6 +1,6 @@
 # Source card
 
-The card of a source groups its elements by functional domain, so that agents find their way in it without reading the source again. The cartographer of a source writes it at `<indexDir>/sources/<id>.json` (`.oqas/index/sources/<id>.json` by default); the cartographer of the application consolidates the cards into the [domain index](domain-index.md). Its JSON Schema is `schema/oqas-source-card.schema.json`; `validateSourceCard` applies it, and `validateSourceCardSubmission` the schema of what an agent hands in.
+The card of a source groups its elements by functional domain, so that agents find their way in it without reading the source again. The cartographer of a source writes it at `<knowledgeDir>/sources/<id>.json` (`.oqas/knowledge/sources/<id>.json` by default); the cartographer of the application consolidates the cards into the [knowledge base](knowledge-base.md). Its JSON Schema is `schema/oqas-source-card.schema.json`; `validateSourceCard` applies it, and `validateSourceCardSubmission` the schema of what an agent hands in.
 
 | Key | Content |
 |---|---|

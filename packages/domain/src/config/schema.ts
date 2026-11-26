@@ -275,7 +275,7 @@ export const configSchema = {
         blocksDir: relativePath,
         journeysDir: relativePath,
         stateDir: relativePath,
-        indexDir: relativePath,
+        knowledgeDir: relativePath,
       },
     },
     cartography: {

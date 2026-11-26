@@ -9,7 +9,7 @@ import { unmappedEnvironment } from "../src/knowledge/unmapped.ts";
 import { eventually } from "./support/eventually.ts";
 import { Hosted } from "./support/hosted.ts";
 
-/** The replies of the model for the cartography of the test repository alone: the check of the server, the card, the index. */
+/** The replies of the model for the cartography of the test repository alone: the check of the server, the card, the knowledge base. */
 const MAPPING = () => chain().slice(0, 6);
 
 let hosted: Hosted | undefined;
@@ -31,7 +31,7 @@ describe("a host that maps the knowledge", () => {
     const session = await hosted.ended(asked!.id);
     assert.deepEqual([session.state, session.result?.outcome, session.result?.tests], ["completed", "passed", []]);
     assert.equal(session.result?.branch, undefined);
-    assert.ok(existsSync(join(hosted.root, ".oqas", "index", "domain-index.json")));
+    assert.ok(existsSync(join(hosted.root, ".oqas", "knowledge", "knowledge-base.json")));
     assert.equal(hosted.server.requests.length, 6, "the model maps, and designs nothing");
     const events = await hosted.events(asked!.id);
     assert.ok(!events.some((event) => event.type === "user_message"), "no person asked it");
@@ -82,7 +82,7 @@ describe("a host that maps the knowledge", () => {
     hosted.store.before = (command) => {
       if (command === "sessions") throw new Error("The store does not answer.");
     };
-    rmSync(join(hosted.root, ".oqas", "index"), { recursive: true, force: true });
+    rmSync(join(hosted.root, ".oqas", "knowledge"), { recursive: true, force: true });
     const inForce = await hosted.settings.synchronise();
     await hosted.settings.save({ ...inForce.document, language: "fr" }, inForce.number);
     await eventually(() =>
@@ -100,8 +100,8 @@ describe("the knowledge mapped again on demand", () => {
   it("criterion 1 — drops the card of the source named and opens a session that maps it; criterion 3 — drops every card when none is named", async () => {
     hosted = await Hosted.create([]);
     markMapped(hosted.root);
-    writeFileSync(join(hosted.root, ".oqas", "index", "sources", "other.json"), "{}");
-    const cards = join(hosted.root, ".oqas", "index", "sources");
+    writeFileSync(join(hosted.root, ".oqas", "knowledge", "sources", "other.json"), "{}");
+    const cards = join(hosted.root, ".oqas", "knowledge", "sources");
     const [named] = readdirSync(cards).filter((file) => file !== "other.json");
     const source = named!.replace(/\.json$/, "");
     const one = await hosted.sessions.remap(source);
@@ -119,12 +119,12 @@ describe("the knowledge mapped again on demand", () => {
     hosted = await Hosted.create([]);
     markMapped(hosted.root);
     const waiting = await hosted.store.ask({ purpose: "map" }, "another-host");
-    const cards = readdirSync(join(hosted.root, ".oqas", "index", "sources"));
+    const cards = readdirSync(join(hosted.root, ".oqas", "knowledge", "sources"));
     assert.deepEqual(await hosted.sessions.remap(), { state: "busy", session: waiting });
-    assert.deepEqual(readdirSync(join(hosted.root, ".oqas", "index", "sources")), cards);
+    assert.deepEqual(readdirSync(join(hosted.root, ".oqas", "knowledge", "sources")), cards);
     await hosted.store.interrupt(waiting.id);
     assert.deepEqual(await hosted.sessions.remap("nowhere"), { state: "unknown", source: "nowhere" });
-    assert.deepEqual(readdirSync(join(hosted.root, ".oqas", "index", "sources")), cards);
+    assert.deepEqual(readdirSync(join(hosted.root, ".oqas", "knowledge", "sources")), cards);
   });
 });
 
@@ -133,12 +133,12 @@ describe("the knowledge that waits to be mapped", () => {
   afterAll(() => rmSync(root, { recursive: true, force: true }));
   const config = (changes: Record<string, unknown> = {}) => resolvedConfig(JSON.parse(configText("http://127.0.0.1:9/v1", changes)) as OqasConfig);
 
-  it("is a source without a card, or cards no index puts together, in the first environment", async () => {
+  it("is a source without a card, or cards no knowledge base puts together, in the first environment", async () => {
     writeFileSync(join(root, "oqas.json"), configText("http://127.0.0.1:9/v1"));
     assert.equal(await unmappedEnvironment(config(), root), "local");
     markMapped(root);
     assert.equal(await unmappedEnvironment(config(), root), undefined);
-    rmSync(join(root, ".oqas", "index", "domain-index.json"));
+    rmSync(join(root, ".oqas", "knowledge", "knowledge-base.json"));
     assert.equal(await unmappedEnvironment(config(), root), "local");
   });
 

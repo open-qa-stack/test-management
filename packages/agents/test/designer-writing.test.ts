@@ -104,7 +104,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     );
   });
 
-  it("gives the agent the charter, the domains of the index and its tools, the screens, every source of the environment and the notes", async () => {
+  it("gives the agent the charter, the domains of the knowledge base and its tools, the screens, every source of the environment and the notes", async () => {
     const { server } = await design(replies(valid(3)));
     const tools = toolsOffered(server);
     // The session that plans runs no test; that of a scenario submits no plan.
@@ -183,7 +183,7 @@ describe("criterion 1 — three valid tests are written on a new branch, in the 
     ])
       assert.ok(written.includes(JSON.stringify(fragment).slice(1, -1)), fragment);
     assert.ok(!written.includes("You plan the tests"));
-    // The index is looked up, not given whole.
+    // The knowledge base is looked up, not given whole.
     assert.ok(!request.includes("Lists and places the orders of a customer."));
   });
 

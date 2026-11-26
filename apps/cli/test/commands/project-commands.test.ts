@@ -15,8 +15,8 @@ const TEXT = fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/", {
   knowledge: [{ id: "manuals", type: "document", stored: true, attachments: [{ application: "shop" }] }],
 });
 
-/** A domain index of two domains, as the cartography writes it. */
-const INDEX = {
+/** A knowledge base of two domains, as the cartography writes it. */
+const KNOWLEDGE_BASE = {
   formatVersion: 1,
   producedAt: "2026-11-20T09:00:00.000Z",
   environment: "local",
@@ -107,8 +107,8 @@ describe("oqas knowledge read, remove and domains", () => {
     assert.equal((await oqas("knowledge", "read", "nowhere", "quotes.md")).code, 3);
 
     assert.equal((await oqas("knowledge", "domains")).out, "The cartography found no domain yet: oqas knowledge mapping tells where it stands.\n");
-    mkdirSync(join(root, ".oqas", "index"), { recursive: true });
-    writeFileSync(join(root, ".oqas", "index", "domain-index.json"), JSON.stringify(INDEX));
+    mkdirSync(join(root, ".oqas", "knowledge"), { recursive: true });
+    writeFileSync(join(root, ".oqas", "knowledge", "knowledge-base.json"), JSON.stringify(KNOWLEDGE_BASE));
     assert.deepEqual((await oqas("knowledge", "domains")).out.split("\n"), [
       "orders: Orders. Place and follow an order.",
       "customers: Customers. The customers of the shop.",

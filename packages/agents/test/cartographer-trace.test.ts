@@ -17,7 +17,7 @@ import {
   cartography,
   happy,
   messages,
-  indexFile,
+  knowledgeBaseFile,
   cardPrint,
   BASE_PLACEMENTS,
   mappingTheBase,
@@ -49,7 +49,7 @@ describe("trace, criterion 1 — the trace holds the phases in order, and each t
     assert.ok(
       inventory?.event.type === "inventory" && inventory.event.items === TABLES.length && !inventory.event.truncated && inventory.event.fingerprint !== "",
     );
-    assert.ok(lines.some((line) => line.phase === "consolidation" && line.event.type === "message" && line.event.text.includes("submit_index")));
+    assert.ok(lines.some((line) => line.phase === "consolidation" && line.event.type === "message" && line.event.text.includes("submit_knowledge_base")));
     assert.ok(everyStartEnds(lines));
     assert.deepEqual(
       lines
@@ -59,7 +59,7 @@ describe("trace, criterion 1 — the trace holds the phases in order, and each t
         ["survey", "done"],
         ["card", "done"],
         ["consolidation", "done"],
-        ["index", "done"],
+        ["knowledge-base", "done"],
       ],
     );
   });
@@ -133,10 +133,10 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
   it("knows a phase has started before it is over, and gets the lines of the file in their order", async () => {
     const seen: TraceLine[] = [];
     let root = "";
-    let indexBeforeConsolidation: boolean | undefined;
+    let knowledgeBaseBeforeConsolidation: boolean | undefined;
     const observe = (line: TraceLine) => {
       seen.push(line);
-      if (line.phase === "consolidation" && line.event.type === "started") indexBeforeConsolidation = existsSync(indexFile(root));
+      if (line.phase === "consolidation" && line.event.type === "started") knowledgeBaseBeforeConsolidation = existsSync(knowledgeBaseFile(root));
     };
     const run = await cartography(mappingTheBase(), {
       cards: ["shop-api", "order-specs", "shop"],
@@ -147,7 +147,7 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
     const started = seen.findIndex((line) => line.source === "shop-db" && line.event.type === "started");
     const firstCall = seen.findIndex((line) => line.source === "shop-db" && line.event.type === "tool-call");
     assert.ok(started >= 0 && started < firstCall);
-    assert.equal(indexBeforeConsolidation, false);
+    assert.equal(knowledgeBaseBeforeConsolidation, false);
   });
 
   it("ends as failed the phases a source that does not answer stops, and those a run that throws leaves open", async () => {
@@ -161,7 +161,7 @@ describe("trace, criterion 6 — an observer gets each line as it is written, an
     const blocked = cartography(mappingTheBase(), {
       cards: ["shop-api", "order-specs", "shop"],
       observe: (line) => observed.push(line),
-      prepare: (root) => mkdirSync(join(root, ".oqas", "index", "sources", "shop-db.json")),
+      prepare: (root) => mkdirSync(join(root, ".oqas", "knowledge", "sources", "shop-db.json")),
     });
     await assert.rejects(blocked);
     assert.ok(everyStartEnds(observed));
@@ -182,7 +182,7 @@ describe("faster cartography", () => {
       cardFingerprint: cardPrint(root, id),
     }));
   const ALL = ["shop-api", "shop-db", "order-specs", "shop"];
-  /** An index of the cards of the repository, as a run made it before. */
+  /** A knowledge base of the cards of the repository, as a run made it before. */
   const index = (root: string, changes: object = {}, ids: readonly string[] = ALL) => ({
     formatVersion: 1,
     producedAt: "2026-11-12T08:00:00.000Z",
@@ -198,54 +198,54 @@ describe("faster cartography", () => {
     (content: (root: string) => unknown) =>
     (root: string): void => {
       const value = content(root);
-      writeFileSync(indexFile(root), typeof value === "string" ? value : JSON.stringify(value));
+      writeFileSync(knowledgeBaseFile(root), typeof value === "string" ? value : JSON.stringify(value));
     };
   const usages = (lines: readonly TraceLine[]) =>
     lines.flatMap((line) =>
       line.event.type === "usage" ? [[line.phase, line.source ?? "", line.event.requests, line.event.inputTokens, line.event.outputTokens]] : [],
     );
 
-  describe("faster cartography, criterion 1 — up-to-date cards and an index made of them send no request and keep the index", () => {
-    it("keeps the index without any request to the model, and the trace says why", async () => {
+  describe("faster cartography, criterion 1 — up-to-date cards and a knowledge base made of them send no request and keep the knowledge base", () => {
+    it("keeps the knowledge base without any request to the model, and the trace says why", async () => {
       const { outcome, root, server } = await cartography([], { prepare: written((made) => index(made)) });
       assert.equal(server.requests.length, 0);
-      assert.deepEqual([outcome.indexPath, outcome.index!.producedAt], [indexFile(root), "2026-11-12T08:00:00.000Z"]);
+      assert.deepEqual([outcome.knowledgeBasePath, outcome.knowledgeBase!.producedAt], [knowledgeBaseFile(root), "2026-11-12T08:00:00.000Z"]);
       const lines = traceOf(outcome);
-      const why = lines.find((line) => line.phase === "index" && line.event.type === "journal");
+      const why = lines.find((line) => line.phase === "knowledge-base" && line.event.type === "journal");
       assert.match(
         why?.event.type === "journal" ? why.event.message : "",
-        /^The index .*domain-index\.json is complete and made of the cards every source has now, by their fingerprints; it was kept\.$/,
+        /^The knowledge base .*knowledge-base\.json is complete and made of the cards every source has now, by their fingerprints; it was kept\.$/,
       );
       const phases = lines.filter((line) => line.source === undefined && (line.event.type === "started" || line.event.type === "finished"));
       assert.deepEqual(
         phases.slice(-2).map((line) => [line.phase, line.event]),
         [
-          ["index", { type: "started" }],
-          ["index", { type: "finished", outcome: "kept" }],
+          ["knowledge-base", { type: "started" }],
+          ["knowledge-base", { type: "finished", outcome: "kept" }],
         ],
       );
       assert.ok(!lines.some((line) => line.phase === "consolidation" || line.actor === "agent"));
       assert.ok(usages(lines).every(([, , requests, input]) => requests === 0 && input === undefined));
     });
 
-    it("makes the index again when it is truncated, of another environment, unreadable, or recorded no fingerprint", async () => {
+    it("makes the knowledge base again when it is truncated, of another environment, unreadable, or recorded no fingerprint", async () => {
       const stale: readonly [(root: string) => unknown, string][] = [
         [
           (root) => ({ ...index(root), status: "truncated", sources: [...sources(ALL.slice(0, 3))(root), { id: "shop", type: "web", state: "not_read" }] }),
-          "the index at hand is truncated",
+          "the knowledge base at hand is truncated",
         ],
-        [(root) => index(root, { environment: "staging" }), "the index at hand is of the environment staging"],
-        [() => "{ not json", "no index could be read"],
+        [(root) => index(root, { environment: "staging" }), "the knowledge base at hand is of the environment staging"],
+        [() => "{ not json", "no knowledge base could be read"],
         [
           (root) => index(root, { sources: sources(ALL)(root).map(({ cardFingerprint: _, ...source }) => source) }),
-          "the index at hand records no fingerprint of the card of shop-api, as an earlier version made it",
+          "the knowledge base at hand records no fingerprint of the card of shop-api, as an earlier version made it",
         ],
       ];
       for (const [content, reason] of stale) {
         const { outcome, server } = await cartography(happy(), { prepare: written(content) });
         assert.ok(server.requests.length > 0, reason);
-        assert.equal(outcome.index!.producedAt, "2026-11-13T10:00:00.000Z", reason);
-        assert.ok(messages(outcome).includes(`The index is made: ${reason}.`), messages(outcome));
+        assert.equal(outcome.knowledgeBase!.producedAt, "2026-11-13T10:00:00.000Z", reason);
+        assert.ok(messages(outcome).includes(`The knowledge base is made: ${reason}.`), messages(outcome));
       }
     });
   });
@@ -253,7 +253,7 @@ describe("faster cartography", () => {
   describe("faster cartography, criterion 2 — a card made again, added or removed makes the consolidation again, with the new fingerprints", () => {
     it("consolidates again when a card was made again, and records its new fingerprint", async () => {
       let before = "";
-      // The document changed: the agent that maps it reads it again and hands its domain in, then the index is consolidated.
+      // The document changed: the agent that maps it reads it again and hands its domain in, then the knowledge base is consolidated.
       const orders = {
         id: "orders",
         label: "orders",
@@ -274,27 +274,27 @@ describe("faster cartography", () => {
       };
       const { outcome, root, server } = await cartography(remade, { prepare });
       assert.equal(server.requests.length, 5);
-      assert.match(messages(outcome), /The index is made: the card of order-specs is not the one the index at hand was made of\./);
-      const recorded = outcome.index!.sources.find((source) => source.id === "order-specs")!.cardFingerprint;
+      assert.match(messages(outcome), /The knowledge base is made: the card of order-specs is not the one the knowledge base at hand was made of\./);
+      const recorded = outcome.knowledgeBase!.sources.find((source) => source.id === "order-specs")!.cardFingerprint;
       assert.ok(recorded === cardPrint(root, "order-specs") && recorded !== before);
       assert.deepEqual(
-        outcome.index!.sources.map((source) => source.cardFingerprint),
+        outcome.knowledgeBase!.sources.map((source) => source.cardFingerprint),
         ALL.map((id) => cardPrint(root, id)),
       );
     });
 
     it("consolidates again when a source was added or removed, and records the fingerprints of the cards of the run", async () => {
       const added = await cartography(happy(), { prepare: written((root) => index(root, without("shop"), ALL.slice(0, 3))) });
-      assert.match(messages(added.outcome), /The index is made: shop is not a source of the index at hand\./);
+      assert.match(messages(added.outcome), /The knowledge base is made: shop is not a source of the knowledge base at hand\./);
       assert.deepEqual(
-        added.outcome.index!.sources.map((source) => [source.id, source.cardFingerprint]),
+        added.outcome.knowledgeBase!.sources.map((source) => [source.id, source.cardFingerprint]),
         ALL.map((id) => [id, cardPrint(added.root, id)]),
       );
       const gone = { id: "old-specs", type: "document", state: "read", cardFingerprint: `sha256:${"0".repeat(64)}` };
       const removed = await cartography(happy(), { prepare: written((root) => index(root, { sources: [...sources(ALL)(root), gone] })) });
-      assert.match(messages(removed.outcome), /The index is made: old-specs is no longer a source of the run\./);
+      assert.match(messages(removed.outcome), /The knowledge base is made: old-specs is no longer a source of the run\./);
       assert.deepEqual(
-        removed.outcome.index!.sources.map((source) => [source.id, source.cardFingerprint]),
+        removed.outcome.knowledgeBase!.sources.map((source) => [source.id, source.cardFingerprint]),
         ALL.map((id) => [id, cardPrint(removed.root, id)]),
       );
     });
@@ -313,7 +313,7 @@ describe("faster cartography", () => {
         ["card", "shop", 0, undefined, undefined],
         ["card", "", 5, 5, 5],
         ["consolidation", "", 2, 2, 2],
-        ["index", "", 0, undefined, undefined],
+        ["knowledge-base", "", 0, undefined, undefined],
       ]);
       const ends = traceOf(outcome).flatMap((line, i, lines) => (line.event.type === "finished" ? [lines[i - 1]!.event.type] : []));
       assert.ok(

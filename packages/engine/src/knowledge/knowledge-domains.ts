@@ -3,19 +3,19 @@ import { join } from "node:path";
 import {
   DEFAULT_REPOSITORY,
   DomainRefusedError,
-  indexSourceApplications,
+  knowledgeBaseSourceApplications,
   UnknownDomainError,
-  validateDomainIndex,
+  validateKnowledgeBase,
   type ConfigurationQueries,
   type DomainChange,
-  type DomainIndex,
+  type KnowledgeBase,
   type DomainSettingStorePort,
   type KnowledgeDomain,
   type OqasConfig,
 } from "@open-qa-stack/domain";
 
-/** The file of the domain index, in its folder. */
-const INDEX_FILE = "domain-index.json";
+/** The file of the knowledge base, in its folder. */
+const INDEX_FILE = "knowledge-base.json";
 
 /** Longest name of a domain, in characters. */
 export const MAX_DOMAIN_LABEL = 100;
@@ -31,7 +31,7 @@ export class KnowledgeDomains {
 
   /**
    * @param repository - Absolute path of the test repository; `undefined` for a host that has none.
-   * @param configuration - The revision in force, which names the folder of the index.
+   * @param configuration - The revision in force, which names the folder of the knowledge base.
    * @param settings - What a person set of the domains.
    */
   constructor(repository: string | undefined, configuration: ConfigurationQueries, settings: DomainSettingStorePort) {
@@ -41,22 +41,22 @@ export class KnowledgeDomains {
   }
 
   /**
-   * @returns The domains of the index, in its order, each with its sources and the applications each describes, as the
+   * @returns The domains of the knowledge base, in its order, each with its sources and the applications each describes, as the
    * configuration in force attaches them, the name a person gave it and whether they excluded it; none without a test
-   * repository, a configuration, or an index that can be read.
+   * repository, a configuration, or a knowledge base that can be read.
    */
   async list(): Promise<KnowledgeDomain[]> {
     const read = await this.#read();
     if (read === undefined) return [];
-    const { index, knowledge } = read;
+    const { knowledgeBase, knowledge } = read;
     const set = new Map((await this.#settings.list()).map((setting) => [setting.id, setting]));
-    // A valid index lists every source it refers to.
+    // A valid knowledge base lists every source it refers to.
     const applicationsOf = (source: string) =>
-      indexSourceApplications(
-        index.sources.find((candidate) => candidate.id === source)!,
+      knowledgeBaseSourceApplications(
+        knowledgeBase.sources.find((candidate) => candidate.id === source)!,
         knowledge,
       );
-    return index.domains.map(({ id, label, description, references }) => {
+    return knowledgeBase.domains.map(({ id, label, description, references }) => {
       const setting = set.get(id);
       return {
         id,
@@ -90,27 +90,27 @@ export class KnowledgeDomains {
     return (await this.list()).find((domain) => domain.id === id)!;
   }
 
-  /** Forgets what was set of the domains the index no longer holds; nothing while the index cannot be read. */
+  /** Forgets what was set of the domains the knowledge base no longer holds; nothing while the knowledge base cannot be read. */
   async forget(): Promise<void> {
     const read = await this.#read();
     if (read === undefined) return;
-    const held = new Set(read.index.domains.map(({ id }) => id));
+    const held = new Set(read.knowledgeBase.domains.map(({ id }) => id));
     await this.#settings.remove((await this.#settings.list()).map(({ id }) => id).filter((id) => !held.has(id)));
   }
 
-  /** The index and the sources of the configuration in force; `undefined` without a test repository, a configuration, or an index that can be read. */
-  async #read(): Promise<{ readonly index: DomainIndex; readonly knowledge: OqasConfig["knowledge"] } | undefined> {
+  /** The knowledge base and the sources of the configuration in force; `undefined` without a test repository, a configuration, or a knowledge base that can be read. */
+  async #read(): Promise<{ readonly knowledgeBase: KnowledgeBase; readonly knowledge: OqasConfig["knowledge"] } | undefined> {
     const revision = await this.#configuration.inForce();
     if (this.#repository === undefined || revision === undefined) return undefined;
-    const { indexDir } = { ...DEFAULT_REPOSITORY, ...revision.document.repository };
-    const text = await readFile(join(this.#repository, indexDir, INDEX_FILE), "utf8").catch(() => "");
+    const { knowledgeDir } = { ...DEFAULT_REPOSITORY, ...revision.document.repository };
+    const text = await readFile(join(this.#repository, knowledgeDir, INDEX_FILE), "utf8").catch(() => "");
     let content: unknown;
     try {
       content = JSON.parse(text);
     } catch {
       return undefined;
     }
-    const index = validateDomainIndex(content);
-    return index.ok ? { index: index.value, knowledge: revision.document.knowledge } : undefined;
+    const knowledgeBase = validateKnowledgeBase(content);
+    return knowledgeBase.ok ? { knowledgeBase: knowledgeBase.value, knowledge: revision.document.knowledge } : undefined;
   }
 }

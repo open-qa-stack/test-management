@@ -53,7 +53,7 @@ cache-control: no-store
 | Field | Value |
 |---|---|
 | `id` | The identifier of the session. |
-| `purpose` | `map` for a session that maps the knowledge alone, which the instance opens itself when a source has no card yet: it writes no test, asks nothing of a person, and ends `passed` once the index is written. Left out for a session that tests. |
+| `purpose` | `map` for a session that maps the knowledge alone, which the instance opens itself when a source has no card yet: it writes no test, asks nothing of a person, and ends `passed` once the knowledge base is written. Left out for a session that tests. |
 | `request` | What was asked, in the words of the person; left out of a session nothing was asked of. |
 | `environment` | The environment the work targets, when the person named one. |
 | `openedAt` | When the session was opened, as an ISO 8601 date. |
@@ -131,7 +131,7 @@ Every event has an `id`, its rank in the session from 1, the date `at` it happen
 | `scenario_closed` | The harness closed a `scenario` with a `verdict`, at the `level` of its plan when known. |
 | `state_changed` | The session changed `state`: `running` once it started, then `completed` or `interrupted`. The change to `completed` carries the `result` of the session, which closes its thread on the verdict of each test. |
 
-The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_reviewer` and `code_reviewer`. The phases are `configuration`, `prerequisites`, `survey`, `card`, `consolidation`, `index`, `plan`, `review`, `write`, `execution` and `summary`.
+The agents are `cartographer`, `planner`, `plan_reviewer`, `writer`, `coherence_reviewer` and `code_reviewer`. The phases are `configuration`, `prerequisites`, `survey`, `card`, `consolidation`, `knowledge-base`, `plan`, `review`, `write`, `execution` and `summary`.
 
 A client ignores an event whose type it does not know, and reads a value it does not know — a phase, an agent, an outcome — as it would an absent one.
 
@@ -147,7 +147,7 @@ A scenario of a `plan_accepted` always has its `id`, its `title` and its `level`
 | `intent` | What it verifies, and why, in a sentence. |
 | `kind` | What it checks: `functional`, `visual`, `accessibility` or `other`. |
 | `effect` | `read` when its test only reads the data of the environment, `write` when it changes some. |
-| `domain`, `feature` | The domain of the index it comes from, and the functionality of that domain it verifies. |
+| `domain`, `feature` | The domain of the knowledge base it comes from, and the functionality of that domain it verifies. |
 | `sources` | The sources it relies on: each a `source`, and the `item` of it the plan names. |
 | `data` | The values its test enters: each a `value`, and `from`, the source or application that showed it, or `made-up`. |
 | `steps` | Its steps, in order: each an `action` of the user, the `expects` it is checked by — a `result`, the texts the screen `shows` and those it no longer shows, `absent` — and `restores`, true for the step that puts back what the scenario changed. |

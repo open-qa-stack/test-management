@@ -13,8 +13,8 @@ export const mapped = {
   body: "`orders.md` says how an order is placed.",
 };
 
-/** The domain index the agent that consolidates hands in. */
-export const index = {
+/** The knowledge base the agent that consolidates hands in. */
+export const knowledgeBase = {
   domains: [{ id: "orders", label: "Orders", description: "Placing and following an order.", from: [{ source: "order-specs", domain: "orders" }] }],
 };
 
@@ -69,7 +69,7 @@ export const idleRound = (round: number) => [{ body: toolCalls(MODEL, [submit("p
 export const idleRounds = () => [2, 3, 4].flatMap(idleRound);
 
 /**
- * The replies of the model for the whole chain: the check of the server, the card, the index, then the
+ * The replies of the model for the whole chain: the check of the server, the card, the knowledge base, then the
  * session that plans — a read of the orders, the plan, an answer — the session of each of three
  * scenarios, then the rounds that bring nothing new.
  */
@@ -79,7 +79,7 @@ export const chain = () => [
   { body: toolCalls(MODEL, [submit("order_specs_read_file", {}, "c0")]) },
   { body: toolCalls(MODEL, [submit("write_domain", mapped, "c1")]) },
   { body: answer(MODEL, "One domain.") },
-  { body: toolCalls(MODEL, [submit("submit_index", index, "x1")]) },
+  { body: toolCalls(MODEL, [submit("submit_knowledge_base", knowledgeBase, "x1")]) },
   { body: answer(MODEL, "One domain.") },
   read(),
   planned,

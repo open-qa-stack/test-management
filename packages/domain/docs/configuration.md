@@ -17,7 +17,7 @@ Each error has a `kind`, a `path` (a JSON Pointer to the offending location, `""
 | Kind | Rules |
 |---|---|
 | `syntax` | `json` |
-| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `too-few-keys`, `below-minimum`, `unknown-variant`, `retired-level`, `format-version`, `slug`, `env-var-name`, `charter-rule-id`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
+| `structure` | `required`, `unknown-key`, `duplicate-key`, `wrong-type`, `empty-value`, `too-few-items`, `too-few-keys`, `below-minimum`, `unknown-variant`, `retired-level`, `retired-key`, `format-version`, `slug`, `env-var-name`, `charter-rule-id`, `openapi-source`, `duplicate`, `ui-url-required`, `url-absolute`, `url-scheme`, `url-credentials`, `path-absolute`, `path-outside-root`, `path-invalid` |
 | `reference` | `unknown-reference`, `api-without-environment` |
 | `environment` | `env-var-missing` |
 
@@ -148,7 +148,7 @@ All keys are optional paths.
 | `blocksDir` | `blocs` | Folder, inside each application folder, holding its reusable blocks. |
 | `journeysDir` | `parcours` | Folder holding multi-application journeys. |
 | `stateDir` | `.oqas` | Where the solo mode keeps its state, and where an instance that is given no other database keeps its own, in the file `oqas.db`. |
-| `indexDir` | `.oqas/index` | Where the mapper writes its index by domain. |
+| `knowledgeDir` | `.oqas/knowledge` | Where the mapper writes its knowledge base: the cards of the sources and the knowledge base that puts them together by domain. The former key `indexDir` is refused with the rule `retired-key`, and a folder written under `.oqas/index` is not read. |
 
 ### Charter
 
@@ -249,7 +249,7 @@ Either way, `roles` gives a role a model of its own, offered by the same connect
 | `roles.<role>.model` | non-empty string | yes | `"small-model"` |
 | `roles.<role>.capabilities`, `roles.<role>.reasoningEffort` | as for `model`; what is set on `model` is not taken over, since it is said of another model | no | `["vision"]` |
 
-The journal of a run tells the model of each role that has one, and the cards, the index and the state of a design keep the model that produced them. The prerequisites check that the server answers, not that it offers each model.
+The journal of a run tells the model of each role that has one, and the cards, the knowledge base and the state of a design keep the model that produced them. The prerequisites check that the server answers, not that it offers each model.
 
 The console offers by name the providers whose OpenAI-compatible API is known, and fills in their address and the variable their key is usually kept in: the five that `MODEL_PROVIDERS` lists, OpenAI first. Any other server, a model run on the machine among them, is reached by its address.
 

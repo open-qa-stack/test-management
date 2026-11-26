@@ -65,7 +65,7 @@ describe("brief, criterion 1 — from the brief, the knowledge tools lead to the
 describe("what the workflow of a source wrote of it", () => {
   it("is given by the knowledge tools: the file of its domain, and the definition of an element from its export", async () => {
     const root = customersRepository();
-    const folder = join(root, ".oqas", "index", "sources", "shop-guide");
+    const folder = join(root, ".oqas", "knowledge", "sources", "shop-guide");
     mkdirSync(join(folder, "domains"), { recursive: true });
     mkdirSync(join(folder, "export", "sections"), { recursive: true });
     writeFileSync(join(folder, "domains", "search.md"), "# Search (`search`)\n\n`Customer search` tells how a clerk finds a customer.");
@@ -259,7 +259,7 @@ describe("brief, criterion 4 — a review that refuses the plan stops the task, 
     assert.deepEqual(
       git(root, "status", "--porcelain", "--untracked-files=all")
         .split("\n")
-        .filter((line) => !line.includes(".oqas/index/")),
+        .filter((line) => !line.includes(".oqas/knowledge/")),
       [`?? .oqas/traces/${outcome.tracePath!.split("/").at(-1)}`],
     );
     assert.deepEqual(runner.runs, []);
@@ -420,7 +420,7 @@ describe("plans submitted in one turn", () => {
 });
 
 describe("what a plan may hold", () => {
-  it("refuses the value of a declared variable, the plan being written to a file, and cites a source the index does not list", async () => {
+  it("refuses the value of a declared variable, the plan being written to a file, and cites a source the knowledge base does not list", async () => {
     const leaky = {
       id: "plan-leaky",
       name: "propose_plan",

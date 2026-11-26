@@ -9,7 +9,7 @@ import { afterAll } from "vitest";
 import { CopilotAgentRuntime, ModelGateway, resolveCharter, writerCharter } from "@open-qa-stack/harness";
 import {
   validateConfig,
-  type DomainIndex,
+  type KnowledgeBase,
   type Language,
   type PlanReview,
   type ProposedTest,
@@ -98,7 +98,7 @@ export function configFor(modelUrl: string, limits = LIMITS): ResolvedConfig {
   return result.config;
 }
 
-export const INDEX: DomainIndex = {
+export const KNOWLEDGE_BASE: KnowledgeBase = {
   formatVersion: 1,
   producedAt: "2026-11-13T09:00:00.000Z",
   environment: "local",
@@ -130,8 +130,8 @@ export const CARD: SourceCard = {
   source: { id: "shop-api", type: "openapi" },
   fingerprint: "f",
   producedAt: "2026-11-13T09:00:00.000Z",
-  model: INDEX.model,
-  run: INDEX.run,
+  model: KNOWLEDGE_BASE.model,
+  run: KNOWLEDGE_BASE.run,
   status: "complete",
   domains: [{ id: "orders", label: "Orders", description: "Orders.", items: [{ name: "orders", summary: "Lists and places the orders of a customer." }] }],
   unassigned: [],
@@ -175,12 +175,12 @@ function copiedRepository(): string {
 }
 
 /** A test repository under git with one commit, pushed to a local bare remote, and an untracked index. */
-export function repository(index: unknown = INDEX, manifest?: string): string {
+export function repository(index: unknown = KNOWLEDGE_BASE, manifest?: string): string {
   const root = manifest === undefined ? copiedRepository() : committedRepository(manifest).root;
-  mkdirSync(join(root, ".oqas", "index", "sources"), { recursive: true });
-  writeFileSync(join(root, ".oqas", "index", "domain-index.json"), typeof index === "string" ? index : JSON.stringify(index));
-  writeFileSync(join(root, ".oqas", "index", "sources", "shop-api.json"), JSON.stringify(CARD));
-  writeFileSync(join(root, ".oqas", "index", "sources", "order-specs.json"), "{ not json");
+  mkdirSync(join(root, ".oqas", "knowledge", "sources"), { recursive: true });
+  writeFileSync(join(root, ".oqas", "knowledge", "knowledge-base.json"), typeof index === "string" ? index : JSON.stringify(index));
+  writeFileSync(join(root, ".oqas", "knowledge", "sources", "shop-api.json"), JSON.stringify(CARD));
+  writeFileSync(join(root, ".oqas", "knowledge", "sources", "order-specs.json"), "{ not json");
   return root;
 }
 
@@ -511,14 +511,14 @@ export class StepRunner extends FakeTestRunner {
   }
 }
 
-/** An index whose customers are described in a section of the guide, and whose guide has that section. */
-export const CUSTOMERS: DomainIndex = {
-  ...INDEX,
-  sources: [...INDEX.sources, { id: "shop-guide", type: "document", state: "read" }],
+/** A knowledge base whose customers are described in a section of the guide, and whose guide has that section. */
+export const CUSTOMERS: KnowledgeBase = {
+  ...KNOWLEDGE_BASE,
+  sources: [...KNOWLEDGE_BASE.sources, { id: "shop-guide", type: "document", state: "read" }],
   domains: [
-    INDEX.domains[0]!,
+    KNOWLEDGE_BASE.domains[0]!,
     {
-      ...INDEX.domains[1]!,
+      ...KNOWLEDGE_BASE.domains[1]!,
       references: [
         { source: "shop-api", items: ["customers"] },
         { source: "shop-guide", items: ["Customer search"] },

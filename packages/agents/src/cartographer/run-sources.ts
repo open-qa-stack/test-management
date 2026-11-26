@@ -1,8 +1,8 @@
-import { isReadIn, type IndexSourceType, type Knowledge, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/domain";
+import { isReadIn, type KnowledgeBaseSourceType, type Knowledge, type MappedKnowledge, type ResolvedConfig } from "@open-qa-stack/domain";
 
 /** A source the cartographer reads: a knowledge source, or the user interface of an application. */
 export type RunSource =
-  | { readonly id: string; readonly type: Exclude<IndexSourceType, "web">; readonly knowledge: MappedKnowledge }
+  | { readonly id: string; readonly type: Exclude<KnowledgeBaseSourceType, "web">; readonly knowledge: MappedKnowledge }
   | { readonly id: string; readonly type: "web"; readonly uiUrl: string };
 
 /**

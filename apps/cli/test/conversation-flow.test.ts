@@ -63,7 +63,10 @@ describe("oqas, without a command, in a terminal", () => {
     await door.reached;
     await screen.enter("Only what a customer sees.");
     await screen.sees("› You · message 1\n  Only what a customer sees.\n  waiting for an agent");
-    assert.match(screen.text, /\n. running · Cartography · index · \d+ s\n›  Say something to the agents\n {2}Enter send · \/ commands · Ctrl-C stop\n$/);
+    assert.match(
+      screen.text,
+      /\n. running · Cartography · knowledge base · \d+ s\n›  Say something to the agents\n {2}Enter send · \/ commands · Ctrl-C stop\n$/,
+    );
     door.open();
     await screen.sees("  Only what a customer sees.\n  delivered to the planner");
     await screen.sees("Session completed · tests passed");

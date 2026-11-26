@@ -1,4 +1,4 @@
-import type { IndexSourceType } from "@open-qa-stack/domain";
+import type { KnowledgeBaseSourceType } from "@open-qa-stack/domain";
 import type { ExportedElement } from "@open-qa-stack/tools";
 import { batchSummary } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";
@@ -31,7 +31,7 @@ Rules:
  * @param type - What the source is, which names its elements.
  * @returns The value of each variable.
  */
-export function groupingValues(type: IndexSourceType): PromptValues<typeof GROUPING_PROMPT> {
+export function groupingValues(type: KnowledgeBaseSourceType): PromptValues<typeof GROUPING_PROMPT> {
   const words = sourceWords(type);
   return { elements: words.elements, set_aside: words.aside, place_tool: PLACE_TOOL };
 }
@@ -42,7 +42,7 @@ export function groupingValues(type: IndexSourceType): PromptValues<typeof GROUP
  * @param type - What the source is, which names its elements.
  * @returns The instructions.
  */
-export function groupingInstructions(type: IndexSourceType): string {
+export function groupingInstructions(type: KnowledgeBaseSourceType): string {
   return promptOf(GROUPING_PROMPT, groupingValues(type));
 }
 

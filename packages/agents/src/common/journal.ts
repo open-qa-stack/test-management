@@ -1,6 +1,6 @@
 /** An entry of the journal of a run. */
 export interface JournalEntry {
-  /** `error` for what kept the index from being written or a tool from answering, `info` otherwise. */
+  /** `error` for what kept the knowledge base from being written or a tool from answering, `info` otherwise. */
   readonly level: "info" | "error";
   /** What happened, without any secret. */
   readonly message: string;

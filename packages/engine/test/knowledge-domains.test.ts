@@ -32,8 +32,8 @@ const ORDERS = [
   { id: "glossary", type: "document", item: "Order" },
 ];
 
-/** A domain index of two domains, the first of the sources of the orders, as the cartography writes it. */
-const INDEX = {
+/** A knowledge base of two domains, the first of the sources of the orders, as the cartography writes it. */
+const KNOWLEDGE_BASE = {
   formatVersion: 1,
   producedAt: "2026-11-20T09:00:00.000Z",
   environment: "local",
@@ -57,7 +57,7 @@ const INDEX = {
 function repository(folder: string, text: string): string {
   const root = mkdtempSync(join(tmpdir(), "oqas-domains-"));
   mkdirSync(join(root, folder), { recursive: true });
-  writeFileSync(join(root, folder, "domain-index.json"), text);
+  writeFileSync(join(root, folder, "knowledge-base.json"), text);
   return root;
 }
 
@@ -73,8 +73,8 @@ const domainsOf = (root: string | undefined, configuration: MemoryConfigurationS
   new KnowledgeDomains(root, configuration, settings);
 
 describe("the domains of the knowledge", () => {
-  it("are excluded, taken back and renamed, by what is kept apart from the index, which the cartography writes again", async () => {
-    const root = repository(".oqas/index", JSON.stringify(INDEX));
+  it("are excluded, taken back and renamed, by what is kept apart from the knowledge base, which the cartography writes again", async () => {
+    const root = repository(".oqas/knowledge", JSON.stringify(KNOWLEDGE_BASE));
     const settings = new MemoryDomainSettingStore();
     const domains = domainsOf(root, await configured(), settings);
     const told = async () => (await domains.list()).map(({ id, label, foundLabel, excluded }) => [id, label, foundLabel, excluded]);
@@ -85,7 +85,7 @@ describe("the domains of the knowledge", () => {
       ["customers", "Clients", undefined, undefined],
     ];
     assert.deepEqual(await told(), set);
-    writeFileSync(join(root, ".oqas/index/domain-index.json"), JSON.stringify({ ...INDEX, producedAt: "2026-11-21T09:00:00.000Z" }));
+    writeFileSync(join(root, ".oqas/knowledge/knowledge-base.json"), JSON.stringify({ ...KNOWLEDGE_BASE, producedAt: "2026-11-21T09:00:00.000Z" }));
     await domains.forget();
     assert.deepEqual(await told(), set);
     assert.equal((await domains.change("orders", { excluded: false })).label, "Ventes");
@@ -94,27 +94,27 @@ describe("the domains of the knowledge", () => {
   });
 
   it("refuse a name that is empty or too long, and a domain the knowledge does not hold", async () => {
-    const domains = domainsOf(repository(".oqas/index", JSON.stringify(INDEX)), await configured());
+    const domains = domainsOf(repository(".oqas/knowledge", JSON.stringify(KNOWLEDGE_BASE)), await configured());
     for (const label of [" ", "x".repeat(MAX_DOMAIN_LABEL + 1)]) await assert.rejects(domains.change("orders", { label }), DomainRefusedError);
     await assert.rejects(domains.change("gone", { excluded: true }), UnknownDomainError);
   });
 
-  it("take what was set of them away when the index no longer holds them, but not while it cannot be read", async () => {
-    const root = repository(".oqas/index", JSON.stringify(INDEX));
+  it("take what was set of them away when the knowledge base no longer holds them, but not while it cannot be read", async () => {
+    const root = repository(".oqas/knowledge", JSON.stringify(KNOWLEDGE_BASE));
     const settings = new MemoryDomainSettingStore();
     const domains = domainsOf(root, await configured(), settings);
     await domains.change("orders", { excluded: true });
-    const write = (text: string) => writeFileSync(join(root, ".oqas/index/domain-index.json"), text);
+    const write = (text: string) => writeFileSync(join(root, ".oqas/knowledge/knowledge-base.json"), text);
     write("{");
     await domains.forget();
     assert.equal((await settings.list()).length, 1);
-    write(JSON.stringify({ ...INDEX, domains: INDEX.domains.slice(1) }));
+    write(JSON.stringify({ ...KNOWLEDGE_BASE, domains: KNOWLEDGE_BASE.domains.slice(1) }));
     await domains.forget();
     assert.deepEqual(await settings.list(), []);
   });
 
-  it("are those of the index the cartography wrote, in its order, each source with the applications the configuration attaches it to", async () => {
-    assert.deepEqual(await domainsOf(repository(".oqas/index", JSON.stringify(INDEX)), await configured()).list(), [
+  it("are those of the knowledge base the cartography wrote, in its order, each source with the applications the configuration attaches it to", async () => {
+    assert.deepEqual(await domainsOf(repository(".oqas/knowledge", JSON.stringify(KNOWLEDGE_BASE)), await configured()).list(), [
       {
         id: "orders",
         label: "Commandes",
@@ -133,16 +133,16 @@ describe("the domains of the knowledge", () => {
         sources: [{ id: "shop", applications: ["shop"], items: ["/customers"] }],
       },
     ]);
-    const elsewhere = { ...DOCUMENT, repository: { indexDir: "knowledge" } } as OqasConfig;
-    assert.equal((await domainsOf(repository("knowledge", JSON.stringify(INDEX)), await configured(elsewhere)).list()).length, 2);
+    const elsewhere = { ...DOCUMENT, repository: { knowledgeDir: "knowledge" } } as OqasConfig;
+    assert.equal((await domainsOf(repository("knowledge", JSON.stringify(KNOWLEDGE_BASE)), await configured(elsewhere)).list()).length, 2);
   });
 
-  it("are none without a test repository, a configuration, or an index that can be read and matches its schema", async () => {
-    const root = repository(".oqas/index", JSON.stringify(INDEX));
+  it("are none without a test repository, a configuration, or a knowledge base that can be read and matches its schema", async () => {
+    const root = repository(".oqas/knowledge", JSON.stringify(KNOWLEDGE_BASE));
     assert.deepEqual(await domainsOf(undefined, await configured()).list(), []);
     assert.deepEqual(await domainsOf(root, new MemoryConfigurationStore()).list(), []);
-    assert.deepEqual(await domainsOf(mkdtempSync(join(tmpdir(), "oqas-domains-")), await configured()).list(), [], "no index yet");
-    for (const text of ["", "{", JSON.stringify({ ...INDEX, domains: [] })])
-      assert.deepEqual(await domainsOf(repository(".oqas/index", text), await configured()).list(), [], text);
+    assert.deepEqual(await domainsOf(mkdtempSync(join(tmpdir(), "oqas-domains-")), await configured()).list(), [], "no knowledge base yet");
+    for (const text of ["", "{", JSON.stringify({ ...KNOWLEDGE_BASE, domains: [] })])
+      assert.deepEqual(await domainsOf(repository(".oqas/knowledge", text), await configured()).list(), [], text);
   });
 });

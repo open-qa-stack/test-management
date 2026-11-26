@@ -84,11 +84,11 @@ export {
   validateConfig,
   type EnvironmentVariables,
 } from "./config/validate.ts";
-export { indexSourceApplications } from "./domain-index/index-source-applications.ts";
-export { placementErrors, unplacedItems, type SourceInventory } from "./domain-index/placement.ts";
-export { domainIndexSchema, domainSubmissionSchema } from "./domain-index/schema.ts";
-export type * from "./domain-index/types.ts";
-export { validateDomainIndex, validateDomainSubmission } from "./domain-index/validate.ts";
+export { knowledgeBaseSourceApplications } from "./knowledge-base/knowledge-base-source-applications.ts";
+export { placementErrors, unplacedItems, type SourceInventory } from "./knowledge-base/placement.ts";
+export { knowledgeBaseSchema, domainSubmissionSchema } from "./knowledge-base/schema.ts";
+export type * from "./knowledge-base/types.ts";
+export { validateKnowledgeBase, validateDomainSubmission } from "./knowledge-base/validate.ts";
 export { sourceCardSchema, sourceCardSubmissionSchema } from "./source-card/schema.ts";
 export type * from "./source-card/types.ts";
 export { validateSourceCard, validateSourceCardSubmission } from "./source-card/validate.ts";
@@ -219,11 +219,11 @@ export {
   type UploadedFile,
   type UploadReading,
 } from "./knowledge-documents/uploaded-documents.ts";
-export { settledIndex, type DomainChange, type DomainSetting } from "./domain-index/domain-setting.ts";
-export type { DomainSettingStorePort } from "./domain-index/domain-setting-store-port.ts";
-export { DomainRefusedError } from "./domain-index/domain-refused-error.ts";
-export { UnknownDomainError } from "./domain-index/unknown-domain-error.ts";
-export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./domain-index/knowledge-domain.ts";
+export { settledKnowledgeBase, type DomainChange, type DomainSetting } from "./knowledge-base/domain-setting.ts";
+export type { DomainSettingStorePort } from "./knowledge-base/domain-setting-store-port.ts";
+export { DomainRefusedError } from "./knowledge-base/domain-refused-error.ts";
+export { UnknownDomainError } from "./knowledge-base/unknown-domain-error.ts";
+export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./knowledge-base/knowledge-domain.ts";
 export {
   GENERAL_DOMAIN,
   MEMORY_KINDS,

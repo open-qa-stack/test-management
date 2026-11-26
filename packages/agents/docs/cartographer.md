@@ -1,20 +1,20 @@
 # Cartographer
 
-`new Cartographer(options).run()` maps an application in one environment and writes its [domain index](../../domain/docs/domain-index.md) in the test repository. It needs the resolved configuration, the name of the environment, the path of the test repository, the environment variables the configuration names, and an `AgentRuntime`.
+`new Cartographer(options).run()` maps an application in one environment and writes its [knowledge base](../../domain/docs/knowledge-base.md) in the test repository. It needs the resolved configuration, the name of the environment, the path of the test repository, the environment variables the configuration names, and an `AgentRuntime`.
 
 It works in two steps: each source is first mapped on its own, by its own agent, into a [source card](../../domain/docs/source-card.md) whose elements are grouped into the domains of that source; then an orchestrator consolidates the domains of the sources into those of the application. The agent of a source knows that source only; the orchestrator, tied to no source, has access to all of them and to every map made.
 
 ## A run
 
 1. **Sources.** The run reads the knowledge sources of the whole project and those attached to the environment, or to no environment, and the user interface of each application that has one in it. Logs are left out: they tell what a service did, not what an application holds. It discovers nothing else.
-2. **Check.** Every source must answer before any exploration: its inventory must be readable, and the address of a user interface must not answer with a server error. If one does not, the journal names it and its cause, no session starts, and no index is written. The inventory a knowledge source gives here is the one its card is made of: no knowledge source is read twice.
+2. **Check.** Every source must answer before any exploration: its inventory must be readable, and the address of a user interface must not answer with a server error. If one does not, the journal names it and its cause, no session starts, and no knowledge base is written. The inventory a knowledge source gives here is the one its card is made of: no knowledge source is read twice.
 3. **Cards.** Each source without an up-to-date card is mapped by `SourceCartographer`, in a task of its own, under the limits of the configured autonomy (`mapSources`, one source at a time unless `concurrency` says otherwise). A card whose fingerprint is the source's is kept without the model: a cartography run again after a limit stopped it maps only the sources without an up-to-date, complete card.
-4. **Consolidation.** The index records the fingerprint of each card it is made of. When the index already written is complete, of this environment, of exactly these sources, and its fingerprints are those of the cards the sources have now, it is kept as it is, without the model: the journal says so in an `index` phase that ends as `kept`, and the trace has no `consolidation`. A card made again, added or removed changes the fingerprints, and the journal says why the index is made; an index an earlier version wrote without fingerprints is made again too, the journal saying it records none rather than naming a card that changed. Otherwise the consolidation runs: see [The consolidation](#the-consolidation). When no source has a card, or the sources were mapped into no domain, no index is written and the journal says which.
-5. **Index.** The index is written only if a submission was accepted and the whole index passes its schema. A source is `read` when it has a card, and records the fingerprint of that card: `sha256:` and a digest of its JSON content. The index is `truncated` when a limit stopped the consolidation, a card is truncated or a source has no card, and `complete` otherwise. Its `run` adds the cards made in this run to the consolidation. Nothing is committed nor pushed.
+4. **Consolidation.** The knowledge base records the fingerprint of each card it is made of. When the knowledge base already written is complete, of this environment, of exactly these sources, and its fingerprints are those of the cards the sources have now, it is kept as it is, without the model: the journal says so in a `knowledge-base` phase that ends as `kept`, and the trace has no `consolidation`. A card made again, added or removed changes the fingerprints, and the journal says why the knowledge base is made; a knowledge base an earlier version wrote without fingerprints is made again too, the journal saying it records none rather than naming a card that changed. Otherwise the consolidation runs: see [The consolidation](#the-consolidation). When no source has a card, or the sources were mapped into no domain, no knowledge base is written and the journal says which.
+5. **Knowledge base.** The knowledge base is written only if a submission was accepted and the whole knowledge base passes its schema. A source is `read` when it has a card, and records the fingerprint of that card: `sha256:` and a digest of its JSON content. The knowledge base is `truncated` when a limit stopped the consolidation, a card is truncated or a source has no card, and `complete` otherwise. Its `run` adds the cards made in this run to the consolidation. Nothing is committed nor pushed.
 
 ## The card of a source
 
-`new SourceCartographer(options).run()` writes the card of one source in `<indexDir>/sources/<id>.json`.
+`new SourceCartographer(options).run()` writes the card of one source in `<knowledgeDir>/sources/<id>.json`.
 
 | Source | Elements | Facts read by the harness | Also in the request |
 |---|---|---|---|
@@ -28,7 +28,7 @@ A base and a contract are not mapped with `submit_card`: see [The workflow of a 
 
 ## The workflow of a base
 
-A base has too many elements for one answer. Its card is derived from a workflow the harness drives, in the folder `<indexDir>/sources/<id>/`, beside the card.
+A base has too many elements for one answer. Its card is derived from a workflow the harness drives, in the folder `<knowledgeDir>/sources/<id>/`, beside the card.
 
 A contract follows the same workflow, from its own export: one element per operation, in `export/operations/`, then one per named schema, in `export/schemas/`, each defined by what the contract writes of it, as JSON, its references kept. The instructions of its sessions speak of operations and schemas where those of a base speak of tables, views and routines; its card holds its operations.
 
@@ -138,9 +138,9 @@ Its request lists, source by source, the domains its agent made — id, label, d
 | The tools of the sources | Those of every knowledge source of the run — its tables, its contract, its documents, its code — to check in a source what its map leaves in doubt. |
 | The browser of each application | Guarded as an exploration is: nothing that removes data is clicked, and nothing that creates or changes some unless the environment is `read-write`. |
 | `remember`, `recall` | The [memory](#memory): what the agents of the sources kept, and what the orchestrator keeps about the application as a whole. |
-| `submit_index` | The domains of the application, each with its `id`, `label`, `description` and, in `from`, the domains of the sources it gathers: a `source`, a `domain` and, to cut a domain between two areas, the `items` this one takes. |
+| `submit_knowledge_base` | The domains of the application, each with its `id`, `label`, `description` and, in `from`, the domains of the sources it gathers: a `source`, a `domain` and, to cut a domain between two areas, the `items` this one takes. |
 
-`submit_index` answers in three ways:
+`submit_knowledge_base` answers in three ways:
 
 | Answer | When |
 |---|---|
@@ -148,9 +148,9 @@ Its request lists, source by source, the domains its agent made — id, label, d
 | Refusal, once | Domains of the sources, or what is left of one cut, that no domain of the application takes: the refusal names each. |
 | Accepted | Everything else. The first accepted submission is kept. |
 
-Every refusal has an exit. Domains of the sources left aside in two submissions in a row, with nothing else wrong, are kept by the harness as domains of the application of their own, under the id, the label and the description their source gave them, and the journal names each. An agent that stops without an accepted index is reminded to hand one in, with the latest refusal, three times at most.
+Every refusal has an exit. Domains of the sources left aside in two submissions in a row, with nothing else wrong, are kept by the harness as domains of the application of their own, under the id, the label and the description their source gave them, and the journal names each. An agent that stops without an accepted knowledge base is reminded to hand one in, with the latest refusal, three times at most.
 
-The index is derived from the accepted submission: each domain refers, by source, to the elements of the domains it gathers; two domains handed in under one id are joined; what the agent of a source set aside stays in `unassigned`, and the orchestrator is not asked about it.
+The knowledge base is derived from the accepted submission: each domain refers, by source, to the elements of the domains it gathers; two domains handed in under one id are joined; what the agent of a source set aside stays in `unassigned`, and the orchestrator is not asked about it.
 
 ## Memory
 
@@ -170,7 +170,7 @@ A memory is filed under a domain and a kind:
 | `navigation` | How to reach a screen or a state. |
 | `vocabulary` | Two sources or two screens that name the same thing differently. |
 
-What a domain holds is no kind: that is the knowledge, which the cards and the index already say.
+What a domain holds is no kind: that is the knowledge, which the cards and the knowledge base already say.
 
 A memory also holds its text, 600 characters at most, tags that file it, eight at most and kept in lower case, the source or the application it is about, who wrote it — the role of the agent and its task — and when, and who corrected it last.
 
@@ -178,7 +178,7 @@ A memory also holds its text, 600 characters at most, tags that file it, eight a
 
 `remember` keeps no duplicate unasked. Before it keeps a memory, it ranks those of the same domain and the same kind against its text and its tags; when some share a tag or a word with it, nothing is kept, and the five closest are given back with their identifiers. The agent then decides, and no model is asked: it corrects the one that says the same, with `revises` and its identifier — the memory keeps its identifier, its domain, its kind and who wrote it, and takes the text, the tags and the source given — or calls again with `distinct` when its own says something none of them does. `revises` names a memory of the same domain and the same kind, or nothing is changed; `revises` and `distinct` are not given together.
 
-A memory, a card or an index that holds a connection string or the key of the model is refused, in any of its parts. A password alone is not checked: the tools never give it to the agent, and one read in a source is often a word of the application's names.
+A memory, a card or a knowledge base that holds a connection string or the key of the model is refused, in any of its parts. A password alone is not checked: the tools never give it to the agent, and one read in a source is often a word of the application's names.
 
 ## Trace
 
@@ -191,7 +191,7 @@ A line holds its date (`at`), its phase, the source when there is one, its actor
 | `survey` | Checking that every source answers, and what each inventory counts. |
 | `card` | The card of each source: its inventory, the card kept or made, the session of its agent. |
 | `consolidation` | The search for the domains, from the cards. |
-| `index` | Writing the index. |
+| `knowledge-base` | Writing the knowledge base. |
 
 Each phase has a `started` and a `finished` line from the `harness`, once for the whole run and once per source in `card`; `finished` gives its outcome, `done`, `kept`, `truncated` or `failed`, even when the run throws. In between, the harness writes `survey`, `inventory`, `journal` and `message` lines (each message sent to an agent: the request, then the reminders), and, just before each `finished` unless the run throws, a `usage` line: the `requests` the phase, or the card of the source, sent to the model, the `inputTokens` and `outputTokens` when the model reported them, and the `imageTokens` of the screenshots it was shown, as the harness counts them, once one was; the line of the `card` phase as a whole adds up those of the sources. Each agent its session as it reported it: `reasoning` when the model gives it, `text`, `tool-call` with its arguments, `tool-result`, `tool-error`, then `end`, `stopped` or `error`.
 
@@ -215,4 +215,4 @@ Each message is written `<person-message number="2">…</person-message>`, the `
 
 ## Outcome
 
-`run()` returns the path and content of the index when it was written, the path of the trace, `stoppedBy`, the first limit that stopped one of its tasks when no index was written, and the journal: `{ level, message, source? }` entries for every check, refusal, tool error and write, those of each card first. Neither the index, the cards nor the journal holds a connection string or a key; the passwords of the accounts never reach the agent through the tools.
+`run()` returns the path and content of the knowledge base when it was written, the path of the trace, `stoppedBy`, the first limit that stopped one of its tasks when no knowledge base was written, and the journal: `{ level, message, source? }` entries for every check, refusal, tool error and write, those of each card first. Neither the knowledge base, the cards nor the journal holds a connection string or a key; the passwords of the accounts never reach the agent through the tools.

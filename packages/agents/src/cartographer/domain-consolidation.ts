@@ -1,9 +1,9 @@
-import { SLUG_PATTERN, type DomainIndexSubmission, type IndexDomain, type SourceCard, type ToolDefinition } from "@open-qa-stack/domain";
+import { SLUG_PATTERN, type KnowledgeBaseSubmission, type KnowledgeBaseDomain, type SourceCard, type ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "../common/journal.ts";
 
 /** Name of the tool the orchestrator hands the domains of the application in with. */
-export const SUBMIT_TOOL = "submit_index";
+export const SUBMIT_TOOL = "submit_knowledge_base";
 /** Submissions in a row that leave domains of sources aside before the harness keeps each as a domain of its own. */
 export const KEPT_BY_HARNESS_AFTER = 2;
 /** Longest label or description of a domain, in characters. */
@@ -50,13 +50,13 @@ export class DomainConsolidation {
   private readonly cards: ReadonlyMap<string, SourceCard>;
   private readonly forms: readonly string[];
   private readonly journal: Journal;
-  private kept: DomainIndexSubmission | undefined;
+  private kept: KnowledgeBaseSubmission | undefined;
   private refusal: string | undefined;
   private asideInARow = 0;
 
   /**
    * @param cards - The card of each source that has one.
-   * @param secrets - The secrets of the configuration, which no index may hold.
+   * @param secrets - The secrets of the configuration, which no knowledge base may hold.
    * @param journal - Where refusals and the acceptance are written.
    */
   public constructor(cards: ReadonlyMap<string, SourceCard>, secrets: readonly string[], journal: Journal) {
@@ -66,11 +66,11 @@ export class DomainConsolidation {
   }
 
   /**
-   * The index accepted, if any.
+   * The knowledge base accepted, if any.
    *
    * @returns Its domains, each with the elements of the sources it gathers, and what the sources set aside.
    */
-  public get accepted(): DomainIndexSubmission | undefined {
+  public get accepted(): KnowledgeBaseSubmission | undefined {
     return this.kept;
   }
 
@@ -123,18 +123,18 @@ export class DomainConsolidation {
   }
 
   /**
-   * The message that reminds an orchestrator which stopped without an accepted index to hand one in.
+   * The message that reminds an orchestrator which stopped without an accepted knowledge base to hand one in.
    *
-   * @returns The reminder, with the latest refusal; `undefined` once an index was accepted.
+   * @returns The reminder, with the latest refusal; `undefined` once a knowledge base was accepted.
    */
   public reminder(): string | undefined {
     if (this.kept !== undefined) return undefined;
-    this.journal.record("info", "The agent stopped without an accepted index; it was reminded to hand one in.");
-    return `You have not handed in an accepted index yet. Call ${SUBMIT_TOOL} now.${this.refusal === undefined ? "" : `\n\n${this.refusal}`}`;
+    this.journal.record("info", "The agent stopped without an accepted knowledge base; it was reminded to hand one in.");
+    return `You have not handed in an accepted knowledge base yet. Call ${SUBMIT_TOOL} now.${this.refusal === undefined ? "" : `\n\n${this.refusal}`}`;
   }
 
   private submit(args: unknown): string | { error: string } {
-    if (this.kept !== undefined) return "The index was already accepted; there is nothing more to do.";
+    if (this.kept !== undefined) return "The knowledge base was already accepted; there is nothing more to do.";
     const { domains, errors } = this.read(args);
     const left = errors.length === 0 ? this.aside(domains) : [];
     if (errors.length > 0 || (left.length > 0 && this.asideInARow + 1 < KEPT_BY_HARNESS_AFTER)) {
@@ -144,11 +144,11 @@ export class DomainConsolidation {
     if (left.length > 0)
       this.journal.record(
         "info",
-        `${KEPT_BY_HARNESS_AFTER} submissions of the index in a row left domains of the sources aside; the harness kept each as a domain of the application: ${left.map(({ source, domain }) => `${source} › ${domain}`).join(", ")}.`,
+        `${KEPT_BY_HARNESS_AFTER} submissions of the knowledge base in a row left domains of the sources aside; the harness kept each as a domain of the application: ${left.map(({ source, domain }) => `${source} › ${domain}`).join(", ")}.`,
       );
-    this.kept = this.index([...domains, ...left.map((gathered) => this.own(gathered))]);
-    this.journal.record("info", "The index was accepted.");
-    return "The index was accepted. Answer with one sentence that sums it up; call no more tools.";
+    this.kept = this.knowledgeBase([...domains, ...left.map((gathered) => this.own(gathered))]);
+    this.journal.record("info", "The knowledge base was accepted.");
+    return "The knowledge base was accepted. Answer with one sentence that sums it up; call no more tools.";
   }
 
   /** The domains a submission gives, as far as they can be read, and what is wrong with them. */
@@ -206,7 +206,7 @@ export class DomainConsolidation {
     for (const twice of new Set(whole.filter((name, at) => whole.indexOf(name) !== at)))
       errors.push(`${twice} is taken whole by two domains. Give it to one, or cut it by naming in items the elements each takes.`);
     const text = JSON.stringify(domains);
-    if (redactText(text, this.forms) !== text) errors.push("The index holds a secret of the configuration; write it without the secret.");
+    if (redactText(text, this.forms) !== text) errors.push("The knowledge base holds a secret of the configuration; write it without the secret.");
     return { domains, errors };
   }
 
@@ -231,8 +231,8 @@ export class DomainConsolidation {
     return { id, label, description, from: [gathered] };
   }
 
-  /** The index of the domains accepted: each with the elements of the sources it gathers, the domains of one identifier joined, and what the sources set aside. */
-  private index(domains: readonly Consolidated[]): DomainIndexSubmission {
+  /** The knowledge base of the domains accepted: each with the elements of the sources it gathers, the domains of one identifier joined, and what the sources set aside. */
+  private knowledgeBase(domains: readonly Consolidated[]): KnowledgeBaseSubmission {
     const parts = domains.flatMap((domain) => domain.from);
     const elements = ({ source, domain, items }: Gathered): string[] => {
       const held = this.cards.get(source)!.domains.find((candidate) => candidate.id === domain)!;
@@ -240,7 +240,7 @@ export class DomainConsolidation {
       const named = new Set(parts.filter((part) => part.source === source && part.domain === domain).flatMap((part) => part.items ?? []));
       return held.items.map((element) => element.name).filter((name) => !named.has(name));
     };
-    const joined = new Map<string, IndexDomain>();
+    const joined = new Map<string, KnowledgeBaseDomain>();
     for (const { id, label, description, from } of domains) {
       const domain = joined.get(id) ?? { id, label, description, references: [] };
       for (const part of from) {
@@ -260,12 +260,13 @@ export class DomainConsolidation {
   /** Refuses a submission: what is wrong, then the domains of the sources still in no domain of the application. */
   private refuse(errors: readonly string[], left: readonly Gathered[]): { error: string } {
     const masked = (text: string) => redactText(text, this.forms);
-    for (const error of errors) this.journal.record("error", masked(`The index was refused: ${error}`));
+    for (const error of errors) this.journal.record("error", masked(`The knowledge base was refused: ${error}`));
     const named = left.map(({ source, domain, items }) => `- ${source} › ${domain}${items === undefined ? "" : `: ${items.join(", ")}`}`);
-    if (named.length > 0) this.journal.record("error", `The index was refused: ${left.length} domains of the sources are in no domain of the application.`);
+    if (named.length > 0)
+      this.journal.record("error", `The knowledge base was refused: ${left.length} domains of the sources are in no domain of the application.`);
     const placing =
       named.length === 0 ? [] : ["Still in no domain of the application; give each in from, to the domain it belongs to or to one of its own:", ...named];
-    this.refusal = masked(["The index was refused. Fix it and submit it again.", ...errors.map((error) => `- ${error}`), ...placing].join("\n"));
+    this.refusal = masked(["The knowledge base was refused. Fix it and submit it again.", ...errors.map((error) => `- ${error}`), ...placing].join("\n"));
     return { error: this.refusal };
   }
 }

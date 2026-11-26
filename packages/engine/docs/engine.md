@@ -24,7 +24,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 
 1. **Configuration.** The revision in force of the configuration is read through the `configuration` port — an instance that keeps none yet takes `oqas.json` at the root of the test repository as its first —; it is validated against the environment, the environment to run against is chosen, and the test charter is resolved.
 2. **Prerequisites.** The folder is the root of a git repository with a commit, the model server answers its list of models with the key — one that does not answer, or refuses the key, is told with the variable of the key and never its value; a model of GitHub Copilot has no server of its own to ask, and its session tells whether it answers —, `npm` can be run, and the repository is a Playwright project.
-3. **Cartography.** The documents of the sources the instance keeps are written to the state folder, where the agents read them; then the sources without an up-to-date card are mapped, then consolidated into the domain index, by the cartographer of `@open-qa-stack/agents`.
+3. **Cartography.** The documents of the sources the instance keeps are written to the state folder, where the agents read them; then the sources without an up-to-date card are mapped, then consolidated into the knowledge base, by the cartographer of `@open-qa-stack/agents`.
 4. **Design.** The dependencies of the test repository are installed, then the tests are designed in passes on a new local branch, by the designer of `@open-qa-stack/agents`, each test checked against the charter and run against the application before it is kept. A run given the `branch` of an earlier one goes on with it instead: the design checks it out, reads the tests it holds as those of the repository, and commits its own on it.
 5. **Execution.** The tests designed run together, and the harness pronounces a verdict per test.
 6. **Summary.** The messages no agent received are told, the runtime of the agents is closed, and the state of the run is written.
@@ -35,7 +35,7 @@ Each step starts only when the one before succeeded; once the prerequisites pass
 
 ## What stays in the test repository
 
-The test repository is a folder the engine works in, in every host: the branch of the design and its commits, the test files, the cards and the domain index, the design state and the traces of the agents under the state folder, and the result of the run of the tests. A host gives the engine a folder that is the root of a git repository; it does not abstract the file system. Nothing is pushed, and the git configuration of the repository is left as it is.
+The test repository is a folder the engine works in, in every host: the branch of the design and its commits, the test files, the cards and the knowledge base, the design state and the traces of the agents under the state folder, and the result of the run of the tests. A host gives the engine a folder that is the root of a git repository; it does not abstract the file system. Nothing is pushed, and the git configuration of the repository is left as it is.
 
 ## Ports
 
@@ -117,7 +117,7 @@ The runtime of the agents is wrapped in a `SpokenRuntime`, so that every session
 
 ## The scope of a run
 
-A run may be given a scope, as a session keeps it: some applications, some domains of the knowledge, some levels. The configuration is kept to it first, by `scopedConfig` of the domain: the run works on the applications and the levels it names alone, as if the configuration declared no other, and stops at its configuration on an application or a level the configuration does not declare. Its domains go to the design: the index the agent that plans is told holds those alone, and the plan may only cite them; a domain the knowledge does not have designs nothing, and says which. The journal tells the scope at the end of the configuration.
+A run may be given a scope, as a session keeps it: some applications, some domains of the knowledge, some levels. The configuration is kept to it first, by `scopedConfig` of the domain: the run works on the applications and the levels it names alone, as if the configuration declared no other, and stops at its configuration on an application or a level the configuration does not declare. Its domains go to the design: the knowledge base the agent that plans is told holds those alone, and the plan may only cite them; a domain the knowledge does not have designs nothing, and says which. The journal tells the scope at the end of the configuration.
 
 ## Stopping a run
 
@@ -258,7 +258,7 @@ A process that is killed leaves its session `running` in the store, and beats no
 
 ### The knowledge mapped as it is added
 
-A host that maps the knowledge opens a session of purpose `map` once it started, and once it recorded a revision of the configuration, when a source the cartography reads — a knowledge source but logs, the interface of an application — has no card yet in the test repository, or no index puts the cards together; unless such a session waits or runs already. The session maps the first environment the configuration declares: its run is that of a session that tests, ended once the index is written, with no brief and no design, and its result is `passed` with no test. A card or an index that is there is kept: whether it is up to date is the cartography's to tell, at the next session. What keeps the host from asking — a store that does not answer — is logged, and the next revision or start tries again. A revision another process recorded is seen at the next start.
+A host that maps the knowledge opens a session of purpose `map` once it started, and once it recorded a revision of the configuration, when a source the cartography reads — a knowledge source but logs, the interface of an application — has no card yet in the test repository, or no knowledge base puts the cards together; unless such a session waits or runs already. The session maps the first environment the configuration declares: its run is that of a session that tests, ended once the knowledge base is written, with no brief and no design, and its result is `passed` with no test. A card or a knowledge base that is there is kept: whether it is up to date is the cartography's to tell, at the next session. What keeps the host from asking — a store that does not answer — is logged, and the next revision or start tries again. A revision another process recorded is seen at the next start.
 
 ### Hosting the operations
 
@@ -335,7 +335,7 @@ The values are kept by a `SecretStore`: `FileSecretStore` keeps them in `secrets
 
 ## Where the cartography stands
 
-`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the index, when one is written. A card or an index that cannot be read is none. The [route of the API](../../../apps/api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
+`KnowledgeMapping.state()` tells where the cartography of the knowledge stands, by the configuration in force: each source the cartography reads in the first environment, `mapped` or `truncated` by its card, `mapping` while a session of purpose `map` runs, `waiting` otherwise; and the knowledge base, when one is written. A card or a knowledge base that cannot be read is none. The [route of the API](../../../apps/api/docs/knowledge.md#where-the-cartography-stands), the screen of the knowledge of the console and `oqas knowledge mapping` call it.
 
 ## The operations on documents
 

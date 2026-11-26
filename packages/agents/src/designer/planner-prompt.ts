@@ -1,7 +1,7 @@
 import { withoutClosing, type Application, type ScenarioLevel } from "@open-qa-stack/domain";
 import { TESTS_LIST_TOOL } from "./existing-tests.ts";
 import { scopedToolName } from "@open-qa-stack/tools";
-import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
+import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./knowledge-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
 import { REPAIR_TOOL } from "./test-repairs.ts";
 import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
@@ -93,7 +93,7 @@ const VISUAL_READING =
  *
  * @param brief - What the developer wants tested, in their own words, if anything; it cannot close the tag it is given between.
  * @param environment - The environment the tests run against.
- * @param domains - The domains of the knowledge, a line each, as `IndexMap.domains` gives them.
+ * @param domains - The domains of the knowledge, a line each, as `KnowledgeMap.domains` gives them.
  * @param applications - The applications a test may be about.
  * @param visual - Whether the plan is of visual tests alone; `false` by default.
  * @param batch - Where the plan stands in the batch of its design: its round, the first by default, and the scenarios it may hold, when they are bounded.

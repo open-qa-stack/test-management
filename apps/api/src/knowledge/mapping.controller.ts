@@ -11,7 +11,7 @@ export class MappingController {
     this.#mapping = mapping;
   }
 
-  /** @returns Each source the cartography reads and where its cartography stands, with the index, which no cache may keep. */
+  /** @returns Each source the cartography reads and where its cartography stands, with the knowledge base, which no cache may keep. */
   @Get()
   @Header("Cache-Control", "no-store")
   state(): Promise<CartographyState> {
