@@ -76,6 +76,10 @@ export type Command =
   | { readonly name: "tests"; readonly action: "trace"; readonly path: string; readonly file: string }
   /** Write the capture the latest run attached for a step of a test to a file. */
   | { readonly name: "tests"; readonly action: "capture"; readonly path: string; readonly step: number; readonly file: string }
+  /** List the tests the agents wrote for a person to review, and those set aside. */
+  | { readonly name: "reviews"; readonly action: "list" }
+  /** Tell what a person reads to decide of one of them, by its identifier. */
+  | { readonly name: "reviews"; readonly action: "show"; readonly id: string }
   /** Launch tests of the test repository as they are, with no agent, in this process, and follow them to their end. */
   | { readonly name: "launch"; readonly paths: readonly string[]; readonly environment?: string }
   /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */

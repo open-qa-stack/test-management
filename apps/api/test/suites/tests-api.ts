@@ -62,6 +62,20 @@ export function testsApiSuite(engine: DatabaseEngine): void {
   afterAll(() => database.drop());
 
   describe(`the tests of the test repository on ${engine.name}`, () => {
+    it("waiting for a review are none without a design, and a test no design gave is not found", async () => {
+      const queue = await fetch(`${api.url}/reviews`);
+      assert.deepEqual(
+        [queue.status, queue.headers.get("cache-control"), await queue.json()],
+        [200, "no-store", { tests: [], counts: { inReview: 0, setAside: 0 } }],
+      );
+      const unknown = await fetch(`${api.url}/reviews/11111111-1111-4111-8111-111111111111`);
+      assert.equal(unknown.status, 404);
+      assert.match(
+        ((await unknown.json()) as Problem).detail,
+        /^No test the agents wrote bears the identifier 11111111-1111-4111-8111-111111111111\. List the tests to review with GET \/reviews\.$/,
+      );
+    });
+
     it("are read from their files as they are now, each with what its tags say of it, which no cache keeps", async () => {
       const response = await fetch(`${api.url}/tests`);
       assert.deepEqual([response.status, response.headers.get("cache-control")], [200, "no-store"]);

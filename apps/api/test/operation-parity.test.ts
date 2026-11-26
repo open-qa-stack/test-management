@@ -49,6 +49,8 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "KnowledgeSources.check": "POST /knowledge/check",
   "KnowledgeMapping.state": "GET /knowledge/mapping",
   "RepositoryTests.listed": "GET /tests",
+  "TestReviews.queue": "GET /reviews",
+  "TestReviews.proposal": "GET /reviews/r",
   "TestReadings.read": "GET /tests/reading",
   "TestReadings.trace": "GET /tests/trace",
   "TestReadings.capture": "GET /tests/capture",

@@ -221,6 +221,19 @@ export {
 } from "./knowledge-documents/uploaded-documents.ts";
 export { settledKnowledgeBase, type DomainChange, type DomainSetting } from "./knowledge-base/domain-setting.ts";
 export type { DomainSettingStorePort } from "./knowledge-base/domain-setting-store-port.ts";
+export { SET_ASIDE_REASONS } from "./test-review/test-review.ts";
+export type {
+  ProposedFile,
+  ReviewedTest,
+  ReviewQueue,
+  ReviewRemark,
+  ReviewStatus,
+  SetAsideReason,
+  TestDecision,
+  TestProposal,
+} from "./test-review/test-review.ts";
+export type { TestDecisionStorePort } from "./test-review/test-decision-store-port.ts";
+export { UnknownProposalError } from "./test-review/unknown-proposal-error.ts";
 export { DomainRefusedError } from "./knowledge-base/domain-refused-error.ts";
 export { UnknownDomainError } from "./knowledge-base/unknown-domain-error.ts";
 export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./knowledge-base/knowledge-domain.ts";

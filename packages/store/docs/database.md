@@ -78,6 +78,7 @@ The migrations so far:
 | `0014_execution_environments` | The environment of an execution. The executions kept before stay without one. |
 | `0015_campaign_details` | What a person says of a campaign: what it is for, the version it tests, its days and who answers for it. The campaigns kept before say none. |
 | `0016_domain_settings` | The table of what a person set of the domains of the knowledge: the name that replaces the one the cartography gave, and whether the domain is excluded. |
+| `0017_test_decisions` | The table of what a person decided of the tests the agents wrote, under the identifier of their tag `@oqas-id-…`: validated or set aside, when, and for one set aside its reason, the test that already covers it and the words of the person. |
 
 ## The database of an instance, assembled
 

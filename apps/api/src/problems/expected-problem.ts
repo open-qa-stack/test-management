@@ -18,6 +18,7 @@ import {
   UnknownDocumentError,
   UnknownDocumentSourceError,
   UnknownExecutionError,
+  UnknownProposalError,
   UnknownSessionError,
   DomainRefusedError,
   UnknownDomainError,
@@ -67,6 +68,7 @@ const NO_CAMPAIGN = "List the campaigns it keeps with GET /campaigns.";
 
 /** What a client is told of an execution the instance does not keep. */
 const NO_EXECUTION = "List the executions it keeps with GET /executions.";
+const NO_PROPOSAL = "List the tests to review with GET /reviews.";
 
 /** What a client is told of a domain the knowledge does not hold. */
 const NO_DOMAIN = "List its domains with GET /knowledge/domains.";
@@ -117,6 +119,7 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof UnknownTestError) return problemOf("unknown_test", `${error.message} ${NO_TEST}`);
   if (error instanceof TestChangeRefusedError) return problemOf("test_change_refused", error.message);
   if (error instanceof UnknownExecutionError) return problemOf("unknown_execution", `${error.message} ${NO_EXECUTION}`);
+  if (error instanceof UnknownProposalError) return problemOf("unknown_proposal", `${error.message} ${NO_PROPOSAL}`);
   if (error instanceof LaunchRefusedError) return problemOf("launch_refused", error.message);
   if (error instanceof UnknownCampaignError) return problemOf("unknown_campaign", `${error.message} ${NO_CAMPAIGN}`);
   if (error instanceof CampaignRefusedError) return problemOf("campaign_refused", error.message);

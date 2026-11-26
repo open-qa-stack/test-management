@@ -100,6 +100,7 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
   test_versions: { path: "text", title: "text", number: "integer", digest: "text", commit_sha: "text, or nothing", since: "instant" },
   tests: { id: "text", path: "text", title: "text" },
   domain_settings: { id: "text", label: "text, or nothing", excluded: "integer" },
+  test_decisions: { id: "text", status: "text", decided_at: "text", reason: "text, or nothing", covered_by: "text, or nothing", note: "text, or nothing" },
   memories: {
     id: "text",
     domain: "text",

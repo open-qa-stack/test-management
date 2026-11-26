@@ -7,6 +7,7 @@ import { listedLine, summaryLines } from "../../src/output/session-lines.ts";
 import { referredSession } from "../../src/sessions/session-reference.ts";
 import { ThreadOutput } from "../../src/output/thread-output.ts";
 import { UsageError } from "../../src/errors/usage-error.ts";
+import { proposalLines, reviewLine } from "../../src/output/review-lines.ts";
 
 const at = "2026-11-13T12:34:56.000Z";
 
@@ -199,5 +200,73 @@ describe("what a person gives to name a session", () => {
       );
     refused("0000", "No session 0000; oqas sessions lists them.");
     refused("session-2026", `session-2026 names 2 sessions: ${first.id}, ${second.id}. Give more of the identifier.`);
+  });
+});
+
+describe("the lines of the review", () => {
+  const test = {
+    id: "11111111-1111-4111-8111-111111111111",
+    path: "apps/shop/tests/orders/listing/list-orders.spec.ts",
+    title: "The orders are listed",
+    application: "shop",
+    domain: "orders",
+    feature: "listing",
+    level: "functional",
+    kind: "functional",
+    branch: "oqas/design-20261127T090000Z",
+    designedAt: "2026-11-27T09:00:00.000Z",
+    verdict: "failed",
+    runs: 2,
+    reviewed: true,
+    remarkCount: 2,
+    status: "set_aside",
+  } as const;
+
+  it("say each test of the queue with its status, where it comes from and how it went", () => {
+    assert.equal(
+      reviewLine(test),
+      "11111111-1111-4111-8111-111111111111  set aside  The orders are listed  (shop › orders, functional; failed after 2 runs; reviewed, 2 remarks)",
+    );
+    assert.match(reviewLine({ ...test, status: "validated", runs: 1, remarkCount: 1 }), /  validated  .*after 1 run; reviewed, 1 remark\)$/);
+  });
+
+  it("say what is read to decide of a test, with or without a brief, sources and remarks", () => {
+    const proposal = {
+      ...test,
+      status: "in_review",
+      brief: "The orders.",
+      intent: "Verify the orders are listed.",
+      sources: [{ source: "order-specs", item: "Orders" }, { source: "shop" }],
+      steps: [
+        { action: "Open the orders", expects: ["The orders show"] },
+        { action: "Close them", expects: [] },
+      ],
+      reason: "Its last run failed.",
+      remarks: [
+        { about: "coherence", where: "step 1", what: "It does not check the total." },
+        { about: "code", where: "line 3", what: "Use a role.", rule: "PW-LOC-01" },
+      ],
+      files: [{ path: "apps/shop/tests/orders/listing/list-orders.spec.ts", content: "", added: 9 }],
+    } as const;
+    assert.deepEqual(proposalLines(proposal).slice(1), [
+      "apps/shop/tests/orders/listing/list-orders.spec.ts, on oqas/design-20261127T090000Z",
+      "Asked: The orders.",
+      "Why: Verify the orders are listed.",
+      "Sources: order-specs — Orders, shop",
+      "1. Open the orders",
+      "   expects: The orders show",
+      "2. Close them",
+      "Stands so: Its last run failed.",
+      "Remark on its coherence, step 1: It does not check the total.",
+      "Remark on its code, line 3 (PW-LOC-01): Use a role.",
+      "Files: apps/shop/tests/orders/listing/list-orders.spec.ts (+9)",
+    ]);
+    const { brief: _, ...bare } = proposal;
+    assert.deepEqual(proposalLines({ ...bare, reviewed: false, sources: [], remarks: [] }).slice(0, 4), [
+      "11111111-1111-4111-8111-111111111111  to review  The orders are listed  (shop › orders, functional; failed after 2 runs; not reviewed)",
+      "apps/shop/tests/orders/listing/list-orders.spec.ts, on oqas/design-20261127T090000Z",
+      "Why: Verify the orders are listed.",
+      "Sources: none",
+    ]);
   });
 });

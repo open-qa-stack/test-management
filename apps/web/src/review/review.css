@@ -1,0 +1,149 @@
+/* The screen of the review: the views and the domains, the list of the tests, and the card of the test shown. */
+.review-views,
+.review-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.review-layout {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.review-list {
+  display: none;
+}
+
+.review-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.review-row.on {
+  background: var(--primary-faint);
+}
+
+.review-row-detail {
+  display: block;
+}
+
+.review-keys {
+  margin: var(--space-2) var(--space-3);
+}
+
+.review-shown {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.review-steps-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+}
+
+.review-steps-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.review-card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.review-card h2,
+.review-card h3,
+.review-card p {
+  margin: 0;
+}
+
+.review-badges {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.review-section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.review-steps,
+.review-remark-list {
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.review-decision {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-inner);
+  background: var(--neutral-soft);
+}
+
+.review-code summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.review-file {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+}
+
+.review-code-lines {
+  overflow-x: auto;
+}
+
+.review-card-foot {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* On a phone the gestures stay at hand, at the bottom of the screen. */
+.review-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  background: var(--sheet);
+}
+
+.review-actions .btn {
+  min-height: 44px;
+}
+
+.review-unread {
+  color: var(--ko);
+}
+
+/* A wide screen shows the list beside the card, which the keys go through. */
+@media (min-width: 960px) {
+  .review-layout {
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2fr);
+    align-items: start;
+  }
+
+  .review-list {
+    display: block;
+  }
+
+  .review-steps-nav {
+    display: none;
+  }
+
+  .review-actions {
+    position: static;
+    justify-content: flex-end;
+  }
+}

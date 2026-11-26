@@ -7,6 +7,7 @@ import { DatabaseModule } from "./database/database.module.ts";
 import { ExecutionsModule } from "./executions/executions.module.ts";
 import { HealthModule } from "./health/health.module.ts";
 import { KnowledgeModule } from "./knowledge/knowledge.module.ts";
+import { ReviewsModule } from "./reviews/reviews.module.ts";
 import { TestsModule } from "./tests/tests.module.ts";
 import { ProblemFilter } from "./problems/problem.filter.ts";
 import { RepositoryConfigurationModule } from "./repository-configuration/repository-configuration.module.ts";
@@ -27,6 +28,7 @@ export class AppModule {
         RepositoryConfigurationModule,
         SessionsModule,
         TestsModule,
+        ReviewsModule,
         ExecutionsModule,
         CampaignsModule,
       ],

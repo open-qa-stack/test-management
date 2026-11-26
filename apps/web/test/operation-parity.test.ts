@@ -45,6 +45,8 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "Sessions.remap": { client: "remap" },
   "KnowledgeMapping.state": { client: "mapping" },
   "RepositoryTests.listed": { client: "tests" },
+  "TestReviews.queue": { client: "reviews" },
+  "TestReviews.proposal": { client: "proposal" },
   "TestReadings.read": { client: "testReading" },
   "TestReadings.trace": { address: "/tests/trace", in: "src/executions/executions-paths.ts" },
   "TestReadings.capture": { address: "/tests/capture", in: "src/executions/result-screen.tsx" },

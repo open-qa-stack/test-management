@@ -19,6 +19,7 @@ import {
   Sessions,
   START_ADVICE,
   TestReadings,
+  TestReviews,
   TestSources,
   type Environment,
   type EnvironmentSource,
@@ -51,6 +52,8 @@ export interface Operations {
   readonly code: TestSources;
   /** The executions of tests the instance keeps. */
   readonly executions: Executions;
+  /** The tests the agents wrote, for a person to review. */
+  readonly reviews: TestReviews;
   /** The campaigns of tests of the instance. */
   readonly campaigns: Campaigns;
   /** The domains the cartography found in the knowledge. */
@@ -141,6 +144,7 @@ export async function openOperations(
     readings: new TestReadings(repository, instance.configuration, instance.executions),
     code: new TestSources({ repository, configuration: instance.configuration, tests, identities: instance.tests }),
     executions: new Executions(instance.executions),
+    reviews: new TestReviews(repository, instance.configuration, instance.testDecisions),
     close,
   };
 }

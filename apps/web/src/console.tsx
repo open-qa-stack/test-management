@@ -21,6 +21,7 @@ import { TracePage } from "./executions/trace-page.tsx";
 import { KnowledgePage } from "./knowledge/knowledge-page.tsx";
 import { TestPage } from "./tests/test-page.tsx";
 import { TestsPage } from "./tests/tests-page.tsx";
+import { ReviewPage } from "./review/review-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
 import { nameApplications } from "./applications/application-names.ts";
@@ -59,7 +60,10 @@ export interface ConsoleProps {
  * that says the instance keeps no such session, or that the address leads nowhere.
  */
 type Shown =
-  | { readonly screen: "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "campaigns" | "running" | "no_session" | "nowhere" }
+  | {
+      readonly screen:
+        "entry" | "configuration" | "discovery" | "applications" | "knowledge" | "tests" | "review" | "campaigns" | "running" | "no_session" | "nowhere";
+    }
   | { readonly screen: "campaign"; readonly id: string }
   | { readonly screen: "executions"; readonly filter: ExecutionsFilter; readonly before?: string }
   | { readonly screen: "execution"; readonly id: string; readonly view?: ExecutionView; readonly search?: string }
@@ -148,6 +152,7 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (route.path[0] === "applications" && route.path.length <= 2) return { screen: "applications" };
   if (route.path[0] === "knowledge" && route.path.length <= 2) return { screen: "knowledge" };
   if (route.path.length === 1 && route.path[0] === "tests") return { screen: "tests" };
+  if (route.path.length === 1 && route.path[0] === "review") return { screen: "review" };
   if (route.path.length === 1 && route.path[0] === "campaigns") return { screen: "campaigns" };
   const campaign = route.query["id"];
   if (route.path.length === 2 && route.path[0] === "campaigns" && route.path[1] === "view" && given(campaign)) return { screen: "campaign", id: campaign };
@@ -205,6 +210,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <KnowledgePage project={name} route={route} />;
     case "tests":
       return <TestsPage project={name} route={route} />;
+    case "review":
+      return <ReviewPage project={name} route={route} />;
     case "test":
       return <TestPage key={shown.path} project={name} path={shown.path} route={route} />;
     case "campaigns":

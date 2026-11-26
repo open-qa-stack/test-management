@@ -11,6 +11,7 @@ import {
   MemoryStore,
   SchemaMigrations,
   SessionStore,
+  TestDecisionStore,
   TestStore,
 } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
@@ -39,6 +40,7 @@ import { SchemaCheck } from "./schema-check.ts";
     { provide: CampaignStore, useFactory: (instance: InstanceDatabase) => instance.campaigns, inject: [InstanceDatabase] },
     { provide: MemoryStore, useFactory: (instance: InstanceDatabase) => instance.memory, inject: [InstanceDatabase] },
     { provide: TestStore, useFactory: (instance: InstanceDatabase) => instance.tests, inject: [InstanceDatabase] },
+    { provide: TestDecisionStore, useFactory: (instance: InstanceDatabase) => instance.testDecisions, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
   exports: [
@@ -54,6 +56,7 @@ import { SchemaCheck } from "./schema-check.ts";
     CampaignStore,
     MemoryStore,
     TestStore,
+    TestDecisionStore,
   ],
 })
 export class DatabaseModule implements OnApplicationShutdown {

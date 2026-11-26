@@ -5,11 +5,48 @@ import { DocumentedInstance } from "./knowledge/documented-instance.ts";
 import { DETAIL, EXECUTIONS } from "./executions/executions-fixture.ts";
 import { builtConsole, overflowOf, settled, tooSmallOf } from "./in-browser.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
+import { ReviewedInstance } from "./review/reviewed-instance.ts";
+import { POLICY } from "./review/review-fixture.ts";
 import { DETAIL as DETAIL_TEST } from "./tests/tests-fixture.ts";
 
 const app = builtConsole();
 
 describe("the code of the console is covered in full", () => {
+  it("runs every line of the screen of the review in the browser, from the menu, and goes through its tests with J and K", async () => {
+    const instance = new ReviewedInstance();
+    const [screen] = await app().measure(
+      ["src/review/review-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/agent");
+        await page.getByRole("link", { name: "À relire" }).first().click();
+        await page.waitForURL(/#\/review$/);
+        await page.getByRole("heading", { name: "A quote expires after thirty days" }).waitFor();
+        // J goes to the next test, K back; neither goes past the ends of the list.
+        await page.keyboard.press("j");
+        await page.waitForURL(new RegExp(`#/review\\?id=${POLICY.id}$`));
+        await page.getByRole("heading", { name: "Edit the dates of a policy" }).waitFor();
+        await page.keyboard.press("j");
+        await page.keyboard.press("k");
+        await page.getByRole("heading", { name: "A quote expires after thirty days" }).waitFor();
+        await page.keyboard.press("k");
+        // A test no design gives any more says so on its card.
+        instance.queue = { ...instance.queue, tests: [...instance.queue.tests, { ...POLICY, id: "44444444-4444-4444-8444-444444444444", title: "Gone" }] };
+        await page.goto("http://console.test/#/review?id=44444444-4444-4444-8444-444444444444");
+        await page.getByText("Aucun test écrit par les agents ne porte plus cet identifiant.").waitFor();
+        // An empty view has no test to go through.
+        await page.goto("http://console.test/#/review?view=updates");
+        await page.getByText("Aucune mise à jour").waitFor();
+        await page.keyboard.press("j");
+        // A queue the instance no longer gives stays shown, with why.
+        instance.unread = true;
+        await page.getByRole("alert").waitFor();
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 0, "the module is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
   it("lets the screen of the tests, its long paths and its filter, fit the width of a small phone", async () => {
     const page = await app().open(360, "#/tests", new ListedInstance().api);
     try {
