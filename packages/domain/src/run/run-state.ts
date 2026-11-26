@@ -4,6 +4,22 @@ import type { TestVerdict } from "../test/test-verdicts.ts";
 import type { ExitCodeValue } from "./exit-code.ts";
 import type { Step } from "./run-entry.ts";
 
+/**
+ * Why a batch made no more rounds: `tests` when it wrote as many as it may, `idle-rounds` when its last rounds
+ * brought no new test, `guardrail` when the deadline passed between two rounds, `stopped` when a round was cut
+ * short by a limit, could not start, or repaired tests instead of planning new ones.
+ */
+export type BatchEnd = "tests" | "idle-rounds" | "guardrail" | "stopped";
+
+/** What the rounds of design of a batch gave, round by round. */
+export interface DesignBatch {
+  /** The new tests of each round, in order. */
+  readonly rounds: readonly number[];
+  /** The new tests of the batch. */
+  readonly tests: number;
+  readonly endedBy: BatchEnd;
+}
+
 /** The state of a run, which the store of its host keeps once the run is over. */
 export interface RunState {
   /** Version of the format of the state. */
@@ -30,6 +46,8 @@ export interface RunState {
   readonly designed: readonly string[];
   /** What the brief asks and the plan leaves out, because the application does not allow it, each with why; left out when the plan covers the brief. */
   readonly uncovered?: readonly UncoveredRequest[];
+  /** The rounds of the design and why they ended, when the design ran. */
+  readonly batch?: DesignBatch;
   /** The design state, relative to the test repository, when the design wrote it. */
   readonly designState?: string;
   /** The step a limit of the autonomy stopped, and the limit, when one stopped the run. */

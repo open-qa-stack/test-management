@@ -6,7 +6,7 @@ import { AGENT_PROMPTS } from "@open-qa-stack/agents";
 import { AGENT_KEYS } from "@open-qa-stack/domain";
 import { answer, closedPort, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
-import { MODEL, workspace, configText, chain, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
+import { MODEL, workspace, configText, chain, idleRound, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
 
 describe("solo command, criterion 1 — without a configuration, the command stops with 3 and touches nothing", () => {
   it("calls no model, runs nothing, and creates no file", async () => {
@@ -155,6 +155,24 @@ describe("solo command, criteria 7 and 8 — a limit that stops a task is journa
   });
 });
 
+describe("the rounds of the design of a run", () => {
+  it("design the visual tests once, after the rounds that brought nothing new", async () => {
+    const replies = chain();
+    // The agent that plans the visual tests finds nothing to compare either.
+    replies.splice(replies.length - 4, 0, ...idleRound(5));
+    const run = await ran(replies, {
+      environment: "local",
+      config: (url) => configText(url, { design: { reviewPlan: false, reviewTests: false, reviewCode: false, levels: ["functional"], visualTests: true } }),
+    });
+    assert.equal(run.code, 0, run.err);
+    assert.deepEqual(stateOf(run.root).batch, { rounds: [3, 0, 0, 0, 0], tests: 3, endedBy: "idle-rounds" });
+    assert.ok(
+      journalOf(run.root).some(({ message }) => message === "Visual tests: 0 new, 3 in the batch."),
+      run.err,
+    );
+  });
+});
+
 describe("solo command, criterion 9 — the state of a complete run", () => {
   it("holds the run, the index, the tests and their branch, the report, a verdict per test, and the duration and requests of each step", async () => {
     // A clock that moves a second at each reading, from the instant of the run: each step takes time.
@@ -189,11 +207,13 @@ describe("solo command, criterion 9 — the state of a complete run", () => {
       JSON.stringify(state.steps),
     );
     // Each step counts the requests of its own sessions: with the list of the models the prerequisites ask for, they are all the server received.
+    // The design counts its first round, then the three rounds that brought nothing new.
     assert.deepEqual(
       state.steps.map((step) => step.modelRequests),
-      [0, 0, 5, 12, 0],
+      [0, 0, 5, 12 + 3 * 2, 0],
     );
-    assert.equal(run.server.requests.length, 1 + 5 + 12);
+    assert.equal(run.server.requests.length, 1 + 5 + 12 + 3 * 2);
+    assert.deepEqual(state.batch, { rounds: [3, 0, 0, 0], tests: 3, endedBy: "idle-rounds" });
     assert.ok(state.durationMs > state.steps.reduce((total, step) => total + step.durationMs, 0) - 1);
   });
 });

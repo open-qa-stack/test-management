@@ -288,8 +288,8 @@ How far the agents may go on their own. Without `autonomy`, the level is `bounde
 
 | `level` | Limits |
 |---|---|
-| `autonomous` | No limit per task: each task goes on until the agent decides it is done, or the guardrail is reached. |
-| `bounded` | Each task stops at the first criterion of `task` it reaches. |
+| `autonomous` | No limit per task: each task goes on until the agent decides it is done, or the guardrail is reached. The design goes on by rounds until three in a row bring no new test. |
+| `bounded` | Each task stops at the first criterion of `task` it reaches. The design goes on by rounds until it wrote the tests of `batch.maxTests`, or `batch.maxIdleRounds` rounds in a row brought no new test. |
 
 | Key | Type | Required | Example |
 |---|---|---|---|
@@ -297,17 +297,22 @@ How far the agents may go on their own. Without `autonomy`, the level is `bounde
 | `task.maxMinutes` | positive integer: the minutes a task may run | no | `30` |
 | `task.maxIterations` | positive integer: the calls a task may make to the model | no | `200` |
 | `task.maxActions` | positive integer: the browser actions a task may take | no | `1000` |
+| `batch.maxTests` | positive integer: the new tests the rounds of a run may write together | no; `40` | `20` |
+| `batch.maxIdleRounds` | positive integer: the rounds in a row that may bring no new test before the design ends | no; `3` | `1` |
 | `guardrailMinutes` | positive integer: the minutes, from the start of a run, after which every task of its agents stops | no; `120` at each level | `240` |
 
-`task` is only for `bounded`, which requires it with one criterion at least; a criterion left out does not bound the task. A bounded level looks like this:
+`task` and `batch` are only for `bounded`, which requires `task` with one criterion at least; a criterion of `task` left out does not bound the task, one of `batch` left out takes its default. A bounded level looks like this:
 
 ```json
 {
   "level": "bounded",
   "task": { "maxMinutes": 30 },
+  "batch": { "maxTests": 20, "maxIdleRounds": 1 },
   "guardrailMinutes": 240
 }
 ```
+
+A round of design is the passes of the levels asked: each plans what the tests of the rounds before leave out, and a round whose plan holds no scenario brings no new test. No round is started once the guardrail is reached. Each round costs at least one session that plans for each level, or one with `design.passes` set to `single`: with three levels planned apart, the three rounds that end a design make nine sessions more than the first round.
 
 The guardrail bounds the tasks of the agents, not the installation of the dependencies nor the execution of the tests: a task still running when it is reached stops at its next call to the model or to a tool, and is journaled as stopped by its duration limit. A run whose task a limit or the guardrail stopped keeps what it produced in the test repository: the cards made, the plan accepted and the tests kept, on the branch of the design. A level of an earlier version of the format is refused with the rule `retired-level`, whose message names the level to write instead.
 

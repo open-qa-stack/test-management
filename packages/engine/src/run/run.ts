@@ -26,7 +26,16 @@ import {
   type TestVerdict,
   type TraceLine,
 } from "@open-qa-stack/domain";
-import { Cartographer, Designer, DesignPasses, type Inbox, type JournalEntry } from "@open-qa-stack/agents";
+import {
+  Cartographer,
+  Designer,
+  DesignPasses,
+  DesignRounds,
+  type DesignerOptions,
+  type DesignOutcome,
+  type Inbox,
+  type JournalEntry,
+} from "@open-qa-stack/agents";
 import { CharterCheck, reviewerCharter, writerCharter, LocalRunner, PinnedRun, resolveCharter, TrialRunner, type ActiveRule } from "@open-qa-stack/harness";
 import type { SessionScope } from "@open-qa-stack/domain/sessions";
 import type { ConfigurationSource } from "../ports/configuration-source.ts";
@@ -287,43 +296,47 @@ export class Run {
         const prepared = await trials.prepare();
         if (!prepared.ok) {
           journal.record("design", "error", prepared.reason);
-          return { value: { ok: false, tests: [], journal: [] } as Awaited<ReturnType<Designer["run"]>>, ok: false };
+          return { value: { ok: false, tests: [], journal: [] } as Partial<Awaited<ReturnType<DesignRounds["run"]>>> & DesignOutcome, ok: false };
         }
         // The levels asked are designed one after the other, each building on those below, unless the configuration asks for one plan.
         told("design", "designer");
         told("design", "reviewer");
-        const outcome = await new DesignPasses(
-          {
-            config: roleConfig(config, "designer"),
-            repositoryRoot: this.options.repositoryRoot,
-            env: this.options.env,
-            runtime: await agents("designer"),
-            reviewRuntime: await agents("reviewer"),
-            memory: this.options.memory,
-            writerCharter: writerCharter(rules, config.repository),
-            check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
-            screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
-            runner: trials,
-            reviewPlan: config.design.reviewPlan,
-            reviewTests: config.design.reviewTests,
-            reviewCode: config.design.reviewCode,
-            reviewerCharter: reviewerCharter(rules, config.repository),
-            levels: config.design.levels,
-            ...(this.options.scope?.domains === undefined ? {} : { domains: this.options.scope.domains }),
-            ...(this.options.domainSettings === undefined ? {} : { domainSettings: this.options.domainSettings }),
-            ...observed,
-            ...(brief === undefined ? {} : { brief }),
-            ...(this.options.branch === undefined ? {} : { continuedBranch: this.options.branch }),
-          },
-          config.design.passes,
-          config.design.visualTests,
-          (pass) => new Designer(pass).run(),
+        const designing = {
+          config: roleConfig(config, "designer"),
+          repositoryRoot: this.options.repositoryRoot,
+          env: this.options.env,
+          runtime: await agents("designer"),
+          reviewRuntime: await agents("reviewer"),
+          memory: this.options.memory,
+          writerCharter: writerCharter(rules, config.repository),
+          check: new CharterCheck({ repository: this.options.repositoryRoot, rules }),
+          screenshots: rules.some((rule) => rule.id === SCREENSHOT_RULE),
+          runner: trials,
+          reviewPlan: config.design.reviewPlan,
+          reviewTests: config.design.reviewTests,
+          reviewCode: config.design.reviewCode,
+          reviewerCharter: reviewerCharter(rules, config.repository),
+          levels: config.design.levels,
+          ...(this.options.scope?.domains === undefined ? {} : { domains: this.options.scope.domains }),
+          ...(this.options.domainSettings === undefined ? {} : { domainSettings: this.options.domainSettings }),
+          ...observed,
+          ...(brief === undefined ? {} : { brief }),
+          ...(this.options.branch === undefined ? {} : { continuedBranch: this.options.branch }),
+        };
+        const design = (options: DesignerOptions) => new Designer(options).run();
+        const { batch, guardrailMinutes } = config.autonomy.limits;
+        // The design is made by rounds, each one the passes of the levels asked, until the batch wrote what it may or brings nothing new.
+        const outcome = await new DesignRounds(
+          designing,
+          { ...batch, deadline: started.getTime() + guardrailMinutes * 60_000, now: () => now().getTime() },
+          (round) => new DesignPasses(round, config.design.passes, false, design).run(),
+          config.design.visualTests ? (visual) => design({ ...visual, levels: ["functional"] }) : undefined,
         ).run();
         this.relay(journal, "design", outcome.journal);
         return { value: outcome, ok: outcome.ok };
       });
       const tests = designed.value.tests.map((test) => test.path);
-      const { statePath, stoppedBy, uncovered = [] } = designed.value;
+      const { statePath, stoppedBy, uncovered = [], batch } = designed.value;
       // The tests of a run that goes on with an earlier one are on its branch, whether this one added any or not.
       const branch = designed.value.branch ?? this.options.branch;
       found = {
@@ -331,6 +344,7 @@ export class Run {
         ...(uncovered.length === 0 ? {} : { uncovered }),
         ...(branch === undefined ? {} : { branch }),
         designed: tests,
+        ...(batch === undefined ? {} : { batch }),
         ...(statePath === undefined ? {} : { designState: this.inRepository(statePath) }),
       };
       // A design a limit cut short says so, even once it gave its tests.
