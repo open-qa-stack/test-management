@@ -28,6 +28,10 @@ export type SayingCode =
   | "noTestCovered"
   | "planFull"
   | "planNoRoom"
+  | "roundEnded"
+  | "roundEndedBounded"
+  | "visualEnded"
+  | "visualEndedBounded"
   | "briefCovered"
   | "onlyDuplicates"
   | "briefUnfeasible"
@@ -88,6 +92,11 @@ const FORMS: readonly (readonly [SayingCode, RegExp])[] = [
   ["noTestCovered", /^No test was written: the plan holds no scenario, the tests already written covering the brief\.$/],
   ["planFull", /^The harness asked for no more scenarios: the plan holds as many scenarios as it may\.$/],
   ["planNoRoom", new RegExp(`^The plan is full at (?<count>\\d+), and had no room for: (?<scenarios>.+)\\.$`)],
+  // The end of each round of a batch, and of the design of its visual tests, with the tests of the batch.
+  ["roundEnded", /^Round (?<round>\d+): (?<fresh>\d+) new, (?<total>\d+) in the batch\.$/],
+  ["roundEndedBounded", /^Round (?<round>\d+): (?<fresh>\d+) new, (?<total>\d+) of (?<max>\d+) in the batch\.$/],
+  ["visualEnded", /^Visual tests: (?<fresh>\d+) new, (?<total>\d+) in the batch\.$/],
+  ["visualEndedBounded", /^Visual tests: (?<fresh>\d+) new, (?<total>\d+) of (?<max>\d+) in the batch\.$/],
   ["briefCovered", /^The harness asked for no more scenarios: the agent said the brief is covered\.$/],
   ["onlyDuplicates", /^The harness asked for no more scenarios: the scenarios last submitted were duplicates, and the agent has nothing new to verify\.$/],
   ["briefUnfeasible", /^The harness asked for no more scenarios: the agent said no test can do what the brief asks\.$/],
