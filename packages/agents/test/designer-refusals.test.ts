@@ -64,7 +64,7 @@ describe("refusals for the same reason", () => {
       messages(outcome),
       /The scenario list-orders was closed by the harness after 5 refusals for TEST-STEPS; the test of its last run that gave a verdict is kept, failing \(test\), kept for a person to decide: apps\/shop\/tests\/orders\/listing\/list-orders\.spec\.ts\./,
     );
-    // A scenario whose test never ran keeps the last text submitted, as unfinished.
+    // A scenario whose test never ran keeps its skeleton, as unfinished: no text the gates refused reaches the repository.
     assert.equal(
       told(server, "p5"),
       `Scenario place-order was closed by the harness after 5 refusals for TEST-STEPS; its test is kept as unfinished.\n${OVER}`,
@@ -87,7 +87,8 @@ describe("refusals for the same reason", () => {
         "TEST-STEPS",
       ],
     );
-    assert.equal(readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "place-order.spec.ts"), "utf8"), tagged(flat("5")));
+    const placed = readFileSync(join(root, "apps", "shop", "tests", "orders", "listing", "place-order.spec.ts"), "utf8");
+    assert.deepEqual([placed.includes("await test.step("), placed.includes("// 5")], [true, false]);
     assert.deepEqual(state.tests[0]!.classes, [
       {
         at: "2026-11-13T10:00:00.000Z",
