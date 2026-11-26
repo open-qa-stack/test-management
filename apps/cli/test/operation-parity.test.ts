@@ -66,6 +66,7 @@ const COMMANDS: Readonly<Record<OperationId, readonly string[] | Missing>> = {
   "Campaigns.ready": ["campaigns", "ready", "c"],
   "Campaigns.launch": ["campaigns", "launch", "c", "failed"],
   "Campaigns.close": ["campaigns", "close", "c"],
+  "AgentPrompts.list": ["agents", "default", "writer"],
 };
 
 /**
@@ -129,6 +130,7 @@ const CONVERSATION: Readonly<Record<OperationId, InConversation>> = {
   "Campaigns.ready": { typed: "/campaigns ready c" },
   "Campaigns.launch": { typed: "/campaigns launch c failed" },
   "Campaigns.close": { typed: "/campaigns close c" },
+  "AgentPrompts.list": { typed: "/agents default writer" },
 };
 
 /** The operations a client does not offer yet. */

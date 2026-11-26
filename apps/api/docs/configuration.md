@@ -12,6 +12,7 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `POST /api/configuration/revisions` | Saves a change, as the revision in force; no file is written. |
 | `POST /api/configuration/synchronisation` | Takes `oqas.json` as it is now as the revision in force. |
 | `PUT /api/configuration/file` | Writes the revision in force to `oqas.json`. |
+| `GET /api/configuration/agents` | The prompt of each agent as the code writes it, with its variables and its SHA-256, which a prompt of the team replaces. |
 | `POST /api/configuration/model-connection` | Tests a connection to the model as it is drafted, without anything recorded. |
 | `POST /api/configuration/address-check` | Tests that an address of an environment answers, as it is typed, without anything recorded. |
 | `GET /api/repository` | Where the test repository stands: its folder, a git repository, with a commit, and a Playwright project. |
@@ -19,7 +20,7 @@ The shapes of every body are the types of `@open-qa-stack/domain/sessions`; the 
 | `GET /api/secrets` | The variables the configuration in force names, and where the value of each comes from; never a value. |
 | `PUT /api/secrets/{name}` | Saves the value of one of them, on the machine of the instance, out of the test repository. |
 
-The reads, the variables and the tests of a connection and of an address are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
+The reads, the prompts of the agents, the variables and the tests of a connection and of an address are answered with `cache-control: no-store`. Every answer that is not a success is a [problem](sessions.md#problems).
 
 ## Secrets
 

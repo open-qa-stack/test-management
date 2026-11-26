@@ -1,5 +1,5 @@
 import type { ErrorObject } from "ajv/dist/2020.js";
-import { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./schema.ts";
+import { CHARTER_RULE_ID_PATTERN, configSchema, CONTAINER_NAME_PATTERN, DIGEST_PATTERN, ENV_VAR_PATTERN, SLUG_PATTERN } from "./schema.ts";
 import type { ConfigError } from "./types.ts";
 
 /**
@@ -40,6 +40,7 @@ const BY_PATTERN: Readonly<Record<string, readonly [rule: string, message: strin
   [SLUG_PATTERN]: ["slug", "Expected lower case letters and digits separated by hyphens."],
   [CHARTER_RULE_ID_PATTERN]: ["charter-rule-id", "Expected upper case words and digits separated by hyphens."],
   [CONTAINER_NAME_PATTERN]: ["container-name", "Expected a container name: letters, digits, underscores, dots and hyphens, starting with a letter or a digit."],
+  [DIGEST_PATTERN]: ["digest", "Expected a SHA-256 in hexadecimal: 64 digits and lower case letters a to f."],
 };
 
 /** The knowledge sources whose keys are alternatives, and what their error says. */

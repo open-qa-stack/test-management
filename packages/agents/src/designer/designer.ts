@@ -46,12 +46,12 @@ import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } f
 import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
 import { IndexMap, type WrittenSource } from "./index-map.ts";
 import { CodeReviewer } from "../code-reviewer/code-reviewer.ts";
-import { codeReviewerInstructions } from "../code-reviewer/code-reviewer-prompt.ts";
+import { codeReviewerInstructions, codeReviewerValues } from "../code-reviewer/code-reviewer-prompt.ts";
 import { CoherenceReviewer } from "../coherence-reviewer/coherence-reviewer.ts";
 import { PlanReviewer } from "../plan-reviewer/plan-reviewer.ts";
 import { PLAN_FILE_SUFFIX, planFileText, type PlanRecord } from "./plan-file.ts";
 import { PlanProposal } from "./plan-proposal.ts";
-import { PLANNER_INSTRUCTIONS, planRequest } from "./planner-prompt.ts";
+import { PLANNER_INSTRUCTIONS, PLANNER_VALUES, planRequest } from "./planner-prompt.ts";
 import { sessionTools, type SessionTools } from "./session-tools.ts";
 import { declaredAddresses, declaredSecrets, TEST_MODULE, testPackages } from "./spec-rules.ts";
 import { PageObjects } from "./page-objects.ts";
@@ -63,7 +63,7 @@ import { SESSION_END, TestProposals, type AcceptedTest } from "./test-proposals.
 import { TestRepairs, type TestRepair } from "./test-repairs.ts";
 import { TestRepository } from "./test-repository.ts";
 import { SheetWatch } from "./sheet-watch.ts";
-import { writeRequest, writerInstructions, type RepairedTest } from "./writer-prompt.ts";
+import { writeRequest, writerInstructions, writerValues, type RepairedTest } from "./writer-prompt.ts";
 
 /** Prefix of the branches the designer creates. */
 export const BRANCH_PREFIX = "oqas/";
@@ -293,7 +293,7 @@ export class Designer {
     const sessionOf = async (
       name: "plan" | "write",
       session: SessionTools,
-      task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">,
+      task: Pick<AgentTask, "agent" | "instructions" | "values" | "tools" | "request" | "reminder">,
       settled: () => boolean,
       listening?: () => boolean,
     ): Promise<TerminalEvent> => {
@@ -323,7 +323,7 @@ export class Designer {
       return last;
     };
     /** Runs one session of the agent that reviews the plan, under the limits of a task: its lines of the trace are those of `review`, and what it used is added to the design. */
-    const reviewed = async (task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">): Promise<TerminalEvent> => {
+    const reviewed = async (task: Pick<AgentTask, "agent" | "instructions" | "values" | "tools" | "request" | "reminder">): Promise<TerminalEvent> => {
       const events: AgentEvent[] = [];
       const sent = (text: string) => opened.harness("review", { type: "message", text });
       await runAgentTask(
@@ -387,7 +387,7 @@ export class Designer {
       // What the plan says of each scenario, its title and its steps, is what its test says: it is written in the language of the tests.
       const testLanguage = testLanguageRule(config.design.testLanguage);
       const reminder = () => (repairs.chosen === undefined ? plan.reminder() : undefined);
-      const task = { agent: "planner" as const, instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, tools, request, reminder };
+      const task = { agent: "planner" as const, instructions: `${PLANNER_INSTRUCTIONS}\n\n${testLanguage}`, values: PLANNER_VALUES, tools, request, reminder };
       // Once its plan is accepted or refused, or a repair asked, the session that plans can act on nothing: a message then waits for the agent that writes.
       const open = () => plan.accepted === undefined && plan.refused === undefined && repairs.chosen === undefined;
       const settled = () => plan.accepted !== undefined || plan.drafted || repairs.chosen !== undefined;
@@ -430,7 +430,16 @@ export class Designer {
           ...(this.options.check === undefined ? {} : { check: this.options.check }),
           ...(this.options.reviewTests === true ? { coherence: new CoherenceReviewer(reviewed) } : {}),
           ...(this.options.reviewCode === true && this.options.reviewerCharter !== undefined
-            ? { quality: new CodeReviewer(reviewed, `${codeReviewerInstructions(config.design.architecture)}\n\n${this.options.reviewerCharter}`, playwright) }
+            ? {
+                quality: new CodeReviewer(
+                  reviewed,
+                  {
+                    instructions: `${codeReviewerInstructions(config.design.architecture)}\n\n${this.options.reviewerCharter}`,
+                    values: codeReviewerValues(config.design.architecture),
+                  },
+                  playwright,
+                ),
+              }
             : {}),
           runner: this.options.runner,
           packages,
@@ -473,6 +482,7 @@ export class Designer {
         const task = {
           agent: "writer" as const,
           instructions: [writerInstructions(config.design.architecture), this.options.writerCharter, testLanguage].join("\n\n"),
+          values: writerValues(config.design.architecture),
           tools,
           request,
           reminder: () => proposals.reminder(),

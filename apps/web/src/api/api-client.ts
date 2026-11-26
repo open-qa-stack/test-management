@@ -31,6 +31,8 @@ import type {
   TestExecutionList,
   LastVerdict,
   LastVerdictList,
+  AgentPrompt,
+  AgentPromptList,
   TestLaunch,
   TestChange,
   TestReading,
@@ -363,6 +365,11 @@ export class ApiClient {
    */
   public async testVersions(path: string): Promise<readonly TestVersion[]> {
     return (await this.#ask<TestVersionList>(`/tests/versions?${new URLSearchParams({ path }).toString()}`)).items;
+  }
+
+  /** Reads the prompt of each agent as the code writes it, which a prompt of the team may replace. */
+  public async agentPrompts(): Promise<readonly AgentPrompt[]> {
+    return (await this.#ask<AgentPromptList>("/configuration/agents")).items;
   }
 
   /** Reads what came of each test the last time an execution ran it and did not skip it. */

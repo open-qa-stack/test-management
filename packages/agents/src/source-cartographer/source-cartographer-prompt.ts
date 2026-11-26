@@ -1,6 +1,6 @@
 import type { SourceInventory } from "@open-qa-stack/tools";
 import { SUBMIT_CARD_TOOL } from "./card-rules.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** The prompt of the cartographer of one source, with the tool it hands its card in with. */
 export const SOURCE_CARTOGRAPHER_PROMPT = {
@@ -16,8 +16,11 @@ Rules:
   variables: ["submit_tool"],
 } as const satisfies PromptTemplate;
 
+/** What each variable of the prompt of the cartographer of a source stands for. */
+export const SOURCE_CARTOGRAPHER_VALUES: PromptValues<typeof SOURCE_CARTOGRAPHER_PROMPT> = { submit_tool: SUBMIT_CARD_TOOL };
+
 /** System instructions of the cartographer of one source. */
-export const SOURCE_CARTOGRAPHER_INSTRUCTIONS = promptOf(SOURCE_CARTOGRAPHER_PROMPT, { submit_tool: SUBMIT_CARD_TOOL });
+export const SOURCE_CARTOGRAPHER_INSTRUCTIONS = promptOf(SOURCE_CARTOGRAPHER_PROMPT, SOURCE_CARTOGRAPHER_VALUES);
 
 /**
  * Writes the request that starts the cartography of one source: its elements and what is known of them, so

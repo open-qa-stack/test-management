@@ -1,4 +1,5 @@
 import type { ToolDefinition } from "@open-qa-stack/domain";
+import type { AgentTask } from "../common/agent-task.ts";
 import { findingLine, reportedFindings, type ReviewSession } from "../common/reported-findings.ts";
 import type { QualityFinding } from "../designer/design-state.ts";
 import type { QualityJudge } from "../designer/quality-judge.ts";
@@ -26,17 +27,17 @@ export const MAX_FINDINGS = 5;
  */
 export class CodeReviewer implements QualityJudge {
   private readonly run: ReviewSession;
-  private readonly instructions: string;
+  private readonly prompt: Pick<AgentTask, "instructions" | "values">;
   private readonly tools: readonly ToolDefinition[];
 
   /**
    * @param run - Runs the session of a review, under the limits and with the trace of its caller.
-   * @param instructions - The system instructions of the reviewer, with the charter it reviews against.
+   * @param prompt - The system instructions of the reviewer, with the charter it reviews against, and what each variable of its prompt stands for.
    * @param tools - What it may read before it reports, such as the reference of Playwright; nothing by default.
    */
-  public constructor(run: ReviewSession, instructions: string, tools: readonly ToolDefinition[] = []) {
+  public constructor(run: ReviewSession, prompt: Pick<AgentTask, "instructions" | "values">, tools: readonly ToolDefinition[] = []) {
     this.run = run;
-    this.instructions = instructions;
+    this.prompt = prompt;
     this.tools = tools;
   }
 
@@ -44,7 +45,7 @@ export class CodeReviewer implements QualityJudge {
   public async judge(test: string): Promise<readonly QualityFinding[]> {
     return reportedFindings(this.run, {
       agent: "code-reviewer",
-      instructions: this.instructions,
+      ...this.prompt,
       request: `The test:\n\`\`\`ts\n${test.trimEnd()}\n\`\`\`\n\nNext: call ${QUALITY_TOOL} with what you found, or with an empty list.`,
       tool: QUALITY_TOOL,
       tools: this.tools,

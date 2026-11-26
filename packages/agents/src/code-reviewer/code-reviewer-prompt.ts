@@ -1,6 +1,6 @@
 import type { TestArchitecture } from "@open-qa-stack/domain";
 import { PLAYWRIGHT_READ_TOOL, PLAYWRIGHT_SEARCH_TOOL } from "@open-qa-stack/tools";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** Name of the tool the reviewer of the code of a test reports its findings with. */
 export const QUALITY_TOOL = "report_quality";
@@ -43,16 +43,26 @@ When in doubt, it is no finding: a finding costs the other agent a repair. Call 
 } as const satisfies PromptTemplate;
 
 /**
+ * What each variable of the prompt of the reviewer of the code of a test stands for in a session.
+ *
+ * @param architecture - How the tests of the repository are built.
+ * @returns The value of each variable.
+ */
+export function codeReviewerValues(architecture: TestArchitecture): PromptValues<typeof CODE_REVIEWER_PROMPT> {
+  return {
+    built: BUILT[architecture],
+    playwright_search_tool: PLAYWRIGHT_SEARCH_TOOL,
+    playwright_read_tool: PLAYWRIGHT_READ_TOOL,
+    report_tool: QUALITY_TOOL,
+  };
+}
+
+/**
  * Writes the part of the system instructions of the agent that reviews the code of a test that is its own, before the charter.
  *
  * @param architecture - How the tests of the repository are built.
  * @returns The prompt of the agent, for that architecture.
  */
 export function codeReviewerInstructions(architecture: TestArchitecture): string {
-  return promptOf(CODE_REVIEWER_PROMPT, {
-    built: BUILT[architecture],
-    playwright_search_tool: PLAYWRIGHT_SEARCH_TOOL,
-    playwright_read_tool: PLAYWRIGHT_READ_TOOL,
-    report_tool: QUALITY_TOOL,
-  });
+  return promptOf(CODE_REVIEWER_PROMPT, codeReviewerValues(architecture));
 }

@@ -55,7 +55,7 @@
     "agents": {
       "type": "object",
       "additionalProperties": false,
-      "description": "What the team asks of each agent, added at the end of its prompt.",
+      "description": "What the team asks of each agent: instructions added at the end of its prompt, or a prompt in place of its own.",
       "properties": {
         "source-cartographer": {
           "type": "object",
@@ -65,7 +65,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -77,7 +99,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -89,7 +133,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -101,7 +167,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -113,7 +201,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -125,7 +235,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -137,7 +269,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -149,7 +303,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -161,7 +337,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -173,7 +371,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         },
@@ -185,7 +405,29 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 4000,
-              "description": "What is added at the end of the prompt of the agent, which stays as it is."
+              "description": "What is added at the end of the prompt of the agent."
+            },
+            "prompt": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "text",
+                "basedOn"
+              ],
+              "description": "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40000,
+                  "description": "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool."
+                },
+                "basedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since."
+                }
+              }
             }
           }
         }

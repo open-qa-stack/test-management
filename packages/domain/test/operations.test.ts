@@ -8,6 +8,6 @@ describe("the operations of the engine", () => {
     assert.equal(ids.length, Object.values(OPERATIONS).flat().length);
     assert.equal(new Set(ids).size, ids.length);
     assert.deepEqual(ids.slice(0, 2), ["Sessions.project", "Sessions.sessions"]);
-    assert.equal(ids.at(-1), "Campaigns.close");
+    assert.equal(ids.at(-1), "AgentPrompts.list");
   });
 });

@@ -33,7 +33,7 @@ import { mapExportedSource, type ExportedSourceOptions } from "../source-workflo
 import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardRules } from "./card-rules.ts";
 import { interfaceSubject, knowledgeSubject, type CardSource, type CardSubject, type InterfaceSource } from "./card-subject.ts";
-import { SOURCE_CARTOGRAPHER_INSTRUCTIONS, sourceCardRequest } from "./source-cartographer-prompt.ts";
+import { SOURCE_CARTOGRAPHER_INSTRUCTIONS, SOURCE_CARTOGRAPHER_VALUES, sourceCardRequest } from "./source-cartographer-prompt.ts";
 
 /** What every workflow that leaves a manifest of a source is given. */
 type ManifestWorkflow = Omit<ExportedSourceOptions, "exported" | "partial">;
@@ -186,6 +186,7 @@ export class SourceCartographer {
     const task = {
       agent: "source-cartographer" as const,
       instructions: SOURCE_CARTOGRAPHER_INSTRUCTIONS,
+      values: SOURCE_CARTOGRAPHER_VALUES,
       tools: [...subject.tools, ...notes, submission.tool()],
       request: sourceCardRequest(source.id, source.type, subject.inventory()),
       events,

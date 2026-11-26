@@ -1,4 +1,13 @@
-import type { ConfigError, ConfigurationView, OqasConfig, Problem, ProblemCode, RevisionChange, RevisionSummary } from "@open-qa-stack/domain/sessions";
+import type {
+  AgentPrompt,
+  ConfigError,
+  ConfigurationView,
+  OqasConfig,
+  Problem,
+  ProblemCode,
+  RevisionChange,
+  RevisionSummary,
+} from "@open-qa-stack/domain/sessions";
 import type { Api, ApiAnswer } from "../built-console.ts";
 import { PlayedInstance } from "../played-instance.ts";
 import { REVISIONS, VIEW } from "./configuration-fixture.ts";
@@ -22,6 +31,14 @@ function problem(code: ProblemCode, status: number, errors: readonly ConfigError
   return { status, contentType: "application/problem+json", body: JSON.stringify(body) };
 }
 
+/** The prompt of the writer as the code of the instance writes it. */
+export const WRITER_PROMPT: AgentPrompt = {
+  agent: "writer",
+  template: "Write with {{run_tool}}, then {{propose_tool}}.",
+  variables: ["run_tool", "propose_tool"],
+  digest: "b".repeat(64),
+};
+
 /** The errors the played instance finds in a configuration: one, when its model has no name. */
 const errorsOf = (document: OqasConfig): ConfigError[] => (document.model.model === undefined ? [UNNAMED_MODEL] : []);
 
@@ -42,6 +59,8 @@ export class ConfiguredInstance {
   public readonly saved: RevisionChange[] = [];
   /** The values the API saved for the variables of the configuration, by name. */
   public readonly values = new Map<string, string>();
+  /** The prompts of the agents the API gives; none when it cannot read them. */
+  public prompts: readonly AgentPrompt[] | undefined = [WRITER_PROMPT];
 
   /** Records a revision of an origin, which becomes the one in force. */
   #record(document: OqasConfig, origin: RevisionSummary["origin"]): ConfigurationView {
@@ -84,6 +103,7 @@ export class ConfiguredInstance {
     }
     if (!path.startsWith("/api/configuration")) return this.played.api(request);
     if (path === "/api/configuration") return json({ ...this.view, file: this.fileChanged ? "changed" : this.view.file });
+    if (path === "/api/configuration/agents") return this.prompts === undefined ? problem("error", 500) : json({ items: this.prompts });
     if (path === "/api/configuration/revisions" && method === "GET") return json({ items: this.revisions });
     if (path === "/api/configuration/validation") return json({ errors: errorsOf(JSON.parse(body!) as OqasConfig) });
     if (path === "/api/configuration/model-connection")

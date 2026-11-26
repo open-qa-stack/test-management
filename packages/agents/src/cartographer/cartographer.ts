@@ -34,7 +34,7 @@ import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { mapSources } from "../source-cartographer/sources-cartography.ts";
 import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardFingerprint } from "./card-fingerprint.ts";
-import { CARTOGRAPHER_INSTRUCTIONS, cartographyRequest } from "./cartographer-prompt.ts";
+import { CARTOGRAPHER_INSTRUCTIONS, CARTOGRAPHER_VALUES, cartographyRequest } from "./cartographer-prompt.ts";
 import { DomainConsolidation } from "./domain-consolidation.ts";
 import { indexStaleness } from "./index-staleness.ts";
 import { runSources, type RunSource } from "./run-sources.ts";
@@ -203,6 +203,7 @@ export class Cartographer {
     const task = {
       agent: "cartography-orchestrator" as const,
       instructions: CARTOGRAPHER_INSTRUCTIONS,
+      values: CARTOGRAPHER_VALUES,
       tools: [sourceDomainTool(cards, written), ...knowledgeTools(declared(sources), access), ...browser.tools, ...notes, submission.tool()],
       request: cartographyRequest(environment, sources, cards),
       events,

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
+import { AGENT_PROMPTS } from "@open-qa-stack/agents";
+import { AGENT_KEYS } from "@open-qa-stack/domain";
 import { answer, closedPort, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
 import { MODEL, workspace, configText, chain, plugged, ran, repository, stateOf, journalOf, untracked } from "./run-support.ts";
@@ -254,5 +256,26 @@ describe("what the team asks of an agent", () => {
         "design The writer follows the instructions of the team (digest).",
       ],
     );
+  });
+});
+
+describe("a prompt the team writes in place of that of an agent", () => {
+  it("is what its sessions are given, with the values of its variables, and is told once in the journal", async () => {
+    const replaced = (url: string) => {
+      const config = JSON.parse(configText(url)) as object;
+      const own = Object.fromEntries(AGENT_KEYS.map((agent) => [agent, { prompt: { text: AGENT_PROMPTS[agent].template, basedOn: "a".repeat(64) } }]));
+      return JSON.stringify({ ...config, agents: { ...own, writer: { prompt: { text: "Team writer: call {{run_tool}}.", basedOn: "a".repeat(64) } } } });
+    };
+    const run = await ran(chain(), { environment: "local", config: replaced });
+    assert.equal(run.code, 0, run.err);
+    const sent = run.server.requests.map(({ body }) => JSON.stringify(body ?? {}));
+    assert.ok(sent.some((body) => body.includes("Team writer: call run_test.")));
+    assert.ok(!sent.some((body) => body.includes(AGENT_PROMPTS.writer.template.slice(0, 60))));
+    const told = journalOf(run.root)
+      .filter(({ message }) => message.includes("a prompt of the team"))
+      .map(({ step, message }) => `${step} ${message.replace(/\([0-9a-f]{12}\)/, "(digest)")}`);
+    assert.ok(told.includes("design The writer follows a prompt of the team (digest)."), told.join("\n"));
+    assert.ok(told.includes("design The planner follows a prompt of the team (digest)."), told.join("\n"));
+    assert.equal(new Set(told).size, told.length);
   });
 });

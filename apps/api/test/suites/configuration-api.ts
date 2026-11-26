@@ -8,7 +8,7 @@ import { closedPort } from "@open-qa-stack/testing";
 import { fixtureConfig } from "@open-qa-stack/testing/fixture-repository";
 import { apiOverDatabase } from "../support/api-over-database.ts";
 import { sessionsApi, type TestApi } from "../support/sessions-api.ts";
-import type { ConfigurationCheck, ConfigurationView, Problem, RevisionList } from "@open-qa-stack/domain/sessions";
+import type { AgentPromptList, ConfigurationCheck, ConfigurationView, Problem, RevisionList } from "@open-qa-stack/domain/sessions";
 
 /** The configuration of the test repository, as its file first holds it. */
 const TEXT = fixtureConfig("http://127.0.0.1:9/v1", "http://127.0.0.1:9/");
@@ -69,6 +69,13 @@ export function configurationApiSuite(engine: DatabaseEngine): void {
         (listed.body as RevisionList).items.map(({ number, origin }) => `${number} ${origin}`),
         ["1 file"],
       );
+    });
+
+    it("gives the prompt of each agent as the code writes it, with its variables and its digest", async () => {
+      const read = await get("/agents");
+      assert.deepEqual([read.status, read.cache], [200, "no-store"]);
+      const writer = (read.body as AgentPromptList).items.find(({ agent }) => agent === "writer");
+      assert.ok(writer !== undefined && writer.variables.includes("run_tool") && /^[0-9a-f]{64}$/.test(writer.digest));
     });
 
     it("tests a connection to the model as it is drafted: what the server answers, or that its key is not set, and nothing is recorded", async () => {

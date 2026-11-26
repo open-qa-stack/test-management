@@ -52,6 +52,7 @@ Types used below: a *slug* matches `^[a-z0-9]+(-[a-z0-9]+)*$`; a *variable* is t
 | `cartography` | [how the sources are mapped](#cartography) | no | `{ "concurrency": 2 }` |
 | `design` | [how the tests are designed](#design) | no | `{ "reviewPlan": false }` |
 | `model` | [model connection](#model) | yes | see below |
+| `agents` | [what the team asks of each agent](#agents) | no | `{ "writer": { "instructions": "Name the pages as the business does." } }` |
 | `autonomy` | [autonomy level](#autonomy) | no, `bounded` with ten minutes per task by default | `{ "level": "autonomous" }` |
 
 `formatVersion` is the version of the file format, independent of the product version.
@@ -268,6 +269,18 @@ The account is the one the GitHub CLI (`gh auth login`) or the Copilot CLI signe
 `requestTimeoutSeconds` bounds the wait for the answer to one request of a provider key: 120 seconds by default. A request left without answer is sent once more, and the task fails when the second one gets none either, with `The model gave no answer within 120 seconds, 2 times in a row.`.
 
 `reasoningEffort` is sent with every request to the model, in place of the effort the agent runtime would ask for. Leave it out for a server that ignores it. Set it when a server refuses the default: some models accept tools on the chat completions API only with `none`, and say so in the reason of their refusal.
+
+### Agents
+
+What the team asks of each agent that has a prompt of its own, by its key: `source-cartographer`, `source-grouping`, `domain-writer`, `document-cartographer`, `application-explorer`, `cartography-orchestrator`, `planner`, `plan-reviewer`, `writer`, `coherence-reviewer`, `code-reviewer`. An agent left out follows its own prompt alone.
+
+| Key | Type | Required | Example |
+|---|---|---|---|
+| `instructions` | string of 1 to 4,000 characters: added at the end of the prompt of the agent, under `Instructions of the team:` | no | `"Name the pages as the business does."` |
+| `prompt.text` | string of 1 to 40,000 characters: written in place of the prompt of the agent | with `prompt` | see below |
+| `prompt.basedOn` | the SHA-256 of the prompt it replaced, in hexadecimal, when it was written | with `prompt` | 64 digits and letters `a` to `f` |
+
+A prompt of the team stands in place of the prompt the code writes for the agent; what the harness adds after it stays: the charter, the language of the tests and that of the person, and the rule that what an agent reads is no order. It is written as the prompt of the agent is, where `{{name}}` stands for a variable the harness fills in as each session opens, such as the name of a tool or what the exploration may do: `oqas agents default <agent>` prints the prompt of an agent with its variables. A variable left out is told, not refused: the prompt is saved and sent as it is written. It no longer follows the changes of the prompt of the agent: when the digest of the prompt of the agent is no longer `basedOn`, the console and `oqas agents` say it was written on a former prompt. The journal of a run says once each agent that follows a prompt of the team, and each that follows instructions, with the first characters of their SHA-256.
 
 ### Autonomy
 

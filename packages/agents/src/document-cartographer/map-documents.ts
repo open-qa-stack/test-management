@@ -5,7 +5,7 @@ import type { SessionsUse } from "../source-workflow/group-elements.ts";
 import { runMapSession } from "../source-workflow/map-session.ts";
 import type { SourceFolder } from "../source-workflow/source-folder.ts";
 import { writeMap } from "../source-workflow/written-map.ts";
-import { documentCartographerInstructions, documentMapRequest } from "./document-cartographer-prompt.ts";
+import { documentCartographerInstructions, documentCartographerValues, documentMapRequest } from "./document-cartographer-prompt.ts";
 import { DocumentMap } from "./document-map.ts";
 import { DocumentWatch } from "./document-watch.ts";
 
@@ -57,6 +57,7 @@ export async function mapDocuments(options: MapDocumentsOptions): Promise<Sessio
   const task = {
     agent: "document-cartographer" as const,
     instructions: documentCartographerInstructions(source.id),
+    values: documentCartographerValues(source.id),
     tools: [...watch.watched(documentTools(source.id, documents)), ...options.notes, ...map.tools()],
     request: documentMapRequest(source.id, listing.files),
     reminder: () => map.reminder(),

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import { operationIds } from "@open-qa-stack/domain";
 import {
+  AgentPrompts,
   Campaigns,
   Configuration,
   ENGINE_OPERATIONS,
@@ -42,6 +43,7 @@ const CLASSES: { readonly [C in keyof EngineClasses]: { readonly prototype: obje
   Executions,
   PastRuns,
   Campaigns,
+  AgentPrompts,
 };
 
 /**

@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { api } from "../api/instance-api.ts";
 import { locale } from "../i18n/i18n.ts";
+import type { ReadPrompts } from "./agent-prompt-fields.tsx";
 import { ConfigurationScreen } from "./configuration-screen.tsx";
 import { FIRST_DRAFT, FIRST_USE_STEPS, FirstUse } from "./first-use.tsx";
 import type { Route } from "../routing/route.ts";
@@ -19,6 +21,11 @@ export function ConfigurationPage({ project, route, onSaved }: { readonly projec
   const [step, setStep] = useState(0);
   const { draft, saved } = state;
   const edit = usePanelControls(controls, route, saved, true);
+  const [prompts, setPrompts] = useState<ReadPrompts>();
+  useEffect(() => {
+    // The prompts the code writes do not change while the instance runs: they are read once.
+    api.agentPrompts().then(setPrompts, () => setPrompts("failed"));
+  }, []);
   useEffect(() => {
     if (saved !== undefined) onSaved?.();
   }, [saved, onSaved]);
@@ -42,5 +49,5 @@ export function ConfigurationPage({ project, route, onSaved }: { readonly projec
         onNext={() => setStep(step + 1)}
       />
     );
-  return <ConfigurationScreen project={project} route={route} state={state} controls={edit} />;
+  return <ConfigurationScreen project={project} route={route} state={state} controls={edit} prompts={prompts} />;
 }

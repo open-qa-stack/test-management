@@ -34,6 +34,10 @@ export type Command =
   | { readonly name: "agents"; readonly action: "list" }
   /** Give an agent the instructions of the team, or take them back. */
   | { readonly name: "agents"; readonly action: "instruct"; readonly agent: AgentKey; readonly instructions?: string }
+  /** Print the prompt of an agent in force, or as the code writes it. */
+  | { readonly name: "agents"; readonly action: "prompt" | "default"; readonly agent: AgentKey }
+  /** Put the prompt a file holds in place of that of an agent, or give the agent its own back. */
+  | { readonly name: "agents"; readonly action: "replace"; readonly agent: AgentKey; readonly file?: string }
   /** Upload files as documents of a source the instance keeps. */
   | { readonly name: "knowledge"; readonly action: "add-document"; readonly source: string; readonly files: readonly string[] }
   /** Tell where the cartography of the knowledge stands, source by source. */

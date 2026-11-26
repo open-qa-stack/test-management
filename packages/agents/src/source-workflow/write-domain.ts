@@ -6,7 +6,7 @@ import { citedNameProblems, type ExportVocabulary } from "./cited-names.ts";
 import { minimalBody, unfenced } from "./domain-file.ts";
 import { domainFileErrors } from "./domain-file-control.ts";
 import { sessionUse, type SessionsUse } from "./group-elements.ts";
-import { domainRequest, writingInstructions } from "./writing-prompt.ts";
+import { domainRequest, writingInstructions, writingValues } from "./writing-prompt.ts";
 
 /** What the writing of the file of a domain needs. */
 export interface WriteDomainOptions {
@@ -100,6 +100,7 @@ export async function writeDomain(options: WriteDomainOptions): Promise<WrittenD
   const task = {
     agent: "domain-writer" as const,
     instructions: writingInstructions(options.sourceType),
+    values: writingValues(options.sourceType),
     tools: [...options.notes],
     request: redactText(domainRequest(sourceId, domain, options.members, options.others), options.secrets.flatMap(secretForms)),
     events,

@@ -137,6 +137,10 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const versioned = clientOf(() => json({ items: [version] }));
     assert.deepEqual(await versioned.client.testVersions("apps/shop/orders.spec.ts"), [version]);
     assert.deepEqual(versioned.calls, [["/api/tests/versions?path=apps%2Fshop%2Forders.spec.ts", undefined]]);
+    const prompt = { agent: "writer", template: "Write.", variables: [], digest: "d" };
+    const prompts = clientOf(() => json({ items: [prompt] }));
+    assert.deepEqual(await prompts.client.agentPrompts(), [prompt]);
+    assert.deepEqual(prompts.calls, [["/api/configuration/agents", undefined]]);
   });
 
   it("reads the code of a file of tests out of the envelope the API answers, and changes a test by patching the tests", async () => {

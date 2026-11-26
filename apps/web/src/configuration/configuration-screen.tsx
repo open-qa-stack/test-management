@@ -9,6 +9,7 @@ import { isPending, shownErrors, type ConfigurationState } from "./configuration
 import { placeText } from "./config-place.ts";
 import { errorText } from "./configuration-words.ts";
 import { FileCard, HistoryCard, JsonCard } from "./record-cards.tsx";
+import type { ReadPrompts } from "./agent-prompt-fields.tsx";
 import { AgentsCard } from "./agents-card.tsx";
 import { ModelCard } from "./model-card.tsx";
 import { AutonomyCard, DesignCard, LanguageCard, RepositoryCard } from "./settings-cards.tsx";
@@ -44,6 +45,8 @@ export interface ConfigurationScreenProps {
   readonly project: string;
   readonly state: ConfigurationState;
   readonly controls: ConfigurationControls;
+  /** The prompts of the agents as the code writes them, as the instance gave them. */
+  readonly prompts?: ReadPrompts;
 }
 
 /** The errors of the draft, counted, each with where it is in words, at the head of the form. */
@@ -102,7 +105,7 @@ export function Notes({ state }: { readonly state: ConfigurationState }): ReactN
  * @param props - The project, the state of the screen and what the person does on it.
  * @returns The screen.
  */
-export function ConfigurationScreen({ project, state, controls, route }: ConfigurationScreenProps): ReactNode {
+export function ConfigurationScreen({ project, state, controls, route, prompts }: ConfigurationScreenProps): ReactNode {
   const { draft, view, saving, unread, revisions } = state;
   const errors = shownErrors(state);
   const pending = isPending(state);
@@ -155,6 +158,7 @@ export function ConfigurationScreen({ project, state, controls, route }: Configu
             <LanguageCard config={draft} />
             <AgentsCard
               agents={draft.agents}
+              prompts={prompts}
               route={route}
               wrong={(pointer) => errors.some(({ path }) => path === pointer || path.startsWith(`${pointer}/`))}
               footer={<SaveBar saving={saving} pending={pending} saved={t("configuration.item.saved")} discard={controls.discard} />}

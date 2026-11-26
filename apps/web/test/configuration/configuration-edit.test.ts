@@ -65,7 +65,7 @@ describe("what the person presses", () => {
     assert.deepEqual(actionOf({ ...reach, value: "applications" }), { type: "edit", pointer: "/knowledge/2/attachments", value: [{ application: "" }] });
   });
 
-  it("adds an item of its kind to a list, removes an item, and does nothing for a button that says neither", () => {
+  it("adds an item of its kind to a list, removes an item, sets a value, and does nothing for a button that says none of them", () => {
     assert.deepEqual(pressOf({ add: "/applications/0/environments", item: "environment" }), {
       type: "add",
       pointer: "/applications/0/environments",
@@ -82,7 +82,13 @@ describe("what the person presses", () => {
       item: { application: "" },
     });
     assert.deepEqual(pressOf({ remove: "/applications/1" }), { type: "remove", pointer: "/applications/1" });
-    for (const button of [{}, { add: "/applications" }, { add: "/applications", item: "toString" }]) assert.equal(pressOf(button), undefined);
+    assert.deepEqual(pressOf({ set: "/agents/writer/prompt", value: '{"text":"Write.","basedOn":"d"}' }), {
+      type: "edit",
+      pointer: "/agents/writer/prompt",
+      value: { text: "Write.", basedOn: "d" },
+    });
+    for (const button of [{}, { add: "/applications" }, { add: "/applications", item: "toString" }, { set: "/agents" }])
+      assert.equal(pressOf(button), undefined);
   });
 });
 

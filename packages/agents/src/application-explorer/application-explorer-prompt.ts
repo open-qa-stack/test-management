@@ -2,7 +2,7 @@ import { scopedToolName } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "../source-workflow/domain-file-control.ts";
 import { SET_ASIDE_TOOL, WRITE_DOMAIN_TOOL } from "../source-workflow/handed-in-map.ts";
 import type { ExplorationMode } from "./screen-trail.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** What an exploration may do, as its instructions say it. */
 const MODES: Readonly<Record<ExplorationMode, string>> = {
@@ -46,6 +46,23 @@ Keep with remember what the agents after you should know and no screen says by i
 } as const satisfies PromptTemplate;
 
 /**
+ * What each variable of the prompt of the explorer of an application stands for in a session.
+ *
+ * @param applicationId - Identifier of the application, which names its tools.
+ * @param mode - What the exploration may do in the environment.
+ * @returns The value of each variable.
+ */
+export function applicationExplorerValues(applicationId: string, mode: ExplorationMode): PromptValues<typeof APPLICATION_EXPLORER_PROMPT> {
+  return {
+    exploration_mode: MODES[mode],
+    goto_tool: scopedToolName(applicationId, "goto"),
+    write_domain_tool: WRITE_DOMAIN_TOOL,
+    set_aside_tool: SET_ASIDE_TOOL,
+    max_length: String(MAX_DOMAIN_FILE_LENGTH),
+  };
+}
+
+/**
  * System instructions of the agent that explores the user interface of one application.
  *
  * @param applicationId - Identifier of the application, which names its tools.
@@ -53,13 +70,7 @@ Keep with remember what the agents after you should know and no screen says by i
  * @returns The instructions.
  */
 export function applicationExplorerInstructions(applicationId: string, mode: ExplorationMode): string {
-  return promptOf(APPLICATION_EXPLORER_PROMPT, {
-    exploration_mode: MODES[mode],
-    goto_tool: scopedToolName(applicationId, "goto"),
-    write_domain_tool: WRITE_DOMAIN_TOOL,
-    set_aside_tool: SET_ASIDE_TOOL,
-    max_length: String(MAX_DOMAIN_FILE_LENGTH),
-  });
+  return promptOf(APPLICATION_EXPLORER_PROMPT, applicationExplorerValues(applicationId, mode));
 }
 
 /**

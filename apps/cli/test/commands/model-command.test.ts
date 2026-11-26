@@ -55,7 +55,7 @@ function repository(answers: { github?: ModelConnectionCheck; provider?: ModelCo
   const model = async () =>
     (JSON.parse((await oqas("config", "show", "--output", "json")).out) as { revision: { document: OqasConfig } }).revision.document.model;
   const saved = () => JSON.parse(readFileSync(join(root, ".oqas", "secrets", "values.json"), "utf8")) as Record<string, string>;
-  return { oqas, asked, model, saved };
+  return { oqas, asked, model, saved, root };
 }
 
 describe("oqas model status", () => {
@@ -284,6 +284,43 @@ describe("oqas agents", () => {
     assert.match((await oqas("agents", "clear", "writer")).out, /\nplanner: Think\.\n[^]*\nwriter: its own prompt alone\n/);
   });
 
+  it("prints the prompt of an agent, puts that of a file in its place with what it may break, and gives the agent its own back", async () => {
+    const { oqas, root } = repository();
+    const own = (await oqas("agents", "default", "writer")).out;
+    assert.match(own, /\{\{run_tool\}\}/);
+    assert.equal((await oqas("agents", "prompt", "writer")).out, own);
+    writeFileSync(join(root, "writer.md"), "Write with {{run_tool}}.");
+    await oqas("agents", "instruct", "writer", "Say policy.");
+    const replaced = await oqas("agents", "replace", "writer", join(root, "writer.md"));
+    assert.match(replaced.out, /\nwriter: a prompt of the team, then: Say policy\.\n/);
+    assert.match(
+      replaced.err,
+      /^The prompt of the writer is that of the team: [^]*oqas agents reset writer gives it its own back\.\nIt leaves out \{\{propose_tool\}\}, \{\{playwright_read_tool\}\}, \{\{copied\}\}, which the harness fills in/,
+    );
+    const shown = await oqas("agents", "prompt", "writer", "--output", "json");
+    assert.deepEqual((JSON.parse(shown.out) as { text: string; replaced: boolean }).text, "Write with {{run_tool}}.");
+    assert.match(shown.err, /It leaves out/);
+    const reset = await oqas("agents", "reset", "writer");
+    assert.deepEqual([reset.err, /\nwriter: Say policy\.\n/.test(reset.out)], ["", true]);
+    assert.equal((await oqas("agents", "prompt", "writer")).out, own);
+    writeFileSync(join(root, "empty.md"), " ");
+    const empty = await oqas("agents", "replace", "writer", join(root, "empty.md"));
+    assert.deepEqual([empty.code, /a text of 1 to 40000 characters/.test(empty.err)], [3, true], empty.err);
+  });
+
+  it("tells a prompt of the team written on a former prompt of the agent", async () => {
+    const { oqas, root } = repository();
+    const config = JSON.parse(readFileSync(join(root, "oqas.json"), "utf8")) as OqasConfig;
+    const text = "Write with {{run_tool}}, {{propose_tool}}, {{playwright_read_tool}} and {{copied}}.";
+    writeFileSync(join(root, "oqas.json"), JSON.stringify({ ...config, agents: { writer: { prompt: { text, basedOn: "a".repeat(64) } } } }));
+    await oqas("config", "import");
+    assert.match((await oqas("agents")).out, /\nwriter: a prompt of the team, written on a former prompt of its own\n/);
+    const shown = await oqas("agents", "prompt", "writer");
+    assert.equal(shown.out, `${text}\n`);
+    assert.doesNotMatch(shown.err, /It leaves out/);
+    assert.match(shown.err, /The prompt of the writer changed since this one was written on it: oqas agents default writer prints it as it is now\./);
+  });
+
   it("is refused for an agent there is not, a text that is empty or too long, and words it does not take", async () => {
     const { oqas } = repository();
     const refused = async (argv: string[], message: RegExp) => {
@@ -293,8 +330,21 @@ describe("oqas agents", () => {
     await refused(["instruct", "robot", "Hi."], /robot is no agent: name one of source-cartographer, /);
     await refused(["instruct", "writer", " "], /a text of 1 to 4000 characters/);
     await refused(["instruct", "writer", "x".repeat(4001)], /a text of 1 to 4000 characters/);
-    for (const argv of [["instruct", "writer"], ["clear"], ["clear", "writer", "now"], ["list"], ["instruct", "writer", "a", "b"]])
-      await refused(argv, /oqas agents takes nothing, instruct then an agent and a text, or clear then an agent\./);
+    for (const argv of [
+      ["instruct", "writer"],
+      ["clear"],
+      ["clear", "writer", "now"],
+      ["list"],
+      ["instruct", "writer", "a", "b"],
+      ["replace", "writer"],
+      ["reset"],
+    ])
+      await refused(
+        argv,
+        /oqas agents takes nothing; instruct then an agent and a text, or clear then an agent; prompt, default or reset then an agent; or replace then an agent and a file\./,
+      );
+    await refused(["prompt", "robot"], /robot is no agent/);
+    await refused(["replace", "writer", "missing.md"], /missing\.md cannot be read\./);
     await refused(["--follow"], /it takes no --brief, --environment nor --follow/);
   });
 });

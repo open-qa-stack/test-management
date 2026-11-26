@@ -6,7 +6,7 @@ import { totalUsage, usageOf } from "../common/model-usage.ts";
 import { BatchPlacement } from "./batch-placement.ts";
 import { elementBatches } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";
-import { batchRequest, groupingInstructions } from "./grouping-prompt.ts";
+import { batchRequest, groupingInstructions, groupingValues } from "./grouping-prompt.ts";
 
 /** What the grouping of the elements of a source needs. */
 export interface GroupElementsOptions {
@@ -113,6 +113,7 @@ export async function groupElements(options: GroupElementsOptions): Promise<Sess
     const task = {
       agent: "source-grouping" as const,
       instructions: groupingInstructions(options.sourceType),
+      values: groupingValues(options.sourceType),
       tools: [placement.tool(), ...options.notes],
       request: redactText(batchRequest(sourceId, i + 1, batches.length, batch, grouping, options.former), forms),
       events,

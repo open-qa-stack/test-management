@@ -2,7 +2,7 @@ import type { SourceCard } from "@open-qa-stack/domain";
 import { SUBMIT_TOOL } from "./domain-consolidation.ts";
 import type { RunSource } from "./run-sources.ts";
 import { READ_DOMAIN_TOOL } from "./source-domain-tool.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** Elements of a domain of a source named as examples in the request. */
 const EXAMPLES = 3;
@@ -28,8 +28,11 @@ Keep with remember what the agents that plan tests should know about the applica
   variables: ["read_domain_tool", "submit_tool"],
 } as const satisfies PromptTemplate;
 
+/** What each variable of the prompt of the orchestrator of the cartography stands for. */
+export const CARTOGRAPHER_VALUES: PromptValues<typeof CARTOGRAPHER_PROMPT> = { read_domain_tool: READ_DOMAIN_TOOL, submit_tool: SUBMIT_TOOL };
+
 /** System instructions of the orchestrator of the cartography, which consolidates the domains of the sources. */
-export const CARTOGRAPHER_INSTRUCTIONS = promptOf(CARTOGRAPHER_PROMPT, { read_domain_tool: READ_DOMAIN_TOOL, submit_tool: SUBMIT_TOOL });
+export const CARTOGRAPHER_INSTRUCTIONS = promptOf(CARTOGRAPHER_PROMPT, CARTOGRAPHER_VALUES);
 
 /**
  * Writes the request that starts the consolidation: the domains each source was mapped into, not their

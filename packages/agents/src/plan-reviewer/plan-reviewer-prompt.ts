@@ -1,5 +1,5 @@
 import type { JudgedItem } from "../designer/duplicate-judge.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** Name of the tool the reviewer of a plan reports the duplicates with. */
 export const REPORT_TOOL = "report_duplicates";
@@ -18,8 +18,11 @@ Compare each candidate with the scenarios kept and with the candidates before it
   variables: ["report_tool"],
 } as const satisfies PromptTemplate;
 
+/** What each variable of the prompt of the reviewer of a plan stands for. */
+export const PLAN_REVIEWER_VALUES: PromptValues<typeof PLAN_REVIEWER_PROMPT> = { report_tool: REPORT_TOOL };
+
 /** System instructions of the agent that reviews the scenarios of a test plan for duplicates. */
-export const PLAN_REVIEWER_INSTRUCTIONS = promptOf(PLAN_REVIEWER_PROMPT, { report_tool: REPORT_TOOL });
+export const PLAN_REVIEWER_INSTRUCTIONS = promptOf(PLAN_REVIEWER_PROMPT, PLAN_REVIEWER_VALUES);
 
 /**
  * Writes the request of a review: the scenarios kept, then the candidates, each under its slug.

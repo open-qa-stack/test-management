@@ -62,6 +62,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "Campaigns.ready": { client: "readyCampaign" },
   "Campaigns.launch": { client: "launchCampaign" },
   "Campaigns.close": { client: "closeCampaign" },
+  "AgentPrompts.list": { client: "agentPrompts" },
 };
 
 /** The sources of the console but its client of the API, which call it. */
