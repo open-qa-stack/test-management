@@ -1,5 +1,14 @@
 import type { ReactNode } from "react";
-import { DEFAULT_GUARDRAIL_MINUTES, DEFAULT_LANGUAGE, DEFAULT_TASK_MINUTES, LANGUAGES, type OqasConfig, type TestLevel } from "@open-qa-stack/domain/sessions";
+import {
+  DEFAULT_BATCH_TESTS,
+  DEFAULT_GUARDRAIL_MINUTES,
+  DEFAULT_IDLE_ROUNDS,
+  DEFAULT_LANGUAGE,
+  DEFAULT_TASK_MINUTES,
+  LANGUAGES,
+  type OqasConfig,
+  type TestLevel,
+} from "@open-qa-stack/domain/sessions";
 import { LANGUAGE_NAMES, t } from "../i18n/i18n.ts";
 import { Card } from "../ui/card.tsx";
 import { AdvancedFields, CheckField, ChoiceField, InputField, PlaceErrors, RadioField } from "./configuration-fields.tsx";
@@ -12,7 +21,8 @@ const DEFAULT_LEVELS: readonly TestLevel[] = ["smoke", "functional", "business"]
 const LANGUAGE_CHOICES = LANGUAGES.map((language) => ({ value: language, label: LANGUAGE_NAMES[language] }));
 
 /**
- * How far the agents go on their own: autonomous, or bounded for each task, and the guardrail of a run.
+ * How far the agents go on their own: autonomous, or bounded for each task and for the batch of tests of a run, and the guardrail
+ * of a run.
  *
  * @param props - The autonomy of the draft; autonomous when it names none.
  * @returns Its card.
@@ -38,7 +48,7 @@ export function AutonomyCard({
           />
         </div>
         {/* The limits are an expert's: the level says how far the agents go, and the defaults hold. */}
-        <AdvancedFields pointers={["/autonomy/guardrailMinutes", "/autonomy/task"]}>
+        <AdvancedFields pointers={["/autonomy/guardrailMinutes", "/autonomy/task", "/autonomy/batch"]}>
           <InputField
             pointer="/autonomy/guardrailMinutes"
             label={t("configuration.settings.autonomy.guardrail")}
@@ -68,6 +78,22 @@ export function AutonomyCard({
                 numeric
               />
               <PlaceErrors pointer="/autonomy/task" />
+              <InputField
+                pointer="/autonomy/batch/maxTests"
+                label={t("configuration.settings.autonomy.maxTests")}
+                value={autonomy.batch?.maxTests}
+                numeric
+                placeholder={String(DEFAULT_BATCH_TESTS)}
+                hint={t("configuration.settings.autonomy.maxTestsHint")}
+              />
+              <InputField
+                pointer="/autonomy/batch/maxIdleRounds"
+                label={t("configuration.settings.autonomy.maxIdleRounds")}
+                value={autonomy.batch?.maxIdleRounds}
+                numeric
+                placeholder={String(DEFAULT_IDLE_ROUNDS)}
+                hint={t("configuration.settings.autonomy.maxIdleRoundsHint")}
+              />
             </>
           )}
         </AdvancedFields>

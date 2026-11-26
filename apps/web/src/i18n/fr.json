@@ -439,7 +439,11 @@
         "guardrailHint": "Au-delà, les tâches des agents s’arrêtent.",
         "maxMinutes": "Minutes par tâche",
         "maxIterations": "Appels au modèle par tâche",
-        "maxActions": "Actions du navigateur par tâche"
+        "maxActions": "Actions du navigateur par tâche",
+        "maxTests": "Nouveaux tests par run",
+        "maxTestsHint": "La conception s’arrête quand un run en a écrit autant.",
+        "maxIdleRounds": "Tours sans nouveau test",
+        "maxIdleRoundsHint": "La conception s’arrête après autant de tours d’affilée sans rien de nouveau ; chaque tour coûte des appels au modèle."
       },
       "design": {
         "title": "Niveaux de conception",

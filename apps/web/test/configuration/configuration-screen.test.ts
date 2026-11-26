@@ -78,15 +78,18 @@ describe("the screen of the configuration", () => {
     assert.match(html, /<input type="radio" id="config-autonomy-level-autonomous" data-kind="level" name="\/autonomy\/level" value="autonomous"\/>/);
     assert.ok(bears(html, "/autonomy/task/maxMinutes", 'value="10"'));
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value="60"', 'placeholder="120"'));
+    assert.ok(bears(html, "/autonomy/batch/maxTests", 'value="20"', 'placeholder="40"'));
     assert.ok(bears(html, "/design/levels", 'data-member="smoke"', 'checked=""', 'data-defaults="smoke,functional,business"'));
     assert.ok(!bears(html, "/design/levels", 'data-member="functional"', 'checked=""'));
     assert.ok(bears(html, "/repository/appsDir", 'value="tests"', 'placeholder="apps"'));
     assert.ok(bears(html, "/repository/blocksDir", 'value=""', 'placeholder="blocs"'));
   });
 
-  it("lays out the defaults of a bare configuration: the bounded level, ten minutes a task, the two-hour guardrail", () => {
+  it("lays out the defaults of a bare configuration: the bounded level, ten minutes a task, the two-hour guardrail, 40 tests and 3 idle rounds", () => {
     const html = screen(stateAfter([], BARE));
     assert.ok(bears(html, "/autonomy/guardrailMinutes", 'value=""', 'placeholder="120"'));
+    assert.ok(bears(html, "/autonomy/batch/maxTests", 'value=""', 'placeholder="40"'));
+    assert.ok(bears(html, "/autonomy/batch/maxIdleRounds", 'value=""', 'placeholder="3"'));
     assert.ok(bears(html, "/autonomy/task/maxMinutes", 'value="10"'));
     assert.match(html, /checked="" value="bounded"/);
     for (const level of ["smoke", "functional", "business"]) assert.ok(bears(html, "/design/levels", `data-member="${level}"`, 'checked=""'), level);
