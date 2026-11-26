@@ -24,7 +24,7 @@ const REQUEST = "Test the listing of the orders.";
 const FIRST_RUN_REPLIES = 24;
 
 /**
- * The replies of a second run in the same test repository: the cards and the index are up to date, so the
+ * The replies of a second run in the same test repository: the cards and the knowledge base are up to date, so the
  * model is only checked, then asked for a plan, whose scenarios the tests of the first run already cover: that first round
  * brings nothing new, and two more such rounds end the batch.
  */
@@ -161,8 +161,8 @@ describe("a session that is opened", () => {
       domains: [{ id: "orders", label: "Orders", description: "Orders.", references: [{ source: "shop", items: ["/orders"] }] }],
       unassigned: [],
     };
-    mkdirSync(join(hosted.root, ".oqas", "index"), { recursive: true });
-    writeFileSync(join(hosted.root, ".oqas", "index", "domain-index.json"), JSON.stringify(index));
+    mkdirSync(join(hosted.root, ".oqas", "knowledge"), { recursive: true });
+    writeFileSync(join(hosted.root, ".oqas", "knowledge", "knowledge-base.json"), JSON.stringify(index));
     await hosted.domainSettings.set({ id: "gone", excluded: true });
     hosted.domainSettings.refusal = new Error("Down.");
     const opened = await hosted.sessions.open({ request: REQUEST, environment: "nowhere" });
@@ -582,7 +582,7 @@ describe("a host that stops", () => {
     const session = await hosted.sessions.session(running.id);
     assert.deepEqual([session.state, session.result], ["interrupted", undefined]);
     assert.ok(
-      (await hosted.events(running.id)).some((event) => event.type === "phase_started" && event.phase === "index"),
+      (await hosted.events(running.id)).some((event) => event.type === "phase_started" && event.phase === "knowledge-base"),
       "what the run told before it was stopped is written",
     );
     assert.equal((await hosted.sessions.session(waiting.id)).state, "queued");

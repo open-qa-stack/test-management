@@ -175,7 +175,7 @@ export function RepositoryCard({ repository = {} }: { readonly repository?: Oqas
           <InputField pointer="/repository/appsDir" label={t("configuration.settings.repository.appsDir")} value={repository.appsDir} code placeholder="apps" />
         </div>
         {/* The other folders are an expert's: their defaults hold. */}
-        <AdvancedFields pointers={["/repository/blocksDir", "/repository/journeysDir", "/repository/stateDir", "/repository/indexDir"]}>
+        <AdvancedFields pointers={["/repository/blocksDir", "/repository/journeysDir", "/repository/stateDir", "/repository/knowledgeDir"]}>
           <InputField
             pointer="/repository/blocksDir"
             label={t("configuration.settings.repository.blocksDir")}
@@ -198,11 +198,11 @@ export function RepositoryCard({ repository = {} }: { readonly repository?: Oqas
             placeholder=".oqas"
           />
           <InputField
-            pointer="/repository/indexDir"
-            label={t("configuration.settings.repository.indexDir")}
-            value={repository.indexDir}
+            pointer="/repository/knowledgeDir"
+            label={t("configuration.settings.repository.knowledgeDir")}
+            value={repository.knowledgeDir}
             code
-            placeholder=".oqas/index"
+            placeholder=".oqas/knowledge"
           />
         </AdvancedFields>
       </div>

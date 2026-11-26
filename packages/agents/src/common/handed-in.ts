@@ -1,4 +1,4 @@
-import type { IndexError, IndexValidation, JsonSchema, ToolDefinition } from "@open-qa-stack/domain";
+import type { KnowledgeBaseError, KnowledgeBaseValidation, JsonSchema, ToolDefinition } from "@open-qa-stack/domain";
 import { redactText, secretForms } from "@open-qa-stack/tools";
 import type { Journal } from "./journal.ts";
 
@@ -13,7 +13,7 @@ export interface SubmissionCheck<T> {
   /** The submission as kept, normalised. */
   readonly value: T;
   /** What is wrong with it; none when it is accepted. */
-  readonly errors: readonly IndexError[];
+  readonly errors: readonly KnowledgeBaseError[];
   /** By source, the items it still has to place. */
   readonly unplaced: ReadonlyMap<string, readonly string[]>;
 }
@@ -33,7 +33,7 @@ export interface SubmissionRules<T> {
   /** The shape of a submission given to the model; its rules are left to `validate` and `check`. */
   readonly shape: JsonSchema;
   /** Checks a submission against its schema. */
-  validate(args: unknown): IndexValidation<T>;
+  validate(args: unknown): KnowledgeBaseValidation<T>;
   /** Normalises a valid submission, then checks it against what the harness read. */
   check(value: T): SubmissionCheck<T>;
   /** A valid submission with the given items added to its `unassigned`, as written. */
@@ -131,7 +131,7 @@ export class HandedIn<T> {
     return again;
   }
 
-  private refuse(errors: readonly IndexError[], unplaced: ReadonlyMap<string, readonly string[]>): { error: string } {
+  private refuse(errors: readonly KnowledgeBaseError[], unplaced: ReadonlyMap<string, readonly string[]>): { error: string } {
     const { what } = this.rules;
     const forms = this.rules.secrets.filter((secret) => secret !== "").flatMap(secretForms);
     const masked = (text: string) => redactText(text, forms);

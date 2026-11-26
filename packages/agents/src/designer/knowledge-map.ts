@@ -1,8 +1,8 @@
 import {
-  indexSourceApplications,
+  knowledgeBaseSourceApplications,
   type CardItem,
-  type DomainIndex,
-  type IndexSourceType,
+  type KnowledgeBase,
+  type KnowledgeBaseSourceType,
   type Knowledge,
   type SourceCard,
   type SourceManifest,
@@ -26,7 +26,7 @@ const MIN_STEM = 4;
 const MAX_ENTRY_LINES = 60;
 
 /** What an element of a source is, by the type of its source. */
-const KINDS: Readonly<Record<IndexSourceType, string>> = {
+const KINDS: Readonly<Record<KnowledgeBaseSourceType, string>> = {
   openapi: "operations",
   postgresql: "table",
   document: "section",
@@ -49,15 +49,15 @@ export interface WrittenSource {
   read(file: string): Promise<string | undefined>;
 }
 
-/** What tells the applications each source of the index describes, and those the session tests. */
-export interface IndexReach {
+/** What tells the applications each source of the knowledge base describes, and those the session tests. */
+export interface KnowledgeBaseReach {
   /** The knowledge sources of the configuration, whose attachments name the applications of each. */
   readonly knowledge: readonly Pick<Knowledge, "id" | "attachments">[];
   /** The applications the session tests, which a source describing only others warns of; none for a session that is not kept to some. */
   readonly applications?: readonly string[];
 }
 
-/** An element of a source, as the index places it. */
+/** An element of a source, as the knowledge base places it. */
 interface Element {
   readonly source: string;
   /** The applications its source describes; none for a source of the whole project. */
@@ -67,48 +67,48 @@ interface Element {
   readonly kind: string;
   /** What the card of the source says of it, when it does: its summary, its key fields and the facts the harness read. */
   readonly card?: CardItem;
-  /** The domains it belongs to; none for an element the index left unassigned. */
+  /** The domains it belongs to; none for an element the knowledge base left unassigned. */
   readonly domains: readonly string[];
 }
 
 /**
- * The domain index as a map the designer looks things up in, rather than a text it receives whole: which
+ * The knowledge base as a map the designer looks things up in, rather than a text it receives whole: which
  * domains and elements echo a request, then, for one of them, what its card holds, its sources and the
  * tools that read them, and, for a table, the call that finds one of its rows.
  *
  * @remarks
  * Words match without regard to case or accents, a word matching another it begins, or that begins it,
- * when the shorter of the two has four letters or more, so that `customer` finds `Customers`. The index is a map, not a limit: the tools
- * of a source read the whole source, not only what the index places in it.
+ * when the shorter of the two has four letters or more, so that `customer` finds `Customers`. The knowledge base is a map, not a limit: the tools
+ * of a source read the whole source, not only what the knowledge base places in it.
  *
- * Each element names the applications its source describes, as the configuration attaches it rather than as the index
- * was written, so that an index of any age tells them; an element of a source that describes only applications the
+ * Each element names the applications its source describes, as the configuration attaches it rather than as the knowledge base
+ * was written, so that a knowledge base of any age tells them; an element of a source that describes only applications the
  * session does not test comes with the warning its tools give.
  */
-export class IndexMap {
-  private readonly index: DomainIndex;
+export class KnowledgeMap {
+  private readonly knowledgeBase: KnowledgeBase;
   private readonly elements: readonly Element[];
   private readonly tools: ReadonlyMap<string, readonly string[]>;
   private readonly written: ReadonlyMap<string, WrittenSource>;
-  private readonly reach: IndexReach;
+  private readonly reach: KnowledgeBaseReach;
 
   /**
-   * @param index - The domain index.
+   * @param knowledgeBase - The knowledge base.
    * @param cards - The card of each source that has a readable one, for what it says of each element.
    * @param tools - The tools the designer has, to name those of each source.
-   * @param owners - Every knowledge source and application the tools are scoped by, those the index does not list included.
+   * @param owners - Every knowledge source and application the tools are scoped by, those the knowledge base does not list included.
    * @param written - What the workflow of each source wrote of it, for the sources that have one.
    * @param reach - What tells the applications of each source and those the session tests; no source attached to one by default.
    */
   public constructor(
-    index: DomainIndex,
+    knowledgeBase: KnowledgeBase,
     cards: ReadonlyMap<string, SourceCard>,
     tools: readonly ToolDefinition[],
     owners: readonly string[],
     written: ReadonlyMap<string, WrittenSource> = new Map(),
-    reach: IndexReach = { knowledge: [] },
+    reach: KnowledgeBaseReach = { knowledge: [] },
   ) {
-    this.index = index;
+    this.knowledgeBase = knowledgeBase;
     this.written = written;
     this.reach = reach;
     const described = new Map<string, CardItem>(
@@ -117,17 +117,17 @@ export class IndexMap {
     const placed = new Map<string, { source: string; applications: readonly string[]; item: string; kind: string; domains: string[] }>();
     const place = (source: string, item: string, domain?: string) => {
       const key = `${source}\n${item}`;
-      // A valid index lists every source it refers to.
-      const listed = index.sources.find((candidate) => candidate.id === source)!;
+      // A valid knowledge base lists every source it refers to.
+      const listed = knowledgeBase.sources.find((candidate) => candidate.id === source)!;
       const said = described.get(key)?.facts?.["kind"];
       const kind = typeof said === "string" ? said : KINDS[listed.type];
-      const element = placed.get(key) ?? { source, applications: indexSourceApplications(listed, reach.knowledge), item, kind, domains: [] };
+      const element = placed.get(key) ?? { source, applications: knowledgeBaseSourceApplications(listed, reach.knowledge), item, kind, domains: [] };
       if (domain !== undefined && !element.domains.includes(domain)) element.domains.push(domain);
       placed.set(key, element);
     };
-    for (const domain of index.domains)
+    for (const domain of knowledgeBase.domains)
       for (const references of domain.references) for (const item of references.items) place(references.source, item, domain.id);
-    for (const references of index.unassigned) for (const item of references.items) place(references.source, item);
+    for (const references of knowledgeBase.unassigned) for (const item of references.items) place(references.source, item);
     this.elements = [...placed].map(([key, element]) => {
       const card = described.get(key);
       return card === undefined ? element : { ...element, card };
@@ -145,7 +145,7 @@ export class IndexMap {
    * @returns The lines.
    */
   public domains(): string[] {
-    return this.index.domains.map((domain) => {
+    return this.knowledgeBase.domains.map((domain) => {
       const held = this.elements.filter((element) => element.domains.includes(domain.id));
       return `- ${domain.id} (${domain.label}): ${domain.description} ${held.length === 0 ? "No element yet" : sentence(counted(held))}.`;
     });
@@ -206,10 +206,10 @@ export class IndexMap {
 
   /** A domain in short, or what one of its sources says of it. */
   private domain(args: { domain: string; source?: string }): string | { error: string } {
-    const domain = this.index.domains.find((candidate) => candidate.id === args.domain);
-    const known = this.index.domains.map((candidate) => candidate.id).join(", ");
+    const domain = this.knowledgeBase.domains.find((candidate) => candidate.id === args.domain);
+    const known = this.knowledgeBase.domains.map((candidate) => candidate.id).join(", ");
     if (domain === undefined) {
-      const source = this.index.sources.some((candidate) => candidate.id === args.domain);
+      const source = this.knowledgeBase.sources.some((candidate) => candidate.id === args.domain);
       return { error: `${args.domain} is ${source ? "a source, not a domain" : "no domain of the knowledge"}; the domains are ${known}.` };
     }
     const held = (source: string) => this.elements.filter((element) => element.source === source && element.domains.includes(domain.id));
@@ -232,8 +232,10 @@ export class IndexMap {
 
   /** The elements of the knowledge of a kind, of a domain, or that echo words, those that echo most first. */
   private list(args: { kind?: string; domain?: string; words?: string }): string | { error: string } {
-    if (args.domain !== undefined && !this.index.domains.some((candidate) => candidate.id === args.domain))
-      return { error: `${args.domain} is no domain of the knowledge; the domains are ${this.index.domains.map((candidate) => candidate.id).join(", ")}.` };
+    if (args.domain !== undefined && !this.knowledgeBase.domains.some((candidate) => candidate.id === args.domain))
+      return {
+        error: `${args.domain} is no domain of the knowledge; the domains are ${this.knowledgeBase.domains.map((candidate) => candidate.id).join(", ")}.`,
+      };
     const stems = wordsOf(args.words ?? "");
     const score = (element: Element) => {
       const own = wordsOf(`${element.item} ${element.card?.summary ?? ""} ${(element.card?.keyFields ?? []).join(" ")}`);
@@ -284,10 +286,10 @@ export class IndexMap {
 
   /**
    * A source, with its type, the tools that read it and the applications it describes, with the warning of a source
-   * that describes only applications the session does not test; a valid index lists every source it refers to.
+   * that describes only applications the session does not test; a valid knowledge base lists every source it refers to.
    */
   private source(id: string): string {
-    const { type } = this.index.sources.find((source) => source.id === id)!;
+    const { type } = this.knowledgeBase.sources.find((source) => source.id === id)!;
     const tools = this.tools.get(id) ?? [];
     const reach = this.reachOf(id);
     const told = reach === undefined ? "" : ` ${reach.warning ?? reach.named}`;
@@ -300,10 +302,10 @@ export class IndexMap {
     return warning === undefined ? [] : [warning];
   }
 
-  /** What the session is told of the applications a source describes; nothing for a source of the whole project. A valid index lists every source it refers to. */
+  /** What the session is told of the applications a source describes; nothing for a source of the whole project. A valid knowledge base lists every source it refers to. */
   private reachOf(id: string): SourceReach | undefined {
-    const listed = this.index.sources.find((source) => source.id === id)!;
-    return sourceReach(id, indexSourceApplications(listed, this.reach.knowledge), this.reach.applications);
+    const listed = this.knowledgeBase.sources.find((source) => source.id === id)!;
+    return sourceReach(id, knowledgeBaseSourceApplications(listed, this.reach.knowledge), this.reach.applications);
   }
 }
 

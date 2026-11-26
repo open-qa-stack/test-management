@@ -11,7 +11,7 @@ export type SayingCode =
   | "summaryWritten"
   | "cardKept"
   | "domainFileKept"
-  | "indexKept"
+  | "knowledgeBaseKept"
   | "scenarioOpened"
   | "testWritten"
   | "testPassed"
@@ -71,8 +71,8 @@ const FORMS: readonly (readonly [SayingCode, RegExp])[] = [
   ["summaryWritten", /^The summary of the run was written\.$/],
   ["cardKept", new RegExp(`^The card of (?<source>${ID}) is up to date; it was kept\\.$`)],
   ["domainFileKept", new RegExp(`^The file of the domain (?<domain>${ID}) is up to date; it was kept\\.$`)],
-  // The index is named by where it lies on the machine that ran: a path its reader has no use for.
-  ["indexKept", /^The index .+ is complete and made of the cards every source has now, by their fingerprints; it was kept\.$/],
+  // The knowledge base is named by where it lies on the machine that ran: a path its reader has no use for.
+  ["knowledgeBaseKept", /^The knowledge base .+ is complete and made of the cards every source has now, by their fingerprints; it was kept\.$/],
   ["scenarioOpened", new RegExp(`^The scenario (?<scenario>${ID}) was opened; its test is (?<test>${ID})\\.$`)],
   ["testWritten", new RegExp(`^The test (?<test>${ID}) was written\\.$`)],
   ["testPassed", new RegExp(`^The test (?<test>${ID}) was run: passed\\.$`)],

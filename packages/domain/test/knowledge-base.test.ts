@@ -3,39 +3,41 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "vitest";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import {
-  domainIndexSchema,
+  knowledgeBaseSchema,
   placementErrors,
-  validateDomainIndex,
+  validateKnowledgeBase,
   validateDomainSubmission,
-  type DomainIndex,
-  type DomainIndexSubmission,
+  type KnowledgeBase,
+  type KnowledgeBaseSubmission,
 } from "../src/index.ts";
 import { INDEX_SCHEMA_FILE, renderSchema } from "../scripts/emit-schema.ts";
 
-const EXAMPLE = JSON.parse(readFileSync(new URL("../examples/domain-index/domain-index.json", import.meta.url), "utf8")) as DomainIndex;
-const copy = (): DomainIndex => structuredClone(EXAMPLE);
+const EXAMPLE = JSON.parse(readFileSync(new URL("../examples/knowledge-base/knowledge-base.json", import.meta.url), "utf8")) as KnowledgeBase;
+const copy = (): KnowledgeBase => structuredClone(EXAMPLE);
 const errorsOf = (result: { ok: boolean; errors?: unknown }) => (result.ok ? [] : result.errors);
 
-describe("the domain index format", () => {
+describe("the knowledge base format", () => {
   it("is a valid draft 2020-12 schema, published unchanged", () => {
-    assert.equal(new Ajv2020({ strict: false }).validateSchema(domainIndexSchema), true);
-    assert.equal(readFileSync(INDEX_SCHEMA_FILE, "utf8"), renderSchema(domainIndexSchema));
+    assert.equal(new Ajv2020({ strict: false }).validateSchema(knowledgeBaseSchema), true);
+    assert.equal(readFileSync(INDEX_SCHEMA_FILE, "utf8"), renderSchema(knowledgeBaseSchema));
   });
 
   it("accepts the documented example", () => {
-    assert.deepEqual(validateDomainIndex(EXAMPLE), { ok: true, value: EXAMPLE });
+    assert.deepEqual(validateKnowledgeBase(EXAMPLE), { ok: true, value: EXAMPLE });
   });
 
   it("names the field in fault", () => {
-    const missing = copy() as Partial<DomainIndex>;
+    const missing = copy() as Partial<KnowledgeBase>;
     delete missing.run;
     const wrong = { ...copy(), status: "done" };
     const extra = { ...copy(), secret: "x" };
     const empty = { ...copy(), domains: [{ ...copy().domains[0]!, label: "" }] };
-    assert.deepEqual(errorsOf(validateDomainIndex(missing)), [{ path: "/run", message: "The document must have required property 'run'." }]);
-    assert.deepEqual(errorsOf(validateDomainIndex(wrong)), [{ path: "/status", message: "/status must be equal to one of the allowed values." }]);
-    assert.deepEqual(errorsOf(validateDomainIndex(extra)), [{ path: "/secret", message: "/secret is not allowed." }]);
-    assert.deepEqual(errorsOf(validateDomainIndex(empty)), [{ path: "/domains/0/label", message: "/domains/0/label must NOT have fewer than 1 characters." }]);
+    assert.deepEqual(errorsOf(validateKnowledgeBase(missing)), [{ path: "/run", message: "The document must have required property 'run'." }]);
+    assert.deepEqual(errorsOf(validateKnowledgeBase(wrong)), [{ path: "/status", message: "/status must be equal to one of the allowed values." }]);
+    assert.deepEqual(errorsOf(validateKnowledgeBase(extra)), [{ path: "/secret", message: "/secret is not allowed." }]);
+    assert.deepEqual(errorsOf(validateKnowledgeBase(empty)), [
+      { path: "/domains/0/label", message: "/domains/0/label must NOT have fewer than 1 characters." },
+    ]);
   });
 
   it("refuses a repeated domain, a reference to an unlisted source, and a complete index with a source not read", () => {
@@ -45,7 +47,7 @@ describe("the domain index format", () => {
     index.sources[3]!.state = "not_read";
     delete index.sources[3]!.cardFingerprint;
     index.sources.push({ ...index.sources[0]! });
-    const result = validateDomainIndex(index);
+    const result = validateKnowledgeBase(index);
     assert.deepEqual(
       (errorsOf(result) as { path: string }[]).map((e) => e.path),
       ["/domains/2/id", "/sources/4/id", "/unassigned/1/source", "/status"],
@@ -53,26 +55,26 @@ describe("the domain index format", () => {
     index.domains.pop();
     index.unassigned.pop();
     index.sources.pop();
-    assert.equal(validateDomainIndex({ ...index, status: "truncated" }).ok, true);
+    assert.equal(validateKnowledgeBase({ ...index, status: "truncated" }).ok, true);
   });
 
   it("records the fingerprint of the card of each source read, and of no source not read", () => {
     const index = copy();
     assert.ok(index.sources.every((source) => /^sha256:[0-9a-f]{64}$/.test(source.cardFingerprint!)));
     const legacy = { ...index, sources: index.sources.map(({ cardFingerprint: _, ...source }) => source) };
-    assert.equal(validateDomainIndex(legacy).ok, true);
-    assert.deepEqual(errorsOf(validateDomainIndex({ ...index, sources: [{ ...index.sources[0]!, cardFingerprint: "abc" }, ...index.sources.slice(1)] })), [
+    assert.equal(validateKnowledgeBase(legacy).ok, true);
+    assert.deepEqual(errorsOf(validateKnowledgeBase({ ...index, sources: [{ ...index.sources[0]!, cardFingerprint: "abc" }, ...index.sources.slice(1)] })), [
       { path: "/sources/0/cardFingerprint", message: '/sources/0/cardFingerprint must match pattern "^sha256:[0-9a-f]{64}$".' },
     ]);
     const unread = { ...index, status: "truncated", sources: [{ ...index.sources[0]!, state: "not_read" }, ...index.sources.slice(1)] };
-    assert.deepEqual(errorsOf(validateDomainIndex(unread)), [
+    assert.deepEqual(errorsOf(validateKnowledgeBase(unread)), [
       { path: "/sources/0/cardFingerprint", message: "/sources/0/cardFingerprint is given although orders-api was not read." },
     ]);
   });
 });
 
 describe("a submission of the cartographer", () => {
-  const submission = (): DomainIndexSubmission => ({ domains: copy().domains, unassigned: copy().unassigned });
+  const submission = (): KnowledgeBaseSubmission => ({ domains: copy().domains, unassigned: copy().unassigned });
   const inventory = new Map([
     ["orders-api", ["orders", "payments", "customers"]],
     ["orders-db", ["public.orders", "public.order_lines", "public.customers", "public.schema_migrations"]],

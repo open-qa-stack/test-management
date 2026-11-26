@@ -1,4 +1,4 @@
-import type { IndexModel, IndexRun, IndexSourceType } from "../domain-index/types.ts";
+import type { KnowledgeBaseModel, KnowledgeBaseRun, KnowledgeBaseSourceType } from "../knowledge-base/types.ts";
 
 /** Version of the source card format, independent of the product version. */
 export type SourceCardFormatVersion = 1;
@@ -44,13 +44,13 @@ export interface SourceCardSubmission {
 /** The card of one knowledge source: its elements grouped by functional domain. */
 export interface SourceCard {
   formatVersion: SourceCardFormatVersion;
-  source: { id: string; type: IndexSourceType };
+  source: { id: string; type: KnowledgeBaseSourceType };
   /** Fingerprint of the source when the card was made; a card whose fingerprint is the source's is up to date. */
   fingerprint: string;
   /** Date and time of production, ISO 8601 in UTC. */
   producedAt: string;
-  model: IndexModel;
-  run: IndexRun;
+  model: KnowledgeBaseModel;
+  run: KnowledgeBaseRun;
   /** `truncated` when a limit or the session cut the task. */
   status: "complete" | "truncated";
   domains: CardDomain[];

@@ -22,7 +22,7 @@ export const DEFAULT_REPOSITORY: Readonly<Required<Repository>> = Object.freeze(
   blocksDir: "blocs",
   journeysDir: "parcours",
   stateDir: STATE_DIR_NAME,
-  indexDir: `${STATE_DIR_NAME}/index`,
+  knowledgeDir: `${STATE_DIR_NAME}/knowledge`,
 });
 
 // `strictRequired` is relaxed because the alternatives of the OpenAPI, document and log sources require keys that
@@ -94,9 +94,9 @@ export function validateConfig(content: string, env: EnvironmentVariables): Vali
   if (!validateShape(data)) {
     // Ajv always sets `errors` when validation fails.
     const raw = validateShape.errors as ErrorObject[];
-    const retired = retiredLevel(data);
+    const retired = [retiredLevel(data), ...retiredKeys(data)].filter((found) => found !== undefined);
     const errors = raw.filter((e) => !NESTED_ALTERNATIVE.test(e.schemaPath)).map(structureError);
-    return { ok: false, errors: errors.map((e) => (retired !== undefined && e.path === retired.path ? retired : e)) };
+    return { ok: false, errors: errors.map((e) => retired.find((found) => found.path === e.path) ?? e) };
   }
 
   const errors = [...documentErrors(data), ...environmentErrors(data, env)];
@@ -171,6 +171,22 @@ function retiredLevel(data: unknown): ConfigError | undefined {
   const level = (data as { autonomy?: { level?: unknown } } | null)?.autonomy?.level;
   const message = typeof level === "string" && Object.hasOwn(RETIRED_LEVELS, level) ? RETIRED_LEVELS[level] : undefined;
   return message === undefined ? undefined : error("structure", "/autonomy/level", "retired-level", message);
+}
+
+/** The keys of an earlier version of the format, by their pointer, each with what to write instead. */
+const RETIRED_KEYS: Readonly<Record<string, string>> = {
+  "/repository/indexDir":
+    'The key indexDir is now knowledgeDir, ".oqas/knowledge" by default: rename it. A folder written under the former name is not read; map the knowledge again, or move the folder.',
+};
+
+/** The errors of the keys of an earlier format version the file holds, which name the key to write instead. */
+function retiredKeys(data: unknown): ConfigError[] {
+  return Object.entries(RETIRED_KEYS).flatMap(([pointer, message]) => {
+    const [, section, key] = pointer.split("/");
+    const holder = (data as Record<string, unknown> | null)?.[section!];
+    const held = typeof holder === "object" && holder !== null && Object.hasOwn(holder, key!);
+    return held ? [error("structure", pointer, "retired-key", message)] : [];
+  });
 }
 
 function documentErrors(config: OqasConfig): ConfigError[] {

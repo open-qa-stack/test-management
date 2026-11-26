@@ -1,7 +1,7 @@
 import type { PlannedScenario, ToolDefinition } from "@open-qa-stack/domain";
 import { changingName, destructiveName, scopedToolName, type SpecLocator, type Target, type TargetMatch, type TargetScope } from "@open-qa-stack/tools";
 import { screenRoute } from "../application-explorer/screen-trail.ts";
-import { toolsBySource } from "./index-map.ts";
+import { toolsBySource } from "./knowledge-map.ts";
 import { nextMoment } from "./moments.ts";
 import { checkable, observed, observedWhole, sameText } from "./observed.ts";
 

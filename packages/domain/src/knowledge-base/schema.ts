@@ -40,21 +40,21 @@ export const domainSubmissionSchema = {
 } as const;
 
 /**
- * JSON Schema (draft 2020-12) of the domain index file.
+ * JSON Schema (draft 2020-12) of the knowledge base file.
  *
  * @remarks
  * Structural rules live here. Rules that look across the document — unique domain identifiers, references
- * to listed sources — are applied by `validateDomainIndex`.
+ * to listed sources — are applied by `validateKnowledgeBase`.
  */
-export const domainIndexSchema = {
+export const knowledgeBaseSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  title: "Open QA Stack domain index",
+  title: "Open QA Stack knowledge base",
   type: "object",
   additionalProperties: false,
   required: ["formatVersion", "producedAt", "environment", "model", "run", "status", "sources", "domains", "unassigned"],
   properties: {
     $schema: { type: "string" },
-    formatVersion: { const: 1, description: "Version of the index format, independent of the product version." },
+    formatVersion: { const: 1, description: "Version of the knowledge base format, independent of the product version." },
     producedAt: {
       type: "string",
       pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",

@@ -3,7 +3,19 @@ import { t, type Words } from "../i18n/i18n.ts";
 import { toolTitle } from "./tool-title.ts";
 
 /** The phases the terminal words; a later version of the contract may name another. */
-const PHASES = new Set(["configuration", "prerequisites", "survey", "card", "consolidation", "index", "plan", "review", "write", "execution", "summary"]);
+const PHASES = new Set([
+  "configuration",
+  "prerequisites",
+  "survey",
+  "card",
+  "consolidation",
+  "knowledge-base",
+  "plan",
+  "review",
+  "write",
+  "execution",
+  "summary",
+]);
 
 /**
  * The words of the terminal for what a thread tells, in the language of the conversation; a phase it does not

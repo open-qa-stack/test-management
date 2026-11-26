@@ -13,7 +13,7 @@ import {
   site,
   workspace,
   git,
-  INDEX,
+  KNOWLEDGE_BASE,
   repository,
   snapshot,
   spec,
@@ -126,7 +126,7 @@ describe("criterion 6 — a test that holds a declared address or the value of a
 const EARLIER = "oqas/design-earlier";
 
 describe("criterion 7 — a dirty working tree or a taken branch stops the design before anything is written", () => {
-  it("stops on a changed tracked file, an untracked file outside the state and the index, and a taken branch, and changes nothing", async () => {
+  it("stops on a changed tracked file, an untracked file outside the state and the knowledge base, and a taken branch, and changes nothing", async () => {
     const root = repository();
     git(root, "branch", BRANCH);
     writeFileSync(join(root, "specs", "orders.md"), "# Orders, changed\n");
@@ -140,7 +140,7 @@ describe("criterion 7 — a dirty working tree or a taken branch stops the desig
       [
         `The branch ${BRANCH} already exists.`,
         "Tracked files are changed: specs/orders.md.",
-        "Untracked files are outside the folders of the state and the index: notes.txt.",
+        "Untracked files are outside the folders of the state and the knowledge base: notes.txt.",
         "No branch was created and no file was written.",
       ],
     );
@@ -195,9 +195,9 @@ describe("criterion 7 — a dirty working tree or a taken branch stops the desig
     assert.equal(server.requests.length, 0);
   });
 
-  it("creates the branch when the only untracked files are the index and the state", async () => {
+  it("creates the branch when the only untracked files are the knowledge base and the state", async () => {
     const root = repository();
-    assert.match(git(root, "status", "--porcelain", "--untracked-files=all"), /^\?\? \.oqas\/index\/domain-index\.json/);
+    assert.match(git(root, "status", "--porcelain", "--untracked-files=all"), /^\?\? \.oqas\/knowledge\/knowledge-base\.json/);
     const { outcome } = await design(replies(valid(3)), { root });
     assert.equal(outcome.branch, BRANCH);
   });
@@ -331,10 +331,10 @@ describe("guiding the designer", () => {
   it("designs nothing without a readable index that matches its schema", async () => {
     for (const [index, reason] of [
       ["{", /cannot be read\./],
-      [{ ...INDEX, domains: [] }, /does not match its schema: \/domains must NOT have fewer than 1 items\.$/],
+      [{ ...KNOWLEDGE_BASE, domains: [] }, /does not match its schema: \/domains must NOT have fewer than 1 items\.$/],
     ] as const) {
       const { outcome, server } = await design(replies(valid(3)), { root: repository(index) });
-      assert.match(messages(outcome), new RegExp(`^No test was designed: the domain index .*domain-index\\.json ${reason.source}`));
+      assert.match(messages(outcome), new RegExp(`^No test was designed: the knowledge base .*knowledge-base\\.json ${reason.source}`));
       assert.equal(server.requests.length, 0);
     }
   });

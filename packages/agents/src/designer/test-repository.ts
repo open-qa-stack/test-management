@@ -43,7 +43,7 @@ export class TestRepository {
       problems.push(existing ? `The branch ${branch} does not exist: there is nothing to go on with.` : `The branch ${branch} already exists.`);
     const paths = reserved.map((path) => posix.normalize(path).replace(/(?<!\/)\/+$/, ""));
     const reservedPath = (path: string): boolean => paths.some((kept) => path === kept || path.startsWith(`${kept}/`));
-    // The harness writes the state, the index and the configuration file itself: a change there is its own, not the developer's.
+    // The harness writes the state, the knowledge base and the configuration file itself: a change there is its own, not the developer's.
     const changed = (await this.git("status", "--porcelain", "--untracked-files=no"))
       .split("\n")
       .filter((line) => line !== "")
@@ -51,7 +51,7 @@ export class TestRepository {
       .filter((path) => !reservedPath(path));
     if (changed.length > 0) problems.push(`Tracked files are changed: ${changed.join(", ")}.`);
     const untracked = (await this.git("ls-files", "--others", "--exclude-standard", "-z")).split("\0").filter((path) => path !== "" && !reservedPath(path));
-    if (untracked.length > 0) problems.push(`Untracked files are outside the folders of the state and the index: ${untracked.join(", ")}.`);
+    if (untracked.length > 0) problems.push(`Untracked files are outside the folders of the state and the knowledge base: ${untracked.join(", ")}.`);
     return problems;
   }
 

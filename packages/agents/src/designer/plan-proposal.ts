@@ -134,11 +134,11 @@ interface Question extends LocatedText {
 
 /** What a plan is checked against. */
 export interface PlanRules {
-  /** Identifiers of the sources a scenario may cite: those of the index, and every knowledge source and application the agent has tools of. */
+  /** Identifiers of the sources a scenario may cite: those of the knowledge base, and every knowledge source and application the agent has tools of. */
   readonly sources: readonly string[];
   /** Identifiers of the applications a scenario may be about. */
   readonly applications: readonly string[];
-  /** Identifiers of the domains of the index. */
+  /** Identifiers of the domains of the knowledge base. */
   readonly domains: readonly string[];
   /** The levels of the pyramid of tests the plan is asked for. */
   readonly levels: readonly ScenarioLevel[];
@@ -374,7 +374,11 @@ export class PlanProposal {
                     "write when the scenario creates, changes or removes data of the environment, such as saving a form; read otherwise. A scenario that writes must pass again right after it passed: it enters data of its own, such as a made-up name no other run uses, or its last step puts back what it changed.",
                 },
                 application: { type: "string", enum: [...this.rules.applications], description: "Identifier of the one application the test is about." },
-                domain: { type: "string", enum: [...this.rules.domains], description: "Identifier of the domain of the index the scenario comes from." },
+                domain: {
+                  type: "string",
+                  enum: [...this.rules.domains],
+                  description: "Identifier of the domain of the knowledge base the scenario comes from.",
+                },
                 feature: {
                   type: "string",
                   pattern: "^[a-z0-9]+(-[a-z0-9]+)*$",

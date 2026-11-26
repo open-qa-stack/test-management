@@ -8,7 +8,7 @@ import { testPackages } from "../src/designer/spec-rules.ts";
 import {
   MODEL,
   git,
-  INDEX,
+  KNOWLEDGE_BASE,
   repository,
   spec,
   tagged,
@@ -242,7 +242,7 @@ describe("the packages a test may import", () => {
     );
     const bare = `import { test as bare } from "@playwright/test";\n${spec("x")}`;
     const { outcome, server } = await design(replies([[run(other, "faker")], [run(bare, "bare")], ...write("list-orders", a11y), ...valid(3).slice(2)]), {
-      root: repository(INDEX, manifest),
+      root: repository(KNOWLEDGE_BASE, manifest),
     });
     assert.equal(outcome.tests.find((test) => test.path === "apps/shop/tests/orders/listing/list-orders.spec.ts")?.verdict, "passed", messages(outcome));
     assert.match(toolResult(server, "faker"), /Refused \(TEST-IMPORT\): Line 2 imports @faker-js\/faker; import only @axe-core\/playwright or a relative path/);
@@ -278,14 +278,14 @@ describe("the references of a visual test", () => {
 });
 
 describe("the files the harness writes itself", () => {
-  it("do not stop a design when they are tracked and changed, as an index committed then rewritten", async () => {
+  it("do not stop a design when they are tracked and changed, as a knowledge base committed then rewritten", async () => {
     const root = repository();
-    git(root, "add", "-f", ".oqas/index");
-    git(root, "commit", "-q", "-m", "chore: keep the index");
-    const indexFile = join(root, ".oqas", "index", "domain-index.json");
-    writeFileSync(indexFile, `${readFileSync(indexFile, "utf8")}\n`);
+    git(root, "add", "-f", ".oqas/knowledge");
+    git(root, "commit", "-q", "-m", "chore: keep the knowledge base");
+    const knowledgeBaseFile = join(root, ".oqas", "knowledge", "knowledge-base.json");
+    writeFileSync(knowledgeBaseFile, `${readFileSync(knowledgeBaseFile, "utf8")}\n`);
     const { outcome } = await design(replies(valid(3)), { root });
     assert.equal(outcome.ok, true, messages(outcome));
-    assert.match(git(root, "status", "--porcelain"), /\.oqas\/index\/domain-index\.json/);
+    assert.match(git(root, "status", "--porcelain"), /\.oqas\/knowledge\/knowledge-base\.json/);
   });
 });

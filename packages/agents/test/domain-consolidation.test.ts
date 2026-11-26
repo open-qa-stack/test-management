@@ -42,8 +42,8 @@ function consolidation(secrets: readonly string[] = []) {
   const submit = (args: unknown) => made.tool().execute(args) as Promise<Told>;
   return { made, journal, submit };
 }
-const ACCEPTED = "The index was accepted. Answer with one sentence that sums it up; call no more tools.";
-const refusal = (...lines: string[]) => ({ error: ["The index was refused. Fix it and submit it again.", ...lines].join("\n") });
+const ACCEPTED = "The knowledge base was accepted. Answer with one sentence that sums it up; call no more tools.";
+const refusal = (...lines: string[]) => ({ error: ["The knowledge base was refused. Fix it and submit it again.", ...lines].join("\n") });
 const STILL = "Still in no domain of the application; give each in from, to the domain it belongs to or to one of its own:";
 
 describe("the domains of an application, consolidated from those of its sources", () => {
@@ -80,7 +80,7 @@ describe("the domains of an application, consolidated from those of its sources"
     });
     assert.deepEqual(
       journal.entries().map((entry) => entry.message),
-      ["The index was accepted."],
+      ["The knowledge base was accepted."],
     );
     // Two domains of one source gathered in one domain of the application are one reference to that source.
     const one = consolidation();
@@ -121,7 +121,7 @@ describe("the domains of an application, consolidated from those of its sources"
       refusal("- domains/0: give its label on one line of 200 characters at most.", "- domains/0: notes has no domain all. Its domains: none."),
     );
     // Only the first index accepted is kept.
-    assert.equal(await submit({ domains: [] }), "The index was already accepted; there is nothing more to do.");
+    assert.equal(await submit({ domains: [] }), "The knowledge base was already accepted; there is nothing more to do.");
     assert.equal(made.reminder(), undefined);
   });
 
@@ -151,7 +151,7 @@ describe("the domains of an application, consolidated from those of its sources"
         "- domains/2: the id orders is given to several domains. Give them one domain, or two ids.",
         "- domains/2: public.orders of shop-db › sales is taken by two domains. An element is in one domain.",
         "- shop-api › orders is taken whole by two domains. Give it to one, or cut it by naming in items the elements each takes.",
-        "- The index holds a secret of the configuration; write it without the secret.",
+        "- The knowledge base holds a secret of the configuration; write it without the secret.",
       ),
     );
     assert.ok(journal.entries().every((entry) => !entry.message.includes("s3cr3t-token")));
@@ -159,14 +159,14 @@ describe("the domains of an application, consolidated from those of its sources"
     const partial = { domains: [{ ...ORDERS, from: [from("shop-api", "orders"), from("shop-db", "sales", ["public.orders"])] }] };
     const left = refusal(STILL, "- shop-api › customers", "- shop-db › sales: public.customers", "- shop › orders");
     assert.deepEqual(await submit(partial), left);
-    assert.equal(journal.entries().at(-1)!.message, "The index was refused: 3 domains of the sources are in no domain of the application.");
-    assert.equal(made.reminder(), `You have not handed in an accepted index yet. Call submit_index now.\n\n${left.error}`);
+    assert.equal(journal.entries().at(-1)!.message, "The knowledge base was refused: 3 domains of the sources are in no domain of the application.");
+    assert.equal(made.reminder(), `You have not handed in an accepted knowledge base yet. Call submit_knowledge_base now.\n\n${left.error}`);
     assert.equal(made.accepted, undefined);
   });
 
   it("keeps each domain of a source left aside twice in a row as a domain of the application of its own, joined to the one that bears its identifier", async () => {
     const { made, journal, submit } = consolidation();
-    assert.equal(made.reminder(), "You have not handed in an accepted index yet. Call submit_index now.");
+    assert.equal(made.reminder(), "You have not handed in an accepted knowledge base yet. Call submit_knowledge_base now.");
     const partial = { domains: [{ ...ORDERS, from: [from("shop-api", "orders"), from("shop-db", "sales", ["public.orders"])] }] };
     await submit(partial);
     // A refusal for another reason in between starts the count again.
@@ -191,7 +191,7 @@ describe("the domains of an application, consolidated from those of its sources"
     );
     assert.equal(
       journal.entries().at(-2)!.message,
-      "2 submissions of the index in a row left domains of the sources aside; the harness kept each as a domain of the application: shop-api › customers, shop-db › sales, shop › orders.",
+      "2 submissions of the knowledge base in a row left domains of the sources aside; the harness kept each as a domain of the application: shop-api › customers, shop-db › sales, shop › orders.",
     );
   });
 });
@@ -213,7 +213,7 @@ describe("what the orchestrator of the cartography is given, and reads", () => {
         "## shop-db (postgresql)\n- sales — sales of shop-db: What shop-db holds of sales. (2 elements, such as public.orders, public.customers)\n- Set aside by its agent: 1 elements.",
         "## specs (document): not mapped; leave it out.",
         "## notes (document)\n- No domain.",
-        "Next: read with read_source_domain what a name does not tell, then call submit_index.",
+        "Next: read with read_source_domain what a name does not tell, then call submit_knowledge_base.",
       ].join("\n\n"),
     );
     for (const said of [

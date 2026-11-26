@@ -136,7 +136,7 @@ export interface Repository {
   blocksDir?: string;
   journeysDir?: string;
   stateDir?: string;
-  indexDir?: string;
+  knowledgeDir?: string;
 }
 
 /** A rule of the default test charter the designer and the reviewer should not apply, with the reason. */

@@ -47,7 +47,7 @@ describe("what a tool call did, as the terminal words it", () => {
       ["remember", {}, "Noted something for later"],
       ["recall", {}, "Read what was noted"],
       ["write_domain", { id: "orders" }, "Wrote the domain orders"],
-      ["submit_index", { domains: [{}] }, "Handed in an index of 1 domain"],
+      ["submit_knowledge_base", { domains: [{}] }, "Handed in a knowledge base of 1 domain"],
     ];
     for (const [tool, args, title] of cases) assert.equal(toolTitle(tool, args), title, tool);
   });
@@ -75,7 +75,7 @@ describe("the words of the terminal for a thread", () => {
           "survey",
           "card",
           "consolidation",
-          "index",
+          "knowledge-base",
           "plan",
           "review",
           "write",
@@ -90,7 +90,7 @@ describe("the words of the terminal for a thread", () => {
         "Cartography · sources",
         "Cartography · card",
         "Cartography · domains",
-        "Cartography · index",
+        "Cartography · knowledge base",
         "Plan",
         "Plan review",
         "Writing a test",

@@ -64,7 +64,7 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
   const placed = (answer: Answer) => (answer.body as Problem).errors?.map(({ path, rule }) => `${path} ${rule}`);
 
   describe(`the domains of the knowledge on ${engine.name}`, () => {
-    it("are none before the cartography, then those of the index it wrote, which no cache may keep", async () => {
+    it("are none before the cartography, then those of the knowledge base it wrote, which no cache may keep", async () => {
       await fetch(`${api.url}/project`);
       const domains = async () => {
         const response = await fetch(`${api.url}/knowledge/domains`);
@@ -72,7 +72,7 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
         return ((await response.json()) as KnowledgeDomainList).items;
       };
       assert.deepEqual(await domains(), []);
-      const index = {
+      const knowledgeBase = {
         formatVersion: 1,
         producedAt: "2026-11-20T09:00:00.000Z",
         environment: "local",
@@ -83,8 +83,8 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
         domains: [{ id: "orders", label: "Commandes", description: "Passer une commande.", references: [{ source: "shop", items: ["/orders"] }] }],
         unassigned: [],
       };
-      mkdirSync(join(repository, ".oqas", "index"), { recursive: true });
-      writeFileSync(join(repository, ".oqas", "index", "domain-index.json"), JSON.stringify(index));
+      mkdirSync(join(repository, ".oqas", "knowledge"), { recursive: true });
+      writeFileSync(join(repository, ".oqas", "knowledge", "knowledge-base.json"), JSON.stringify(knowledgeBase));
       assert.deepEqual(await domains(), [
         { id: "orders", label: "Commandes", description: "Passer une commande.", sources: [{ id: "shop", applications: ["shop"], items: ["/orders"] }] },
       ]);
@@ -99,7 +99,10 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
       };
       const changed = await change("orders", { label: " Ventes ", excluded: true });
       assert.deepEqual([changed.status, changed.body.label, changed.body.foundLabel, changed.body.excluded], [200, "Ventes", "Commandes", true]);
-      writeFileSync(join(repository, ".oqas", "index", "domain-index.json"), JSON.stringify({ ...index, producedAt: "2026-11-21T09:00:00.000Z" }));
+      writeFileSync(
+        join(repository, ".oqas", "knowledge", "knowledge-base.json"),
+        JSON.stringify({ ...knowledgeBase, producedAt: "2026-11-21T09:00:00.000Z" }),
+      );
       assert.deepEqual(
         (await domains()).map(({ label, excluded }) => [label, excluded]),
         [["Ventes", true]],
@@ -258,13 +261,13 @@ export function knowledgeApiSuite(engine: DatabaseEngine): void {
   });
 
   describe(`where the cartography stands on ${engine.name}`, () => {
-    it("is each source the cartography reads, which waits while nothing mapped it, and no index yet, never cached", async () => {
+    it("is each source the cartography reads, which waits while nothing mapped it, and no knowledge base yet, never cached", async () => {
       const read = await get(`${api.url}/knowledge/mapping`);
       assert.deepEqual([read.status, read.cache], [200, "no-store"]);
-      const { environment, sources, index } = read.body as { environment: string; sources: { id: string; state: string }[]; index?: unknown };
+      const { environment, sources, knowledgeBase } = read.body as { environment: string; sources: { id: string; state: string }[]; knowledgeBase?: unknown };
       assert.equal(environment, "local");
       assert.ok(sources.length > 0 && sources.every(({ state }) => state === "waiting"), JSON.stringify(sources));
-      assert.equal(index, undefined);
+      assert.equal(knowledgeBase, undefined);
     });
   });
 }

@@ -139,15 +139,17 @@ function SourceRow({
 /** The tone of the badge of where the cartography of a source stands. */
 export const MAPPING_TONES: Readonly<Record<MappingState, BadgeTone>> = { waiting: "outline", mapping: "ai", mapped: "ok", truncated: "warn" };
 
-/** Where the index of the knowledge stands: written, when, and whether in part; or not yet. */
-export function IndexLine({ mapping }: { readonly mapping: CartographyState | undefined }): ReactNode {
+/** Where the knowledge base stands: written, when, and whether in part; or not yet. */
+export function KnowledgeBaseLine({ mapping }: { readonly mapping: CartographyState | undefined }): ReactNode {
   if (mapping === undefined) return null;
-  const { index } = mapping;
+  const { knowledgeBase } = mapping;
   return (
     <p className="small muted" role="status">
-      {index === undefined
-        ? t("knowledge.mapping.noIndex")
-        : t(index.status === "complete" ? "knowledge.mapping.index" : "knowledge.mapping.partIndex", { date: dateText(index.producedAt) })}
+      {knowledgeBase === undefined
+        ? t("knowledge.mapping.noKnowledgeBase")
+        : t(knowledgeBase.status === "complete" ? "knowledge.mapping.knowledgeBase" : "knowledge.mapping.partKnowledgeBase", {
+            date: dateText(knowledgeBase.producedAt),
+          })}
     </p>
   );
 }
@@ -203,7 +205,7 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
         </EmptyState>
       ) : (
         <>
-          <IndexLine mapping={state.mapping} />
+          <KnowledgeBaseLine mapping={state.mapping} />
           <RemapButton remap={state.remap} onRemap={controls.remap} />
           <ProjectSources sources={sources} state={state} />
           {configuration!.applications.map((application) => (

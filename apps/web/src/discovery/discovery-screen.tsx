@@ -1,7 +1,7 @@
 import type { ChangeEventHandler, FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { CartographyState, KnowledgeDomain, MappingState } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
-import { IndexLine, MAPPING_TONES } from "../knowledge/knowledge-screen.tsx";
+import { KnowledgeBaseLine, MAPPING_TONES } from "../knowledge/knowledge-screen.tsx";
 import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
@@ -72,7 +72,7 @@ function Sources({ mapping }: { readonly mapping: CartographyState }): ReactNode
                 {t(`knowledge.mapping.${state}`)} · {count}
               </Badge>
             ))}
-          <IndexLine mapping={mapping} />
+          <KnowledgeBaseLine mapping={mapping} />
         </div>
       )}
       {sources.length > 0 && (

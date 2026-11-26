@@ -185,7 +185,14 @@ function countOf(html: string, pattern: RegExp): number {
  */
 function thread(live: LiveSession = liveOf(), lookIndex?: number): string {
   return render(
-    createElement(Thread, { path: PATH, frame: live.frame, lookIndex, stage: live.script.stage, unfolded: live.unfolded, onUnfold: NO_CONTROLS.unfold }),
+    createElement(Thread, {
+      path: PATH,
+      frame: live.frame,
+      lookIndex,
+      stage: live.script.stage,
+      unfolded: live.unfolded,
+      onUnfold: NO_CONTROLS.unfold,
+    }),
   );
 }
 
@@ -566,20 +573,20 @@ describe("the thread of a session", () => {
     const html = thread(
       liveWith([
         note(
-          "The index /home/me/shop/.oqas/index/domain-index.json is complete and made of the cards every source has now, by their fingerprints; it was kept.",
+          "The knowledge base /home/me/shop/.oqas/knowledge/knowledge-base.json is complete and made of the cards every source has now, by their fingerprints; it was kept.",
           1,
         ),
       ]),
     );
-    assert.match(html, /L’index des domaines est complet et à jour ; il est conservé\./);
+    assert.match(html, /La base de connaissance est complète et à jour ; elle est conservée\./);
     assert.doesNotMatch(html, /\/home\//);
   });
 
   it("folds the notes of the harness that follow one another under their count and the last of them, each with its time", () => {
-    const html = thread(liveWith([note("The source was read.", 1), note("The card was written.", 2), note("The index is ready.", 3)]));
+    const html = thread(liveWith([note("The source was read.", 1), note("The card was written.", 2), note("The knowledge base is ready.", 3)]));
     assert.match(
       html,
-      /<details class="notes"><summary><svg [^>]*>.*?<\/svg><span>3 notes du harnais<\/span><span class="note-preview" aria-hidden="true">The index is ready\.<\/span><\/summary><ul><li><span class="turn-at">09:00:01<\/span> The source was read\.<\/li><li><span class="turn-at">09:00:02<\/span> The card was written\.<\/li><li><span class="turn-at">09:00:03<\/span> The index is ready\.<\/li><\/ul><\/details>/,
+      /<details class="notes"><summary><svg [^>]*>.*?<\/svg><span>3 notes du harnais<\/span><span class="note-preview" aria-hidden="true">The knowledge base is ready\.<\/span><\/summary><ul><li><span class="turn-at">09:00:01<\/span> The source was read\.<\/li><li><span class="turn-at">09:00:02<\/span> The card was written\.<\/li><li><span class="turn-at">09:00:03<\/span> The knowledge base is ready\.<\/li><\/ul><\/details>/,
     );
     assert.doesNotMatch(html, /notes single/);
     const apart = thread(liveWith([note("The source was read.", 1), REVIEWED[1]!, note("The card was written.", 2)]));
@@ -604,12 +611,12 @@ describe("the thread of a session", () => {
       alone,
       /<details class="notes"><summary><svg [^>]*>.*?<\/svg><span>Les fiches de 2 sources sont à jour ; elles sont conservées\.<\/span><span class="note-count">2 sources<\/span><\/summary><ul><li><span class="turn-at">09:00:01<\/span> La fiche de orders-api est à jour ; elle est conservée\.<\/li><li><span class="turn-at">09:00:02<\/span> La fiche de orders-db est à jour ; elle est conservée\.<\/li><\/ul><\/details>/,
     );
-    const among = thread(liveWith([note("The index is ready.", 3), alike]));
+    const among = thread(liveWith([note("The knowledge base is ready.", 3), alike]));
     assert.match(
       among,
       /<span>2 notes du harnais<\/span><span class="note-preview" aria-hidden="true">Les fiches de 2 sources sont à jour ; elles sont conservées\.<\/span>/,
     );
-    assert.match(among, /<li><span class="turn-at">09:00:03<\/span> The index is ready\.<\/li><li><details class="notes">/);
+    assert.match(among, /<li><span class="turn-at">09:00:03<\/span> The knowledge base is ready\.<\/li><li><details class="notes">/);
     const read: Step = {
       kind: "repeated",
       at: "09:00:01",
@@ -722,7 +729,14 @@ describe("the thread of a session", () => {
     assert.match(unfolded, /<button type="button" class="btn ghost sm read-more" aria-expanded="true" aria-controls="verdict-text-9">Replier<\/button>/);
     const pressed: string[] = [];
     const [button] = elementsOf(
-      createElement(Thread, { path: PATH, frame: liveOf().frame, lookIndex: undefined, stage: "live", unfolded: [], onUnfold: (index) => pressed.push(index) }),
+      createElement(Thread, {
+        path: PATH,
+        frame: liveOf().frame,
+        lookIndex: undefined,
+        stage: "live",
+        unfolded: [],
+        onUnfold: (index) => pressed.push(index),
+      }),
       "button",
     );
     (button!["onClick"] as () => void)();
@@ -973,9 +987,9 @@ describe("the thread of a session", () => {
 
   it("leaves out a pass that holds nothing, but the one a session that goes on is at", () => {
     const pass = (title: string): Step => ({ kind: "pass", at: "09:00:00", title, summary: "" });
-    const steps = [pass("Cartographie · sources"), pass("Cartographie · fiche"), note("The index is ready.", 1), pass("Plan")];
+    const steps = [pass("Cartographie · sources"), pass("Cartographie · fiche"), note("The knowledge base is ready.", 1), pass("Plan")];
     assert.doesNotMatch(textOf(thread(liveWith(steps))), /sources|Plan/);
-    assert.match(textOf(thread(liveWith(steps, RUNNING))), /^Cartographie · fiche The index is ready\. Plan Les agents travaillent$/);
+    assert.match(textOf(thread(liveWith(steps, RUNNING))), /^Cartographie · fiche The knowledge base is ready\. Plan Les agents travaillent$/);
   });
 
   it("folds the work of the agents in a row under one line: who worked, how many actions and failures, the refusals and notes of the harness, and their time", () => {

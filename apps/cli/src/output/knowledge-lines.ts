@@ -115,16 +115,16 @@ const MAPPING = { waiting: "waits to be mapped", mapping: "is being mapped", map
 
 /**
  * @param state - Where the cartography of the knowledge stands.
- * @returns The lines `oqas knowledge mapping` prints: a line a source, then one of the index.
+ * @returns The lines `oqas knowledge mapping` prints: a line a source, then one of the knowledge base.
  */
-export function mappingLines({ environment, sources, index }: CartographyState): string[] {
+export function mappingLines({ environment, sources, knowledgeBase }: CartographyState): string[] {
   if (environment === undefined) return ["The instance has no configuration yet: nothing is mapped."];
   const lines = sources.map(({ id, state, mappedAt }) => `${id}  ${MAPPING[state]}${mappedAt === undefined ? "" : ` on ${mappedAt}`}`);
-  const indexed =
-    index === undefined
-      ? "No index puts the cards together yet."
-      : `The index was written on ${index.producedAt}${index.status === "truncated" ? ", in part" : ""}.`;
-  return [`The knowledge of the environment ${environment}:`, ...lines, indexed];
+  const gathered =
+    knowledgeBase === undefined
+      ? "No knowledge base puts the cards together yet."
+      : `The knowledge base was written on ${knowledgeBase.producedAt}${knowledgeBase.status === "truncated" ? ", in part" : ""}.`;
+  return [`The knowledge of the environment ${environment}:`, ...lines, gathered];
 }
 
 /** A domain of the knowledge: its identifier, its name, what it covers, and that it is excluded when it is. */

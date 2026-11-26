@@ -1,4 +1,4 @@
-import type { IndexSourceType } from "@open-qa-stack/domain";
+import type { KnowledgeBaseSourceType } from "@open-qa-stack/domain";
 
 /** How the instructions of the workflow of a source speak of its elements, by what the source is. */
 export interface SourceWords {
@@ -38,6 +38,6 @@ const CONTRACT: SourceWords = {
  * @param type - What the source is.
  * @returns Those of an API contract for one, those of a database otherwise.
  */
-export function sourceWords(type: IndexSourceType): SourceWords {
+export function sourceWords(type: KnowledgeBaseSourceType): SourceWords {
   return type === "openapi" ? CONTRACT : DATABASE;
 }

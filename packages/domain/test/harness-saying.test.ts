@@ -13,8 +13,8 @@ const SAID: readonly (readonly [string, Saying])[] = [
   ["The card of shop-api is up to date; it was kept.", { code: "cardKept", values: { source: "shop-api" } }],
   ["The file of the domain orders is up to date; it was kept.", { code: "domainFileKept", values: { domain: "orders" } }],
   [
-    "The index /home/me/shop/.oqas/index/domain-index.json is complete and made of the cards every source has now, by their fingerprints; it was kept.",
-    { code: "indexKept", values: {} },
+    "The knowledge base /home/me/shop/.oqas/knowledge/knowledge-base.json is complete and made of the cards every source has now, by their fingerprints; it was kept.",
+    { code: "knowledgeBaseKept", values: {} },
   ],
   [
     "The scenario search-customer was opened; its test is apps/shop/tests/search.spec.ts.",

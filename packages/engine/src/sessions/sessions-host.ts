@@ -41,7 +41,7 @@ export interface SessionsHost {
   readonly takesOver: boolean;
   /**
    * Whether the host maps the knowledge that waits for it: once it started, and once it recorded a revision, a source
-   * of the configuration in force without a card, or cards no index puts together, open a session that maps them. A
+   * of the configuration in force without a card, or cards no knowledge base puts together, open a session that maps them. A
    * host that stays — a server, the conversation of a terminal — does; a command that runs the session it opens and
    * leaves does not, the run of its session mapping what it reads first. `false` by default.
    */

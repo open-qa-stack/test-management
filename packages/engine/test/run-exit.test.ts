@@ -174,14 +174,14 @@ describe("the rounds of the design of a run", () => {
 });
 
 describe("solo command, criterion 9 — the state of a complete run", () => {
-  it("holds the run, the index, the tests and their branch, the report, a verdict per test, and the duration and requests of each step", async () => {
+  it("holds the run, the knowledge base, the tests and their branch, the report, a verdict per test, and the duration and requests of each step", async () => {
     // A clock that moves a second at each reading, from the instant of the run: each step takes time.
     let tick = 0;
     const now = () => new Date(Date.parse("2026-11-13T12:00:00.000Z") + 1000 * tick++);
     const run = await ran(chain(), { environment: "local", now });
     const state = stateOf(run.root);
     assert.equal(state.runId, "oqas-2026-11-13T12-00-00-000Z");
-    assert.equal(state.index, ".oqas/index/domain-index.json");
+    assert.equal(state.knowledgeBase, ".oqas/knowledge/knowledge-base.json");
     assert.deepEqual([...state.designed].sort(), [
       "apps/shop/tests/orders/listing/test-1.spec.ts",
       "apps/shop/tests/orders/listing/test-2.spec.ts",
@@ -267,7 +267,7 @@ describe("what the team asks of an agent", () => {
     const asked = (text: string) =>
       run.server.requests.map(({ body }) => JSON.stringify(body ?? {})).filter((sent) => sent.includes(`Instructions of the team:\\n\\n${text}`));
     assert.ok(asked("Say policy.").length > 0 && asked("Say policy.").every((sent) => sent.includes("run_test")));
-    assert.ok(asked("Few domains.").length > 0 && asked("Few domains.").every((sent) => sent.includes("submit_index")));
+    assert.ok(asked("Few domains.").length > 0 && asked("Few domains.").every((sent) => sent.includes("submit_knowledge_base")));
     const told = journalOf(run.root).filter(({ message }) => message.includes("instructions of the team"));
     assert.deepEqual(
       told.map(({ step, message }) => `${step} ${message.replace(/\([0-9a-f]{12}\)/, "(digest)")}`),

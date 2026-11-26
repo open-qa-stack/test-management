@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import type { DomainIndex, SourceCard, SourceManifest, ToolDefinition } from "@open-qa-stack/domain";
-import { IndexMap, type WrittenSource } from "../src/designer/index-map.ts";
+import type { KnowledgeBase, SourceCard, SourceManifest, ToolDefinition } from "@open-qa-stack/domain";
+import { KnowledgeMap, type WrittenSource } from "../src/designer/knowledge-map.ts";
 
-const INDEX: DomainIndex = {
+const KNOWLEDGE_BASE: KnowledgeBase = {
   formatVersion: 1,
   producedAt: "2026-11-13T09:00:00.000Z",
   environment: "local",
@@ -49,9 +49,9 @@ const CARD: SourceCard = {
   formatVersion: 1,
   source: { id: "shop-api", type: "openapi" },
   fingerprint: "f",
-  producedAt: INDEX.producedAt,
-  model: INDEX.model,
-  run: INDEX.run,
+  producedAt: KNOWLEDGE_BASE.producedAt,
+  model: KNOWLEDGE_BASE.model,
+  run: KNOWLEDGE_BASE.run,
   status: "complete",
   domains: [
     {
@@ -96,7 +96,7 @@ const MANIFEST: SourceManifest = {
   formatVersion: 1,
   source: { id: "shop-db", type: "postgresql" },
   fingerprint: "sha256:0",
-  producedAt: INDEX.producedAt,
+  producedAt: KNOWLEDGE_BASE.producedAt,
   status: "complete",
   domains: [{ id: "invoicing", label: "Invoicing", description: "Invoices.", file: "domains/invoicing.md", writtenBy: "model" }],
   elements: [
@@ -112,9 +112,9 @@ const WRITTEN: WrittenSource = {
 };
 
 const tool = (name: string): ToolDefinition => ({ name, description: name, parameters: { type: "object" }, execute: async () => "" });
-// shop-logs is no source of the index: its tool is its own, not that of shop, whose prefix starts its name.
-const map = new IndexMap(
-  INDEX,
+// shop-logs is no source of the knowledge base: its tool is its own, not that of shop, whose prefix starts its name.
+const map = new KnowledgeMap(
+  KNOWLEDGE_BASE,
   new Map([
     ["shop-api", CARD],
     ["shop-db", BASE_CARD],
@@ -140,7 +140,7 @@ describe("the knowledge as a map", () => {
       "- orders (Orders): Placing an order. 1 operations, 1 screen.",
       "- billing (Billing): Invoices. 1 table.",
     ]);
-    const empty = new IndexMap({ ...INDEX, domains: [{ ...INDEX.domains[2]!, references: [] }] }, new Map(), [], []);
+    const empty = new KnowledgeMap({ ...KNOWLEDGE_BASE, domains: [{ ...KNOWLEDGE_BASE.domains[2]!, references: [] }] }, new Map(), [], []);
     assert.deepEqual(empty.domains(), ["- billing (Billing): Invoices. No element yet."]);
   });
 
@@ -165,7 +165,7 @@ describe("the knowledge as a map", () => {
     );
     // A base whose manifest does not place the element, or whose file is lost, gives the elements of its card as well.
     const partial = (written: WrittenSource) =>
-      new IndexMap(INDEX, new Map([["shop-db", BASE_CARD]]), [], [], new Map([["shop-db", written]]))
+      new KnowledgeMap(KNOWLEDGE_BASE, new Map([["shop-db", BASE_CARD]]), [], [], new Map([["shop-db", written]]))
         .toolset()[0]!
         .execute({ domain: "billing", source: "shop-db" });
     const lines = ["Source shop-db (postgresql): no tool of yours reads it.", "", "- shop-db: public.invoices — An invoice sent to a client. (table)"].join(
@@ -227,7 +227,7 @@ describe("the knowledge as a map", () => {
 
   it("cuts a long list, and says how to narrow it", async () => {
     const many = Array.from({ length: 45 }, (_, i) => `public.t${i}`);
-    const wide = new IndexMap({ ...INDEX, unassigned: [{ source: "stock-db", items: many }] }, new Map(), [], []);
+    const wide = new KnowledgeMap({ ...KNOWLEDGE_BASE, unassigned: [{ source: "stock-db", items: many }] }, new Map(), [], []);
     const listed = (await wide.toolset()[1]!.execute({ kind: "table" })) as string;
     assert.equal(listed.split("\n").length, 43);
     assert.ok(listed.includes("\n6 more: narrow the list with a kind, a domain or words.\n"));
@@ -286,7 +286,7 @@ describe("the knowledge as a map", () => {
       domains: [{ ...BASE_CARD.domains[0]!, items: [{ name: "public.invoices", summary: "Invoices to pay.", facts: { kind: "view" } }] }],
     };
     const unread: WrittenSource = { ...WRITTEN, read: async () => undefined };
-    const viewed = new IndexMap(INDEX, new Map([["shop-db", view]]), [], [], new Map([["shop-db", unread]]));
+    const viewed = new KnowledgeMap(KNOWLEDGE_BASE, new Map([["shop-db", view]]), [], [], new Map([["shop-db", unread]]));
     assert.equal(
       await viewed.toolset()[2]!.execute({ source: "shop-db", item: "public.invoices" }),
       [
@@ -301,7 +301,7 @@ describe("the knowledge as a map", () => {
 
   it("cuts a long file of a domain and a long definition, and says how to read the rest", async () => {
     const long: WrittenSource = { ...WRITTEN, files: new Map([["invoicing", "x".repeat(9000)]]), read: async () => "y".repeat(9000) };
-    const cut = new IndexMap(INDEX, new Map([["shop-db", BASE_CARD]]), [], [], new Map([["shop-db", long]]));
+    const cut = new KnowledgeMap(KNOWLEDGE_BASE, new Map([["shop-db", BASE_CARD]]), [], [], new Map([["shop-db", long]]));
     const [inDomain, , one] = cut.toolset();
     assert.ok(
       String(await inDomain!.execute({ domain: "billing", source: "shop-db" })).endsWith(
@@ -315,8 +315,8 @@ describe("the knowledge as a map", () => {
 
   it("cuts what a source without a file says of a domain past sixty lines, and says how to read the rest", async () => {
     const many = Array.from({ length: 70 }, (_, i) => `public.t${i}`);
-    const wide = new IndexMap(
-      { ...INDEX, domains: [{ ...INDEX.domains[2]!, references: [{ source: "stock-db", items: many }] }], unassigned: [] },
+    const wide = new KnowledgeMap(
+      { ...KNOWLEDGE_BASE, domains: [{ ...KNOWLEDGE_BASE.domains[2]!, references: [{ source: "stock-db", items: many }] }], unassigned: [] },
       new Map(),
       [],
       [],
@@ -333,8 +333,8 @@ describe("the knowledge as a map", () => {
 
   describe("in a domain of sources of several applications", () => {
     /** The domain of the orders, held by the screens of the shop, the base of the stock and a guide of the whole project. */
-    const MIXED: DomainIndex = {
-      ...INDEX,
+    const MIXED: KnowledgeBase = {
+      ...KNOWLEDGE_BASE,
       domains: [
         {
           id: "orders",
@@ -352,7 +352,7 @@ describe("the knowledge as a map", () => {
     const KNOWLEDGE = [{ id: "stock-db", attachments: [{ application: "stock" }, { application: "stock", environment: "staging" }] }, { id: "guide" }];
     const tools = ["shop_goto", "stock_db_search", "guide_read_section"].map(tool);
     const toolsOf = (applications?: readonly string[]) =>
-      new IndexMap(MIXED, new Map(), tools, ["shop", "stock-db", "guide"], new Map(), {
+      new KnowledgeMap(MIXED, new Map(), tools, ["shop", "stock-db", "guide"], new Map(), {
         knowledge: KNOWLEDGE,
         ...(applications === undefined ? {} : { applications }),
       }).toolset() as [ToolDefinition, ToolDefinition, ToolDefinition];
@@ -397,7 +397,7 @@ describe("the knowledge as a map", () => {
       assert.doesNotMatch(await answer(mixedRead, { source: "shop", item: "/orders" }), /Warning/);
       assert.doesNotMatch(await answer(mixedList, { kind: "section" }), /Warning/);
       // A source that describes the application of the session too, beside another, names both and does not warn.
-      const shared = new IndexMap(MIXED, new Map(), tools, ["shop", "stock-db", "guide"], new Map(), {
+      const shared = new KnowledgeMap(MIXED, new Map(), tools, ["shop", "stock-db", "guide"], new Map(), {
         knowledge: [{ id: "stock-db", attachments: [{ application: "stock" }, { application: "shop" }] }],
         applications: ["shop"],
       }).toolset()[1]!;

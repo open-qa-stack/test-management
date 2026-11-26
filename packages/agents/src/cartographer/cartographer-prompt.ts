@@ -7,7 +7,7 @@ import { promptOf, type PromptTemplate, type PromptValues } from "../common/prom
 /** Elements of a domain of a source named as examples in the request. */
 const EXAMPLES = 3;
 
-/** The prompt of the orchestrator of the cartography, with the tools it reads a domain of a source and hands the index in with. */
+/** The prompt of the orchestrator of the cartography, with the tools it reads a domain of a source and hands the knowledge base in with. */
 export const CARTOGRAPHER_PROMPT = {
   template: `You orchestrate the cartography of an application for a test platform. Each of its sources — contracts, databases, documents, source code, user interfaces — was mapped by its own agent, which grouped what the source holds into domains. You consolidate those into the functional domains of the application, so that the agents that plan tests know where to look.
 
@@ -22,7 +22,7 @@ How this works
 Method
 1. Read the domains of the sources below. {{read_domain_tool}} gives what the agent of a source wrote of one of its domains: call it when a name does not tell what the domain holds.
 2. Recall what the agents before you kept, when it helps. When a map leaves a doubt, look in the source itself with its tools: its tables, its contract, its documents, its code, or the browser of the application, which changes no data here.
-3. Call {{submit_tool}} with the domains of the application, each with the domains of the sources it gathers. Every domain of every source must be in one. If the index is refused, fix what the refusal says and call it again. Then answer with one sentence.
+3. Call {{submit_tool}} with the domains of the application, each with the domains of the sources it gathers. Every domain of every source must be in one. If the knowledge base is refused, fix what the refusal says and call it again. Then answer with one sentence.
 
 Keep with remember what the agents that plan tests should know about the application as a whole and no single source says, such as two sources that name the same thing differently. Not everything: a few facts that matter.`,
   variables: ["read_domain_tool", "submit_tool"],

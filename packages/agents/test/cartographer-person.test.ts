@@ -23,7 +23,7 @@ describe("a person who speaks during a cartography", () => {
         if (line.phase === "consolidation" && line.event.type === "message") say(path, "Name the domains in English.");
       },
     });
-    assert.ok(outcome.index !== undefined, messages(outcome));
+    assert.ok(outcome.knowledgeBase !== undefined, messages(outcome));
     const asked = server.requests.map((request) => request.body as Asked);
     const opened = asked.filter((body) => body.messages.length === 2);
     const orchestrates = (body: Asked) => body.messages[0]!.content.startsWith("You orchestrate the cartography");

@@ -229,7 +229,7 @@ export class ApiClient {
     return this.#ask<AddressCheck>("/configuration/address-check", posting({ address }));
   }
 
-  /** @returns Where the cartography of the knowledge stands, source by source, with the index that puts their cards together. */
+  /** @returns Where the cartography of the knowledge stands, source by source, with the knowledge base that puts their cards together. */
   public async mapping(): Promise<CartographyState> {
     return this.#ask<CartographyState>("/knowledge/mapping");
   }

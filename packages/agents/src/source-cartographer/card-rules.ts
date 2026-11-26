@@ -1,4 +1,4 @@
-import { validateSourceCardSubmission, type IndexError, type SourceCardSubmission } from "@open-qa-stack/domain";
+import { validateSourceCardSubmission, type KnowledgeBaseError, type SourceCardSubmission } from "@open-qa-stack/domain";
 import type { SourceInventory } from "@open-qa-stack/tools";
 import { secretErrors } from "../common/config-secrets.ts";
 import { withUnassigned } from "../common/with-unassigned.ts";
@@ -74,7 +74,7 @@ export function cardRules(sourceId: string, inventory: () => SourceInventory, se
       const invented = named
         .filter(([, name]) => !known.has(name))
         .map(([path, name]) => ({ path, message: `${path}: ${name} is not an element of ${sourceId}; use one of the elements listed.` }));
-      const errors: IndexError[] = [...secretErrors(value, secrets), ...invented];
+      const errors: KnowledgeBaseError[] = [...secretErrors(value, secrets), ...invented];
       const placed = new Set(named.map(([, name]) => name));
       const missing = items.filter((item) => !placed.has(item));
       for (const item of missing) errors.push({ path: "", message: `${item} is in no domain nor in unassigned.` });

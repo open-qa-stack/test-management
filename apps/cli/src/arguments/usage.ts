@@ -96,7 +96,7 @@ Commands:
                          Map the knowledge again: the source named, or every source, is read again by a session
                          this command opens and follows to its end, unless one maps the knowledge already.
   knowledge mapping      Tell where the cartography of the knowledge stands: each source mapped, truncated, being
-                         mapped or waiting, and the index that puts them together.
+                         mapped or waiting, and the knowledge base that puts them together.
   tests                  List the tests of the test repository, each with its level, domain, functionality and case
                          when its tags give them, and the files whose tests cannot all be listed.
   tests verdicts         List what came of each test the last time it ran.

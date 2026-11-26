@@ -236,18 +236,18 @@ describe("oqas knowledge check", () => {
 });
 
 describe("oqas knowledge mapping", () => {
-  it("tells where the cartography of each source stands, and the index, as lines or as JSON", async () => {
+  it("tells where the cartography of each source stands, and the knowledge base, as lines or as JSON", async () => {
     const { oqas } = repository();
     const told = await oqas("knowledge", "mapping");
     assert.equal(told.code, 0);
     assert.match(told.out, /^The knowledge of the environment local:\n/);
     assert.match(told.out, /\norder-specs {2}waits to be mapped\n/);
-    assert.match(told.out, /\nNo index puts the cards together yet\.\n$/);
+    assert.match(told.out, /\nNo knowledge base puts the cards together yet\.\n$/);
     const json = JSON.parse((await oqas("knowledge", "mapping", "--output", "json")).out) as { environment: string };
     assert.equal(json.environment, "local");
   });
 
-  it("says each state of a source, and of the index, in plain words", () => {
+  it("says each state of a source, and of the knowledge base, in plain words", () => {
     const at = "2026-11-22T09:00:00.000Z";
     assert.deepEqual(
       mappingLines({
@@ -258,7 +258,7 @@ describe("oqas knowledge mapping", () => {
           { id: "c", type: "document", state: "mapped", mappedAt: at },
           { id: "d", type: "web", state: "truncated", mappedAt: at },
         ],
-        index: { producedAt: at, status: "truncated" },
+        knowledgeBase: { producedAt: at, status: "truncated" },
       }),
       [
         "The knowledge of the environment local:",
@@ -266,10 +266,13 @@ describe("oqas knowledge mapping", () => {
         "b  is being mapped",
         `c  mapped on ${at}`,
         `d  mapped in part: a limit stopped it on ${at}`,
-        `The index was written on ${at}, in part.`,
+        `The knowledge base was written on ${at}, in part.`,
       ],
     );
-    assert.equal(mappingLines({ environment: "local", sources: [], index: { producedAt: at, status: "complete" } }).at(-1), `The index was written on ${at}.`);
+    assert.equal(
+      mappingLines({ environment: "local", sources: [], knowledgeBase: { producedAt: at, status: "complete" } }).at(-1),
+      `The knowledge base was written on ${at}.`,
+    );
     assert.deepEqual(mappingLines({ sources: [] }), ["The instance has no configuration yet: nothing is mapped."]);
   });
 });

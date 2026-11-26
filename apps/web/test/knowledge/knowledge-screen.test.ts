@@ -163,7 +163,7 @@ describe("the knowledge of the project", () => {
     );
   });
 
-  it("tells where the cartography of each source stands, and of the index that puts them together", () => {
+  it("tells where the cartography of each source stands, and of the knowledge base that puts them together", () => {
     const at = "2026-11-22T09:00:00.000Z";
     const mapped = (mapping: CartographyState) => textOf(screen("#/knowledge", stateAfter([{ type: "mapped", mapping }])));
     const sources = [
@@ -181,14 +181,14 @@ describe("the knowledge of the project", () => {
       "local › backend Cartographiée en partie",
     ])
       assert.ok(text.includes(row), row);
-    assert.ok(!text.includes("Code code Cartographiée"), "a source mapped has no badge: the line of the index says it");
+    assert.ok(!text.includes("Code code Cartographiée"), "a source mapped has no badge: the line of the knowledge base says it");
     assert.ok(text.includes("Documents déposés manuals 1 document Code"), "a source the cartography does not read has no badge");
     assert.match(
-      mapped({ environment: "local", sources, index: { producedAt: at, status: "complete" } }),
-      /Connaissances mises en commun par domaine le 22 nov\. 2026/,
+      mapped({ environment: "local", sources, knowledgeBase: { producedAt: at, status: "complete" } }),
+      /Base de connaissance mise en commun par domaine le 22 nov\. 2026/,
     );
     assert.match(
-      mapped({ environment: "local", sources, index: { producedAt: at, status: "truncated" } }),
+      mapped({ environment: "local", sources, knowledgeBase: { producedAt: at, status: "truncated" } }),
       /, en partie : une limite a arrêté la cartographie\./,
     );
   });

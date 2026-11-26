@@ -18,7 +18,7 @@ export interface KnowledgeDomain {
   /** Set for a domain a person excluded: it is proposed to no session, and served to no agent. */
   readonly excluded?: true;
   readonly description: string;
-  /** The sources that hold it, in the order of the index. */
+  /** The sources that hold it, in the order of the knowledge base. */
   readonly sources: readonly KnowledgeDomainSource[];
 }
 

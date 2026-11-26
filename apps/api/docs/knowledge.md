@@ -29,7 +29,7 @@ cache-control: no-store
 {"environment":"local","sources":[{"id":"order-specs","type":"document","state":"mapped","mappedAt":"2026-11-22T09:00:00.000Z"},{"id":"shop-db","type":"postgresql","state":"mapping"}]}
 ```
 
-The answer lists each source the cartography reads in the first environment the configuration declares — the knowledge sources but logs, then the interface of each application — in the order of the configuration, with where its cartography stands in `state`: `waiting`, it has no card yet; `mapping`, a session maps the knowledge now; `mapped`, its card is written, on `mappedAt`; `truncated`, its card is written but a limit stopped it. `index`, when the cartography wrote one, gives when (`producedAt`) and whether in part (`status`). An instance without a test repository, or without a configuration, lists no source and names no `environment`. It is answered with `cache-control: no-store`.
+The answer lists each source the cartography reads in the first environment the configuration declares — the knowledge sources but logs, then the interface of each application — in the order of the configuration, with where its cartography stands in `state`: `waiting`, it has no card yet; `mapping`, a session maps the knowledge now; `mapped`, its card is written, on `mappedAt`; `truncated`, its card is written but a limit stopped it. `knowledgeBase`, when the cartography wrote one, gives when (`producedAt`) and whether in part (`status`). An instance without a test repository, or without a configuration, lists no source and names no `environment`. It is answered with `cache-control: no-store`.
 
 ## Mapping the knowledge again
 
@@ -44,7 +44,7 @@ HTTP/1.1 200 OK
 {"state":"opened","session":{"id":"…","purpose":"map","state":"running",…}}
 ```
 
-A session that maps the knowledge opens only for a source without a card: a source whose content changed is not read again by itself. This route drops the card of the source named, and the domains it found — or those of every source of the environment mapped, with an empty body —, then opens a session that maps the knowledge, which runs, or waits its turn. The source goes through `waiting` and `mapping` again, then `mapped`, with a later date; the index that puts the cards together follows, as after a source is added. The answer says what happened, in `state`:
+A session that maps the knowledge opens only for a source without a card: a source whose content changed is not read again by itself. This route drops the card of the source named, and the domains it found — or those of every source of the environment mapped, with an empty body —, then opens a session that maps the knowledge, which runs, or waits its turn. The source goes through `waiting` and `mapping` again, then `mapped`, with a later date; the knowledge base that puts the cards together follows, as after a source is added. The answer says what happened, in `state`:
 
 | `state` | When | With |
 |---|---|---|
@@ -84,7 +84,7 @@ A body that is no source the configuration accepts, or whose `value` is no text,
 GET /api/knowledge/domains
 ```
 
-The answer lists the domains of the index the last cartography wrote in the test repository, in its order, each with its `id`, its `label` and its `description`: what [a session may be kept to](sessions.md#opening-a-session). It lists none before a cartography, without a test repository, or when the index cannot be read. It is answered with `cache-control: no-store`.
+The answer lists the domains of the knowledge base the last cartography wrote in the test repository, in its order, each with its `id`, its `label` and its `description`: what [a session may be kept to](sessions.md#opening-a-session). It lists none before a cartography, without a test repository, or when the knowledge base cannot be read. It is answered with `cache-control: no-store`.
 
 Each domain may carry what a person set of it: `excluded` when they excluded it, and `foundLabel`, the name the cartography gave it, when they gave it another, which `label` then is.
 
@@ -95,9 +95,9 @@ content-type: application/json
 { "label": "Ventes", "excluded": true }
 ```
 
-The body holds `label`, `excluded`, or both, and the answer is the domain. An excluded domain is proposed to no session and served to no agent: a session kept to it is refused with `422 domain_refused`, and one kept to nothing designs without it. Its knowledge sources stay readable by their own tools, which read a whole source, and the notes of the agents are not sorted. A name takes its place in the console, in `oqas` and in what the agents are told; the name the cartography gave takes it back. A name that is empty, or longer than 100 characters, is refused with `422 domain_refused`, and a domain the index does not hold with `404 unknown_domain`.
+The body holds `label`, `excluded`, or both, and the answer is the domain. An excluded domain is proposed to no session and served to no agent: a session kept to it is refused with `422 domain_refused`, and one kept to nothing designs without it. Its knowledge sources stay readable by their own tools, which read a whole source, and the notes of the agents are not sorted. A name takes its place in the console, in `oqas` and in what the agents are told; the name the cartography gave takes it back. A name that is empty, or longer than 100 characters, is refused with `422 domain_refused`, and a domain the knowledge base does not hold with `404 unknown_domain`.
 
-What is set is kept in the database of the instance, apart from the index: it holds when the cartography writes the index again, for a domain of the same identifier, and is forgotten at the end of a session whose index no longer has the domain.
+What is set is kept in the database of the instance, apart from the knowledge base: it holds when the cartography writes the knowledge base again, for a domain of the same identifier, and is forgotten at the end of a session whose knowledge base no longer has the domain.
 
 ## A source of documents
 

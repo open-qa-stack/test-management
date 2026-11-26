@@ -1,4 +1,4 @@
-import type { IndexError, ResolvedConfig } from "@open-qa-stack/domain";
+import type { KnowledgeBaseError, ResolvedConfig } from "@open-qa-stack/domain";
 import { secretForms, secretPaths } from "@open-qa-stack/tools";
 
 /**
@@ -29,7 +29,7 @@ export function configSecrets(config: ResolvedConfig, env: Readonly<Record<strin
  * @param secrets - The secrets of the configuration.
  * @returns An error for each string that holds one, which names its place but never the secret.
  */
-export function secretErrors(value: unknown, secrets: readonly string[]): IndexError[] {
+export function secretErrors(value: unknown, secrets: readonly string[]): KnowledgeBaseError[] {
   return secretPaths(value, secrets.flatMap(secretForms)).map((path) => ({
     path,
     message: `${path} holds a secret of the configuration; write it without the secret.`,

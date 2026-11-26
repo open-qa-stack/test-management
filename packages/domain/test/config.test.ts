@@ -140,6 +140,12 @@ describe("criterion 7 — an unknown key is refused at any depth", () => {
     assert.deepEqual([e.path, e.rule], ["/applications/1/environments/0/apis/0/token", "unknown-key"]);
   });
 
+  it("names the key to write for one of an earlier version of the format", () => {
+    const e = only(errorsOf(validateVariant((c) => (c["repository"] = { indexDir: ".oqas/index" }))));
+    assert.deepEqual([e.path, e.rule], ["/repository/indexDir", "retired-key"]);
+    assert.match(e.message, /^The key indexDir is now knowledgeDir, "\.oqas\/knowledge" by default: rename it\./);
+  });
+
   it("escapes the key in the JSON Pointer", () => {
     const e = only(errorsOf(validateVariant((c) => (at(c, "autonomy")["a/b~c"] = 1))));
     assert.equal(e.path, "/autonomy/a~1b~0c");
@@ -474,7 +480,7 @@ describe("repository layout", () => {
       blocksDir: "blocs",
       journeysDir: "parcours",
       stateDir: ".oqas",
-      indexDir: ".oqas/index",
+      knowledgeDir: ".oqas/knowledge",
     });
   });
 
@@ -549,8 +555,8 @@ describe("hardening", () => {
   });
 
   it("refuses control characters in a path", () => {
-    const e = only(errorsOf(validateVariant((c) => (c["repository"] = { indexDir: "index\u0000" }))));
-    assert.deepEqual([e.path, e.rule], ["/repository/indexDir", "path-invalid"]);
+    const e = only(errorsOf(validateVariant((c) => (c["repository"] = { knowledgeDir: "index\u0000" }))));
+    assert.deepEqual([e.path, e.rule], ["/repository/knowledgeDir", "path-invalid"]);
   });
 
   it("refuses credentials or a foreign scheme in $schema, accepts a relative path", () => {
@@ -626,7 +632,7 @@ describe("source code — a folder of the workstation, possibly outside the test
 });
 
 describe("identifiers of knowledge and applications", () => {
-  it("refuses a knowledge source named like an application, since both name the sources of an index", () => {
+  it("refuses a knowledge source named like an application, since both name the sources of a knowledge base", () => {
     const e = only(
       errorsOf(
         validateVariant((c) =>

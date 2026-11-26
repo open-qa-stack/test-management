@@ -12,9 +12,9 @@ export type ScenarioLevel = "smoke" | "functional" | "business" | "cross-applica
 /** Whether a test only reads the data of the environment, or creates, changes or removes some. */
 export type ScenarioEffect = "read" | "write";
 
-/** A source a scenario relies on: a source of the domain index, and an element of it when one is named. */
+/** A source a scenario relies on: a source of the knowledge base, and an element of it when one is named. */
 export interface ScenarioSource {
-  /** Identifier of the source in the domain index. */
+  /** Identifier of the source in the knowledge base. */
   readonly source: string;
   /** The element of the source, such as a section of a document or a table of a base. */
   readonly item?: string;
@@ -111,7 +111,7 @@ export interface PlannedScenario {
   readonly application: string;
   /** Identifiers of the other applications the test acts on, for a test of several; the harness writes them, never the agent. */
   readonly applications?: readonly string[];
-  /** Identifier of the domain of the index the scenario comes from. */
+  /** Identifier of the domain of the knowledge base the scenario comes from. */
   readonly domain: string;
   /** A slug of the functionality of that domain the scenario verifies, such as `customer-search`: the tests of one functionality share a folder. */
   readonly feature: string;

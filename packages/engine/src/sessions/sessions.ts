@@ -215,7 +215,7 @@ export class Sessions {
     const environment = config.applications[0]!.environments[0]!.name;
     const declared = runSources(config, environment).map(({ id }) => id);
     if (source !== undefined && !declared.includes(source)) return { state: "unknown", source };
-    const cards = join(repository, config.repository.indexDir, CARDS_FOLDER);
+    const cards = join(repository, config.repository.knowledgeDir, CARDS_FOLDER);
     // A card, and the folder of the domains it found, which the session writes again.
     const dropped = (source === undefined ? declared : [source]).flatMap((id) => [join(cards, `${id}.json`), join(cards, id)]);
     await Promise.all(dropped.map((path) => rm(path, { recursive: true, force: true })));
@@ -370,7 +370,7 @@ export class Sessions {
   }
 
   /**
-   * Opens a session that maps the knowledge when a source of the configuration in force has no card yet, or no index
+   * Opens a session that maps the knowledge when a source of the configuration in force has no card yet, or no knowledge base
    * puts the cards together, unless one waits or runs already. What prevents it — the store, a test repository that
    * cannot be read — is logged: the next revision, or the next start, tries again.
    */

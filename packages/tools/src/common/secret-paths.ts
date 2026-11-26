@@ -3,7 +3,7 @@ import { redactText } from "../browser/redact.ts";
 /**
  * Finds the strings of a value that hold a secret.
  *
- * @param value - A value an agent wrote: a note, a card, an index.
+ * @param value - A value an agent wrote: a note, a card, a knowledge base.
  * @param forms - The secrets, in every form `secretForms` gives.
  * @param path - JSON Pointer of `value` itself; the whole value by default.
  * @returns The JSON Pointer of each string that holds one, in the order of the value.

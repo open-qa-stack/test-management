@@ -1,6 +1,6 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { repeated, validate } from "../domain-index/schema-validation.ts";
-import type { IndexValidation } from "../domain-index/types.ts";
+import { repeated, validate } from "../knowledge-base/schema-validation.ts";
+import type { KnowledgeBaseValidation } from "../knowledge-base/types.ts";
 import { placementSubmissionSchema, sourceManifestSchema } from "./schema.ts";
 import type { PlacementSubmission, SourceManifest } from "./types.ts";
 
@@ -15,7 +15,7 @@ const checkPlacement = ajv.compile<PlacementSubmission>(placementSubmissionSchem
  * @param value - The manifest.
  * @returns The manifest, or every error found, each with its location.
  */
-export function validateSourceManifest(value: unknown): IndexValidation<SourceManifest> {
+export function validateSourceManifest(value: unknown): KnowledgeBaseValidation<SourceManifest> {
   return validate(checkManifest, value, (manifest) => {
     const domains = manifest.domains.map((domain) => domain.id);
     const names = manifest.elements.map((element) => element.name);
@@ -40,6 +40,6 @@ export function validateSourceManifest(value: unknown): IndexValidation<SourceMa
  * @param value - The submission, as the model wrote it.
  * @returns The submission, or every error found, each with its location.
  */
-export function validatePlacementSubmission(value: unknown): IndexValidation<PlacementSubmission> {
+export function validatePlacementSubmission(value: unknown): KnowledgeBaseValidation<PlacementSubmission> {
   return validate(checkPlacement, value, () => []);
 }

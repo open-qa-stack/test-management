@@ -195,7 +195,7 @@ await page.goto("/policies");
 
 ### PW-FACT-01
 
-Never invent a value: every label, message, field and value a test enters or checks comes from the domain index, the knowledge sources or the screens of the application; leave out what they do not give.
+Never invent a value: every label, message, field and value a test enters or checks comes from the knowledge base, the knowledge sources or the screens of the application; leave out what they do not give.
 
 Why: A test checks the behaviour users see; a value guessed instead of read from the application tests nothing but the guess. See the [Playwright documentation](https://playwright.dev/docs/best-practices#test-user-visible-behavior).
 

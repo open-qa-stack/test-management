@@ -38,7 +38,7 @@ import { SOURCE_CARTOGRAPHER_INSTRUCTIONS, SOURCE_CARTOGRAPHER_VALUES, sourceCar
 /** What every workflow that leaves a manifest of a source is given. */
 type ManifestWorkflow = Omit<ExportedSourceOptions, "exported" | "partial">;
 
-/** Folder of the cards, in the index folder of the test repository. */
+/** Folder of the cards, in the knowledge base folder of the test repository. */
 export const CARDS_FOLDER = "sources";
 
 /** What the cartography of one source needs. */
@@ -155,7 +155,7 @@ export class SourceCartographer {
       const { items, fingerprint, truncated } = subject.inventory();
       trace.harness("card", { type: "inventory", items: items.length, fingerprint, truncated: truncated === true }, source.id);
     }
-    const cardPath = join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, `${source.id}.json`);
+    const cardPath = join(repositoryRoot, config.repository.knowledgeDir, CARDS_FOLDER, `${source.id}.json`);
     const existing = await upToDate(cardPath, subject.fingerprint);
     if (existing !== undefined) {
       journal.record("info", `The card of ${source.id} is up to date; it was kept.`, source.id);
@@ -317,7 +317,7 @@ export class SourceCartographer {
     const secrets = configSecrets(config, env);
     const { manifest, usage, run, stoppedBy } = await workflow({
       source: { id: source.id, type: source.type },
-      folder: new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source.id), secrets),
+      folder: new SourceFolder(join(repositoryRoot, config.repository.knowledgeDir, CARDS_FOLDER, source.id), secrets),
       runtime: this.options.runtime,
       limits: taskLimits(config),
       secrets,

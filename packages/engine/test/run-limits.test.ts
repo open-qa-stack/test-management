@@ -56,15 +56,15 @@ describe("a run whose design a limit of the autonomy stopped", () => {
 });
 
 describe("a run whose cartography a limit of the autonomy stopped", () => {
-  it("exits with 5 without an index, and says in its state which step was stopped", async () => {
-    const bad = { body: toolCalls(MODEL, [submit("submit_index", { domains: [] }, "x0")]) };
+  it("exits with 5 without a knowledge base, and says in its state which step was stopped", async () => {
+    const bad = { body: toolCalls(MODEL, [submit("submit_knowledge_base", { domains: [] }, "x0")]) };
     // The session that maps the document is cut at its second call, once its domain is handed in: its last answer is never asked.
     const server = await scriptedServer([...chain().slice(0, 3), bad, bad]);
     try {
       const run = await ran([], { environment: "local", modelUrl: server.baseUrl, config: boundedTo(2) });
       assert.equal(run.code, 5, run.err);
       const stopped = stateOf(run.root);
-      assert.deepEqual([stopped.stoppedBy, stopped.index, stopped.designed], [{ step: "cartography", limit: "iterations" }, undefined, []]);
+      assert.deepEqual([stopped.stoppedBy, stopped.knowledgeBase, stopped.designed], [{ step: "cartography", limit: "iterations" }, undefined, []]);
       assert.match(run.err, /\[summary\] The cartography was stopped by its iterations limit: what it produced is kept in the test repository\./);
     } finally {
       await server.close();

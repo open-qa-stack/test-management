@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Open QA Stack domain index",
+  "title": "Open QA Stack knowledge base",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,7 +20,7 @@
     },
     "formatVersion": {
       "const": 1,
-      "description": "Version of the index format, independent of the product version."
+      "description": "Version of the knowledge base format, independent of the product version."
     },
     "producedAt": {
       "type": "string",

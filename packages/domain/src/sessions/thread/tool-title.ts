@@ -38,7 +38,7 @@ export type ToolWord =
   | "remember"
   | "recall"
   | "writeDomain"
-  | "submitIndex";
+  | "submitKnowledgeBase";
 
 /**
  * How a presentation words a sentence of a tool call, or a part of one.
@@ -116,7 +116,7 @@ const TITLES: readonly (readonly [RegExp, (call: Call) => string])[] = [
   [/^remember$/, ({ say }) => say("remember")],
   [/^recall$/, ({ say }) => say("recall")],
   [/^write_domain$/, ({ args, say }) => say("writeDomain", { id: argument(args, "id") })],
-  [/^submit_index$/, ({ args, say }) => say("submitIndex", { count: count(args, "domains") })],
+  [/^submit_knowledge_base$/, ({ args, say }) => say("submitKnowledgeBase", { count: count(args, "domains") })],
 ];
 
 /**

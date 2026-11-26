@@ -77,15 +77,15 @@ describe("the phases of a run", () => {
     phases.end("done");
     phases.close();
     assert.equal(phases.current, "card");
-    phases.start("index");
+    phases.start("knowledge-base");
     phases.close();
     assert.deepEqual(
       read(path).map((line) => [line.phase, line.event]),
       [
         ["card", { type: "started" }],
         ["card", { type: "finished", outcome: "done" }],
-        ["index", { type: "started" }],
-        ["index", { type: "finished", outcome: "failed" }],
+        ["knowledge-base", { type: "started" }],
+        ["knowledge-base", { type: "finished", outcome: "failed" }],
       ],
     );
   });

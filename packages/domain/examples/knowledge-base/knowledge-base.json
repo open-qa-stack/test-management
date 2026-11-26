@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schema/oqas-domain-index.schema.json",
+  "$schema": "../../schema/oqas-knowledge-base.schema.json",
   "formatVersion": 1,
   "producedAt": "2026-11-13T09:30:00Z",
   "environment": "local",

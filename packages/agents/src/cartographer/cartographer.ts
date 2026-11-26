@@ -2,12 +2,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   readsImages,
-  validateDomainIndex,
+  validateKnowledgeBase,
   type AgentEvent,
   type AgentRuntime,
-  type DomainIndex,
+  type KnowledgeBase,
   type HarnessEvent,
-  type IndexSource,
+  type KnowledgeBaseSource,
   type MappedKnowledge,
   type ModelUsage,
   type PhaseOutcome,
@@ -36,13 +36,13 @@ import { SourceFolder } from "../source-workflow/source-folder.ts";
 import { cardFingerprint } from "./card-fingerprint.ts";
 import { CARTOGRAPHER_INSTRUCTIONS, CARTOGRAPHER_VALUES, cartographyRequest } from "./cartographer-prompt.ts";
 import { DomainConsolidation } from "./domain-consolidation.ts";
-import { indexStaleness } from "./index-staleness.ts";
+import { knowledgeBaseStaleness } from "./knowledge-base-staleness.ts";
 import { runSources, type RunSource } from "./run-sources.ts";
 import { sourceDomainTool } from "./source-domain-tool.ts";
 import { surveySource, type SurveyResult } from "./source-survey.ts";
 
-/** Name of the index file, in the index folder of the test repository. */
-export const INDEX_FILE_NAME = "domain-index.json";
+/** Name of the knowledge base file, in the knowledge base folder of the test repository. */
+export const KNOWLEDGE_BASE_FILE_NAME = "knowledge-base.json";
 
 /** What a cartography needs. */
 export interface CartographerOptions {
@@ -74,40 +74,40 @@ export interface CartographerOptions {
 
 /** What a cartography produced. */
 export interface CartographyOutcome {
-  /** Where the index was written, when it was. */
-  readonly indexPath?: string;
-  /** The index written, when it was. */
-  readonly index?: DomainIndex;
+  /** Where the knowledge base was written, when it was. */
+  readonly knowledgeBasePath?: string;
+  /** The knowledge base written, when it was. */
+  readonly knowledgeBase?: KnowledgeBase;
   /** What the run checked, refused and wrote, the cartography of each source first. */
   readonly journal: readonly JournalEntry[];
   /** Where the trace of the cartography is written. */
   readonly tracePath: string;
-  /** The first limit that stopped one of its tasks, when no index was written. */
+  /** The first limit that stopped one of its tasks, when no knowledge base was written. */
   readonly stoppedBy?: StopReason["limit"];
 }
 
 /**
- * The cartographer: it writes an index of the application's functional domains in the test repository,
+ * The cartographer: it writes a knowledge base of the application's functional domains in the test repository,
  * by consolidating the cards of the sources the configuration declares.
  *
  * @remarks
- * Before any exploration, every source must answer; otherwise no session starts and no index is written.
+ * Before any exploration, every source must answer; otherwise no session starts and no knowledge base is written.
  * The inventory a knowledge source gave then is the one its card is made of: no knowledge source is read twice.
  * Each source without an up-to-date card is then mapped on its own, in its own task, under the limits of
- * the configured autonomy. The index records the fingerprint of each card it is made of: when the index
+ * the configured autonomy. The knowledge base records the fingerprint of each card it is made of: when the knowledge base
  * already written is complete, of this environment, of the same sources and of the cards they have now, it is
  * kept, without the model. Otherwise a last task consolidates the cards, with the notes
  * the agents kept but none of the tools of the sources, each element followed by the domains of other cards
- * that share a word with it, and hands its index in with `submit_index`, which must place every element of every
- * card in functional domains; the elements it leaves unassigned are asked once more. A source without a card is `not_read`. The index is written only once a
- * submission was accepted and the whole index passes its schema; it is `truncated` when a limit stopped the
+ * that share a word with it, and hands its knowledge base in with `submit_knowledge_base`, which must place every element of every
+ * card in functional domains; the elements it leaves unassigned are asked once more. A source without a card is `not_read`. The knowledge base is written only once a
+ * submission was accepted and the whole knowledge base passes its schema; it is `truncated` when a limit stopped the
  * consolidation, a card is truncated or a source was not read. A limit reached while the elements left
  * unassigned are asked once more only ends that second submission: the first stays as it was accepted, and
- * the index is not truncated for it. When no index is written, the outcome names the first limit that
+ * the knowledge base is not truncated for it. When no knowledge base is written, the outcome names the first limit that
  * stopped a task, if one did: a cartography run again keeps the complete cards. Nothing is committed nor pushed.
  *
  * The run is traced in `<stateDir>/traces/`, line by line, and each line is handed to `observe` as it is
- * written: the phases `survey`, `card`, `consolidation` and `index`, each from its `started` line to its
+ * written: the phases `survey`, `card`, `consolidation` and `knowledge-base`, each from its `started` line to its
  * `finished` line even when the run throws, what the harness did in each, what each phase and the card of
  * each source asked of the model, and every message, reasoning, text and tool call of the agents.
  */
@@ -122,8 +122,8 @@ export class Cartographer {
   /**
    * Runs a cartography.
    *
-   * @returns The index written, if any, and the journal.
-   * @throws Error when a card or the index cannot be written to the disk.
+   * @returns The knowledge base written, if any, and the journal.
+   * @throws Error when a card or the knowledge base cannot be written to the disk.
    */
   public async run(): Promise<CartographyOutcome> {
     const now = this.options.now ?? (() => new Date());
@@ -152,7 +152,7 @@ export class Cartographer {
     );
     for (const [source, survey] of surveys) if (!survey.ok) journal.record("error", `The source ${source.id} does not answer: ${survey.error}`, source.id);
     if (surveys.some(([, survey]) => !survey.ok)) {
-      journal.record("error", "No index was written: every declared source must answer before the exploration.");
+      journal.record("error", "No knowledge base was written: every declared source must answer before the exploration.");
       endPhase(trace, phases, "failed");
       return { journal: journal.entries() };
     }
@@ -175,19 +175,22 @@ export class Cartographer {
       ),
       totalUsage(results.map(({ outcome }) => outcome.usage)),
     );
-    const indexPath = this.indexPath();
-    const previous = await readIndex(indexPath);
-    const stale = indexStaleness(previous, environment, sources, cards);
+    const knowledgeBasePath = this.knowledgeBasePath();
+    const previous = await readKnowledgeBase(knowledgeBasePath);
+    const stale = knowledgeBaseStaleness(previous, environment, sources, cards);
     if (previous !== undefined && stale === undefined) {
-      phases.start("index");
-      journal.record("info", `The index ${indexPath} is complete and made of the cards every source has now, by their fingerprints; it was kept.`);
+      phases.start("knowledge-base");
+      journal.record(
+        "info",
+        `The knowledge base ${knowledgeBasePath} is complete and made of the cards every source has now, by their fingerprints; it was kept.`,
+      );
       endPhase(trace, phases, "kept");
-      return { indexPath, index: previous, journal: journal.entries() };
+      return { knowledgeBasePath, knowledgeBase: previous, journal: journal.entries() };
     }
     phases.start("consolidation");
-    journal.record("info", `The index is made: ${stale}.`);
+    journal.record("info", `The knowledge base is made: ${stale}.`);
     if ([...cards.values()].every((card) => card.domains.length === 0)) {
-      journal.record("error", `No index was written: ${cards.size === 0 ? "no source has a card" : "the sources were mapped into no domain"}.`);
+      journal.record("error", `No knowledge base was written: ${cards.size === 0 ? "no source has a card" : "the sources were mapped into no domain"}.`);
       endPhase(trace, phases, "failed");
       return { journal: journal.entries(), ...firstLimit(limits) };
     }
@@ -195,8 +198,8 @@ export class Cartographer {
     const submission = new DomainConsolidation(cards, secrets, journal);
     // The orchestrator reads what the agent of each source wrote of a domain, in the folder the source was mapped to.
     const written = (source: string, domain: string) =>
-      new SourceFolder(join(repositoryRoot, config.repository.indexDir, CARDS_FOLDER, source), secrets).readDomain(domain);
-    const notes = agentMemory(config, this.options.memory, env, { role: "cartographer", task: `index-${environment}-${now().toISOString()}`, now });
+      new SourceFolder(join(repositoryRoot, config.repository.knowledgeDir, CARDS_FOLDER, source), secrets).readDomain(domain);
+    const notes = agentMemory(config, this.options.memory, env, { role: "cartographer", task: `knowledgeBase-${environment}-${now().toISOString()}`, now });
     const browser = this.browser(sources);
     const events: AgentEvent[] = [];
     const { inbox } = this.options;
@@ -228,20 +231,20 @@ export class Cartographer {
     const accepted = submission.accepted;
     const settled = last.type === "end";
     if (accepted === undefined) {
-      journal.record("error", "No index was written: no index was accepted before the session ended.");
+      journal.record("error", "No knowledge base was written: no knowledge base was accepted before the session ended.");
       endPhase(trace, phases, "failed", usage);
       return { journal: journal.entries(), ...firstLimit(limits) };
     }
     endPhase(trace, phases, settled ? "done" : "truncated", usage);
-    phases.start("index");
-    const states = sources.map((source): IndexSource => {
+    phases.start("knowledge-base");
+    const states = sources.map((source): KnowledgeBaseSource => {
       const card = cards.get(source.id);
       return card === undefined
         ? { id: source.id, type: source.type, state: "not_read" }
         : { id: source.id, type: source.type, state: "read", cardFingerprint: cardFingerprint(card) };
     });
     const made = results.flatMap(({ outcome }) => (outcome.card === undefined || outcome.kept ? [] : [outcome.card.run]));
-    const index: DomainIndex = {
+    const knowledgeBase: KnowledgeBase = {
       formatVersion: 1,
       producedAt: now().toISOString(),
       environment,
@@ -255,8 +258,8 @@ export class Cartographer {
       sources: states,
       ...accepted,
     };
-    const outcome = await this.write(indexPath, index, journal);
-    endPhase(trace, phases, outcome.index === undefined ? "failed" : outcome.index.status === "complete" ? "done" : "truncated");
+    const outcome = await this.write(knowledgeBasePath, knowledgeBase, journal);
+    endPhase(trace, phases, outcome.knowledgeBase === undefined ? "failed" : outcome.knowledgeBase.status === "complete" ? "done" : "truncated");
     return outcome;
   }
 
@@ -280,22 +283,22 @@ export class Cartographer {
     return { tools, close: () => browser.close() };
   }
 
-  /** Where the index is written, in the test repository. */
-  private indexPath(): string {
-    return join(this.options.repositoryRoot, this.options.config.repository.indexDir, INDEX_FILE_NAME);
+  /** Where the knowledge base is written, in the test repository. */
+  private knowledgeBasePath(): string {
+    return join(this.options.repositoryRoot, this.options.config.repository.knowledgeDir, KNOWLEDGE_BASE_FILE_NAME);
   }
 
-  private async write(indexPath: string, index: DomainIndex, journal: Journal): Promise<Omit<CartographyOutcome, "tracePath">> {
-    const validation = validateDomainIndex(index);
+  private async write(knowledgeBasePath: string, knowledgeBase: KnowledgeBase, journal: Journal): Promise<Omit<CartographyOutcome, "tracePath">> {
+    const validation = validateKnowledgeBase(knowledgeBase);
     if (!validation.ok) {
-      for (const error of validation.errors) journal.record("error", `The index does not match its schema: ${error.message}`);
-      journal.record("error", "No index was written.");
+      for (const error of validation.errors) journal.record("error", `The knowledge base does not match its schema: ${error.message}`);
+      journal.record("error", "No knowledge base was written.");
       return { journal: journal.entries() };
     }
-    await mkdir(dirname(indexPath), { recursive: true });
-    await writeFile(indexPath, `${JSON.stringify(index, null, 2)}\n`);
-    journal.record("info", `The index was written to ${indexPath}, ${index.status}.`);
-    return { indexPath, index, journal: journal.entries() };
+    await mkdir(dirname(knowledgeBasePath), { recursive: true });
+    await writeFile(knowledgeBasePath, `${JSON.stringify(knowledgeBase, null, 2)}\n`);
+    journal.record("info", `The knowledge base was written to ${knowledgeBasePath}, ${knowledgeBase.status}.`);
+    return { knowledgeBasePath, knowledgeBase, journal: journal.entries() };
   }
 }
 
@@ -304,15 +307,15 @@ function firstLimit(limits: readonly StopReason["limit"][]): Pick<CartographyOut
   return limits.length === 0 ? {} : { stoppedBy: limits[0]! };
 }
 
-/** The index at `path`, when it is readable and passes its schema. */
-async function readIndex(path: string): Promise<DomainIndex | undefined> {
+/** The knowledge base at `path`, when it is readable and passes its schema. */
+async function readKnowledgeBase(path: string): Promise<KnowledgeBase | undefined> {
   const content: unknown = await readFile(path, "utf8")
     .then(
       (text) => JSON.parse(text) as unknown,
       () => undefined,
     )
     .catch(() => undefined);
-  const validation = validateDomainIndex(content);
+  const validation = validateKnowledgeBase(content);
   return validation.ok ? validation.value : undefined;
 }
 

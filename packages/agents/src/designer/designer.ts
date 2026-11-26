@@ -4,13 +4,13 @@ import { dirname, join, posix } from "node:path";
 import {
   CONFIG_FILE_NAME,
   isReadIn,
-  settledIndex,
-  validateDomainIndex,
+  settledKnowledgeBase,
+  validateKnowledgeBase,
   validateSourceCard,
   validateSourceManifest,
   type AgentEvent,
   type AgentRuntime,
-  type DomainIndex,
+  type KnowledgeBase,
   type DomainSetting,
   type Knowledge,
   type PlanReview,
@@ -41,11 +41,11 @@ import type { Inbox } from "../common/inbox.ts";
 import { runTrace } from "../common/run-trace.ts";
 import type { Trace } from "../common/trace.ts";
 import { TracedPhases } from "../common/traced-phases.ts";
-import { INDEX_FILE_NAME } from "../cartographer/cartographer.ts";
+import { KNOWLEDGE_BASE_FILE_NAME } from "../cartographer/cartographer.ts";
 import { CARDS_FOLDER } from "../source-cartographer/source-cartographer.ts";
 import { DESIGNS_FOLDER, type DesignedTest, type DesignState, type TestClass } from "./design-state.ts";
 import { MANIFEST_FILE } from "../source-workflow/source-folder.ts";
-import { IndexMap, type WrittenSource } from "./index-map.ts";
+import { KnowledgeMap, type WrittenSource } from "./knowledge-map.ts";
 import { CodeReviewer } from "../code-reviewer/code-reviewer.ts";
 import { codeReviewerInstructions, codeReviewerValues } from "../code-reviewer/code-reviewer-prompt.ts";
 import { CoherenceReviewer } from "../coherence-reviewer/coherence-reviewer.ts";
@@ -89,7 +89,7 @@ export interface DesignerOptions {
   readonly check?: TestCheck;
   /** Runs each test against the application before it is kept, such as the `TrialRunner` of the harness. */
   readonly runner: TestRunner;
-  /** What the developer wants tested, in their own words: a domain, a ticket, a rule, a journey; the whole index when absent. */
+  /** What the developer wants tested, in their own words: a domain, a ticket, a rule, a journey; the whole knowledge base when absent. */
   readonly brief?: string;
   /** Decides whether the test plan may be carried out; every plan is accepted as it is by default. */
   readonly planReview?: PlanReview;
@@ -105,7 +105,7 @@ export interface DesignerOptions {
   readonly levels?: readonly ScenarioLevel[];
   /**
    * The domains of the knowledge the plan is kept to, by their identifiers: the agent that plans is told those alone, and a
-   * scenario of another domain is refused; every domain of the index when left out or empty.
+   * scenario of another domain is refused; every domain of the knowledge base when left out or empty.
    */
   readonly domains?: readonly string[];
   /** What a person set of the domains: those excluded are served to no agent, and those renamed are told by their name; nothing by default. */
@@ -164,7 +164,7 @@ export interface DesignOutcome {
   readonly tracePath?: string;
   /** The limit that cut the design short, when one stopped the session that plans before its plan, or the session of a scenario while it was open. */
   readonly stoppedBy?: StopReason["limit"];
-  /** Whether the design stopped before its first session, on the test repository or the index: another pass would stop on them too. */
+  /** Whether the design stopped before its first session, on the test repository or the knowledge base: another pass would stop on them too. */
   readonly unstarted?: true;
   /** Whether the design repaired tests the repository has instead of planning new ones: the repair is the whole design. */
   readonly repaired?: true;
@@ -191,12 +191,12 @@ export function countedTests(tests: readonly DesignedTest[]): DesignedTest[] {
 const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true }) };
 
 /**
- * The designer: from a brief and the domain index of the test repository, it plans then writes the
+ * The designer: from a brief and the knowledge base of the test repository, it plans then writes the
  * Playwright tests the brief needs on a new local branch, with the state of the design.
  *
  * @remarks
- * Before any session, the index must be readable, and the test repository must be the root of a git
- * repository with no tracked file changed and no untracked file outside the folders of the state and the index —
+ * Before any session, the knowledge base must be readable, and the test repository must be the root of a git
+ * repository with no tracked file changed and no untracked file outside the folders of the state and the knowledge base —
  * the configuration file, which the console rewrites, excepted — and no branch of the name to create; otherwise
  * nothing is written. A design that goes on with the branch of an earlier one needs that branch instead, which it checks out first, and commits its tests on it.
  *
@@ -204,8 +204,8 @@ const ACCEPT_EVERY_PLAN: PlanReview = { review: async () => ({ accepted: true })
  * writes its plan and its state, no test, and succeeds.
  *
  * A design runs in several sessions, each with its own tools, watches, browser and limits of the configured
- * autonomy. The first plans: the agent gets the brief and what the index holds for it, or the domains of
- * the index when nothing of it echoes the brief, not the index whole, which it explores by levels with
+ * autonomy. The first plans: the agent gets the brief and what the knowledge base holds for it, or the domains of
+ * the knowledge base when nothing of it echoes the brief, not the knowledge base whole, which it explores by levels with
  * `knowledge_domain`, `knowledge_list` and `knowledge_read`; the browser tools of the applications, the tools of every knowledge source of the
  * environment — the bases read only — and the notes. It submits the scenarios of a test plan with
  * `propose_plan`, in as many calls as the harness asks for what is left to cover, each step
@@ -269,24 +269,39 @@ export class Designer {
     });
     const branch = continuedBranch ?? this.options.branch ?? `${BRANCH_PREFIX}${id}`;
     // The console writes the configuration file when a person saves a revision: that change is not the developer's.
-    const reserved = [config.repository.stateDir, config.repository.indexDir, CONFIG_FILE_NAME];
+    const reserved = [config.repository.stateDir, config.repository.knowledgeDir, CONFIG_FILE_NAME];
     const problems = await repository.problems(branch, reserved, continuedBranch !== undefined);
     for (const problem of problems) journal.record("error", problem);
     if (problems.length > 0) return unstarted("No branch was created and no file was written.");
     if (continuedBranch !== undefined && (await repository.branch()) !== continuedBranch) await repository.switchTo(continuedBranch);
     const { brief } = this.options;
-    const index = await this.index();
-    if (typeof index === "string") return unstarted(`No test was designed: ${index}`);
+    const knowledgeBase = await this.knowledgeBase();
+    if (typeof knowledgeBase === "string") return unstarted(`No test was designed: ${knowledgeBase}`);
 
-    const applications = config.applications.filter((application) => application.environments.some((environment) => environment.name === index.environment));
+    const applications = config.applications.filter((application) =>
+      application.environments.some((environment) => environment.name === knowledgeBase.environment),
+    );
     const packages = testPackages(await readFile(join(repositoryRoot, "package.json"), "utf8").catch(() => undefined));
-    const readable = config.knowledge.filter((source) => isReadIn(source, index.environment));
-    // The sources a scenario may cite and a tool may belong to: the index is a map, not a limit.
+    const readable = config.knowledge.filter((source) => isReadIn(source, knowledgeBase.environment));
+    // The sources a scenario may cite and a tool may belong to: the knowledge base is a map, not a limit.
     const owners = [
-      ...new Set([...index.sources.map((source) => source.id), ...readable.map((source) => source.id), ...applications.map((application) => application.id)]),
+      ...new Set([
+        ...knowledgeBase.sources.map((source) => source.id),
+        ...readable.map((source) => source.id),
+        ...applications.map((application) => application.id),
+      ]),
     ];
-    const scope = { config, repositoryRoot, env, environment: index.environment, applications, sources: readable, start, browser: this.options.browser };
-    const opened = runTrace(this.options, `design-${index.environment}`, now);
+    const scope = {
+      config,
+      repositoryRoot,
+      env,
+      environment: knowledgeBase.environment,
+      applications,
+      sources: readable,
+      start,
+      browser: this.options.browser,
+    };
+    const opened = runTrace(this.options, `design-${knowledgeBase.environment}`, now);
     trace = opened;
     const phases = new TracedPhases(opened, "plan");
     const used = { iterations: 0, actions: 0, durationMs: 0 };
@@ -361,7 +376,7 @@ export class Designer {
         {
           sources: owners,
           applications: applications.map((application) => application.id),
-          domains: index.domains.map((domain) => domain.id),
+          domains: knowledgeBase.domains.map((domain) => domain.id),
           levels,
           secrets: declaredSecrets(config, env),
           addresses: declaredAddresses(config),
@@ -380,8 +395,8 @@ export class Designer {
       );
       const offered = [...session.screens.tools(), ...session.reads.tools()];
       const reach = { knowledge: config.knowledge, applications: applications.map((application) => application.id) };
-      const map = new IndexMap(index, await this.cards(index), offered, owners, await this.written(index), reach);
-      const request = planRequest(brief, index.environment, map.domains(), applications, levels, this.options.visual === true, {
+      const map = new KnowledgeMap(knowledgeBase, await this.cards(knowledgeBase), offered, owners, await this.written(knowledgeBase), reach);
+      const request = planRequest(brief, knowledgeBase.environment, map.domains(), applications, levels, this.options.visual === true, {
         round,
         ...(this.options.maxScenarios === undefined ? {} : { maxScenarios: this.options.maxScenarios }),
       });
@@ -481,7 +496,7 @@ export class Designer {
           [about, ...(scenario.applications ?? [])].map((id) => applications.find((application) => application.id === id)!),
           // Playwright itself is imported through the fixtures of the repository, when its tests share some.
           fixtures === undefined ? packages : [fixtures.path, ...packages.filter((name) => name !== TEST_MODULE)],
-          index.environment,
+          knowledgeBase.environment,
           repaired?.get(scenario.id),
         );
         const task = {
@@ -516,7 +531,7 @@ export class Designer {
       const record: PlanRecord = {
         formatVersion: 2,
         design: id,
-        environment: index.environment,
+        environment: knowledgeBase.environment,
         ...(brief === undefined ? {} : { brief }),
         // The scenarios, why the harness asked for no more, those set aside, and what the plan leaves out.
         ...planned,
@@ -524,7 +539,7 @@ export class Designer {
       const state: DesignState = {
         formatVersion: 4,
         producedAt: start.toISOString(),
-        environment: index.environment,
+        environment: knowledgeBase.environment,
         ...(brief === undefined ? {} : { brief }),
         plan: posix.join(config.repository.stateDir, DESIGNS_FOLDER, `${id}${PLAN_FILE_SUFFIX}`),
         branch,
@@ -620,31 +635,31 @@ export class Designer {
     journal.record("info", `The tests were committed on ${state.branch}; the active branch of the test repository is ${await repository.branch()}.`);
   }
 
-  /** The domain index, kept to the domains the design is asked for, or why it cannot be read. */
-  private async index(): Promise<DomainIndex | string> {
-    const path = join(this.options.repositoryRoot, this.options.config.repository.indexDir, INDEX_FILE_NAME);
+  /** The knowledge base, kept to the domains the design is asked for, or why it cannot be read. */
+  private async knowledgeBase(): Promise<KnowledgeBase | string> {
+    const path = join(this.options.repositoryRoot, this.options.config.repository.knowledgeDir, KNOWLEDGE_BASE_FILE_NAME);
     const content = await readJson(path);
-    if (content === undefined) return `the domain index ${path} cannot be read.`;
-    const validation = validateDomainIndex(content);
-    if (!validation.ok) return `the domain index ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
+    if (content === undefined) return `the knowledge base ${path} cannot be read.`;
+    const validation = validateKnowledgeBase(content);
+    if (!validation.ok) return `the knowledge base ${path} does not match its schema: ${validation.errors.map((error) => error.message).join(" ")}`;
     const settings = this.options.domainSettings ?? [];
-    const index = settledIndex(validation.value, settings);
-    if (index.domains.length === 0) return "every domain of the knowledge is excluded: take one back in the discovery, or with oqas knowledge restore.";
+    const knowledgeBase = settledKnowledgeBase(validation.value, settings);
+    if (knowledgeBase.domains.length === 0) return "every domain of the knowledge is excluded: take one back in the discovery, or with oqas knowledge restore.";
     const asked = this.options.domains ?? [];
-    if (asked.length === 0) return index;
-    const known = index.domains.map((domain) => domain.id);
+    if (asked.length === 0) return knowledgeBase;
+    const known = knowledgeBase.domains.map((domain) => domain.id);
     const excluded = settings.filter((setting) => setting.excluded && asked.includes(setting.id)).map(({ id }) => id);
     if (excluded.length > 0) return `the domain ${excluded.join(", ")} is excluded: take it back in the discovery, or with oqas knowledge restore.`;
     const unknown = asked.filter((domain) => !known.includes(domain));
     if (unknown.length > 0) return `the knowledge has no domain ${unknown.join(", ")}; its domains are ${known.join(", ")}.`;
-    return { ...index, domains: index.domains.filter((domain) => asked.includes(domain.id)) };
+    return { ...knowledgeBase, domains: knowledgeBase.domains.filter((domain) => asked.includes(domain.id)) };
   }
 
-  /** The cards of the sources of the index that have a readable one. */
-  private async cards(index: DomainIndex): Promise<Map<string, SourceCard>> {
-    const folder = join(this.options.repositoryRoot, this.options.config.repository.indexDir, CARDS_FOLDER);
+  /** The cards of the sources of the knowledge base that have a readable one. */
+  private async cards(knowledgeBase: KnowledgeBase): Promise<Map<string, SourceCard>> {
+    const folder = join(this.options.repositoryRoot, this.options.config.repository.knowledgeDir, CARDS_FOLDER);
     const read = await Promise.all(
-      index.sources.map(async (source) => {
+      knowledgeBase.sources.map(async (source) => {
         const validation = validateSourceCard(await readJson(join(folder, `${source.id}.json`)));
         return validation.ok ? [[source.id, validation.value] as const] : [];
       }),
@@ -652,11 +667,11 @@ export class Designer {
     return new Map(read.flat());
   }
 
-  /** What the workflow of each source of the index wrote beside its card, for those whose manifest can be read: the file of each domain, and its export. */
-  private async written(index: DomainIndex): Promise<Map<string, WrittenSource>> {
-    const cards = join(this.options.repositoryRoot, this.options.config.repository.indexDir, CARDS_FOLDER);
+  /** What the workflow of each source of the knowledge base wrote beside its card, for those whose manifest can be read: the file of each domain, and its export. */
+  private async written(knowledgeBase: KnowledgeBase): Promise<Map<string, WrittenSource>> {
+    const cards = join(this.options.repositoryRoot, this.options.config.repository.knowledgeDir, CARDS_FOLDER);
     const read = await Promise.all(
-      index.sources.map(async (source) => {
+      knowledgeBase.sources.map(async (source) => {
         const folder = join(cards, source.id);
         const validation = validateSourceManifest(await readJson(join(folder, MANIFEST_FILE)));
         if (!validation.ok) return [];

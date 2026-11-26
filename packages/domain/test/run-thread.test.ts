@@ -244,7 +244,7 @@ describe("the thread of a run", () => {
     const events = threadOf([
       traced(1, "plan", "agent", { type: "reasoning", text: "I read the domain first." }),
       traced(2, "write", "agent", { type: "text", text: "Written." }),
-      traced(3, "index", "agent", { type: "text" }),
+      traced(3, "knowledge-base", "agent", { type: "text" }),
     ]);
     assert.deepEqual(events, [
       { id: 1, at: at(1), type: "agent_message", agent: "planner", text: "I read the domain first.", reasoning: true },
