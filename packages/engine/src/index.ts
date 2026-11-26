@@ -13,6 +13,7 @@ export { Executions, FILE_EXECUTIONS_LIMIT } from "./executions/executions.ts";
 export { KnowledgeDomains } from "./knowledge/knowledge-domains.ts";
 export { KnowledgeMapping } from "./knowledge/knowledge-mapping.ts";
 export { KnowledgeSources } from "./knowledge/knowledge-sources.ts";
+export { AgentPrompts } from "./agents/agent-prompts.ts";
 export { PastRuns } from "./executions/past-runs.ts";
 export { KnowledgeDocuments } from "./documents/knowledge-documents.ts";
 export { RepositoryTests } from "./tests/repository-tests.ts";

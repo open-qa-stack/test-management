@@ -1,13 +1,13 @@
 import type { TerminalEvent, ToolDefinition } from "@open-qa-stack/domain";
 import type { AgentTask } from "../common/agent-task.ts";
 import type { DuplicateJudge, JudgedDuplicate, JudgedItem } from "../designer/duplicate-judge.ts";
-import { PLAN_REVIEWER_INSTRUCTIONS, REPORT_TOOL, reviewRequest } from "./plan-reviewer-prompt.ts";
+import { PLAN_REVIEWER_INSTRUCTIONS, PLAN_REVIEWER_VALUES, REPORT_TOOL, reviewRequest } from "./plan-reviewer-prompt.ts";
 
 /** Longest reason of a duplicate, in characters. */
 export const MAX_REASON_LENGTH = 300;
 
 /** Runs the session of one review, and gives how it ended. */
-export type ReviewSession = (task: Pick<AgentTask, "agent" | "instructions" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
+export type ReviewSession = (task: Pick<AgentTask, "agent" | "instructions" | "values" | "tools" | "request" | "reminder">) => Promise<TerminalEvent>;
 
 /**
  * The agent that reviews the scenarios of a test plan for duplicates.
@@ -64,6 +64,7 @@ export class PlanReviewer implements DuplicateJudge {
     const last = await this.run({
       agent: "plan-reviewer",
       instructions: PLAN_REVIEWER_INSTRUCTIONS,
+      values: PLAN_REVIEWER_VALUES,
       tools: [tool],
       request: reviewRequest(kept, candidates),
       reminder,

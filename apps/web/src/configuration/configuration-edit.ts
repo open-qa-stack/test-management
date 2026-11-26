@@ -131,16 +131,21 @@ export interface PressedButton {
   readonly item?: string;
   /** For a button that removes an item, the item. */
   readonly remove?: string;
+  /** For a button that sets a value, where it goes. */
+  readonly set?: string;
+  /** For a button that sets a value, the value, as JSON. */
+  readonly value?: string;
 }
 
 /**
- * Reads the press of a button as a change of the draft.
+ * Reads the press of a button as a change of the draft: an item added or removed, or a value set.
  *
  * @param button - What the button says.
  * @returns The change; `undefined` for a button that says none.
  */
-export function pressOf({ add, item, remove }: PressedButton): ConfigurationAction | undefined {
+export function pressOf({ add, item, remove, set, value }: PressedButton): ConfigurationAction | undefined {
   if (remove !== undefined) return { type: "remove", pointer: remove };
+  if (set !== undefined && value !== undefined) return { type: "edit", pointer: set, value: JSON.parse(value) as unknown };
   if (add === undefined || item === undefined || !Object.hasOwn(NEW_ITEMS, item)) return undefined;
   return { type: "add", pointer: add, item: NEW_ITEMS[item as NewItem] };
 }

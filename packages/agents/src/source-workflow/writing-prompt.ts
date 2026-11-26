@@ -3,7 +3,7 @@ import type { ExportedElement } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "./domain-file-control.ts";
 import { batchSummary } from "./element-batches.ts";
 import { sourceWords } from "./source-words.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** The prompt of the writing of the file of one domain of one source, with how the source names its elements and how long the file may be. */
 export const WRITING_PROMPT = {
@@ -21,20 +21,30 @@ Rules:
 } as const satisfies PromptTemplate;
 
 /**
+ * What each variable of the prompt of the writer of the file of a domain stands for in a session.
+ *
+ * @param type - What the source is, which names its elements.
+ * @returns The value of each variable.
+ */
+export function writingValues(type: IndexSourceType): PromptValues<typeof WRITING_PROMPT> {
+  const words = sourceWords(type);
+  return {
+    elements: words.elements,
+    cited: words.cited,
+    in_code: words.inCode,
+    useful: words.useful,
+    max_length: String(MAX_DOMAIN_FILE_LENGTH),
+  };
+}
+
+/**
  * System instructions of the writing of the file of one domain of one source.
  *
  * @param type - What the source is, which names its elements.
  * @returns The instructions.
  */
 export function writingInstructions(type: IndexSourceType): string {
-  const words = sourceWords(type);
-  return promptOf(WRITING_PROMPT, {
-    elements: words.elements,
-    cited: words.cited,
-    in_code: words.inCode,
-    useful: words.useful,
-    max_length: String(MAX_DOMAIN_FILE_LENGTH),
-  });
+  return promptOf(WRITING_PROMPT, writingValues(type));
 }
 
 /**

@@ -9,6 +9,11 @@ export interface SessionOptions {
   readonly agent?: AgentKey;
   /** System instructions for the agent, replacing any default. */
   readonly instructions: string;
+  /**
+   * What each variable of the prompt of its agent stands for: its instructions then start with that prompt, which the
+   * team may replace.
+   */
+  readonly values?: Readonly<Record<string, string>>;
   /** The only tools the agent may call. */
   readonly tools: readonly ToolDefinition[];
   /** Limits of the task the session carries out; unbounded when absent. */

@@ -16,8 +16,10 @@ export const MAX_PERSON_TURNS = 10;
 export interface AgentTask {
   /** The agent that carries it out, which the team may give instructions to. */
   readonly agent: AgentKey;
-  /** System instructions of the role. */
+  /** System instructions of the role, which start with the prompt of its agent. */
   readonly instructions: string;
+  /** What each variable of the prompt of its agent stands for. */
+  readonly values: Readonly<Record<string, string>>;
   /** The tools of the task. */
   readonly tools: readonly ToolDefinition[];
   /** The first message. */
@@ -71,6 +73,7 @@ export async function runAgentTask(runtime: AgentRuntime, task: AgentTask, limit
   const { person } = task;
   const session = await runtime.openSession({
     agent: task.agent,
+    values: task.values,
     instructions: person === undefined ? task.instructions : `${task.instructions}\n\n${PERSON_RULE}`,
     tools: person === undefined ? task.tools : person.heard(task.tools),
     limits,

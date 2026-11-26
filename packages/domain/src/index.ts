@@ -1,5 +1,6 @@
 export type { AgentEvent, TerminalEvent } from "./agent/agent-event.ts";
 export { AGENT_KEYS, type AgentKey } from "./agent/agent-key.ts";
+export { MAX_REPLACED_PROMPT, missingVariables, replacedPrompt, type AgentPrompt, type AgentPromptList, type ReplacedPrompt } from "./agent/agent-prompt.ts";
 export { MAX_TEAM_INSTRUCTIONS, teamInstructions, type AgentSettings, type AgentsSettings } from "./agent/team-instructions.ts";
 export type { AgentRuntime, SessionOptions } from "./agent/agent-runtime.ts";
 export type { AgentSession } from "./agent/agent-session.ts";

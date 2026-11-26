@@ -328,3 +328,30 @@
   color: var(--text);
   font-weight: var(--weight-medium);
 }
+
+.agent-prompt-title {
+  margin: var(--space-4) 0 0;
+  font-size: var(--type-body);
+  font-weight: var(--weight-strong);
+}
+
+.agent-prompt {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.agent-prompt > .config-note,
+.agent-prompt > .config-field,
+.agent-prompt > details {
+  justify-self: stretch;
+}
+
+.agent-prompt .config-note > p {
+  margin: 0;
+}
+
+.agent-prompt pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

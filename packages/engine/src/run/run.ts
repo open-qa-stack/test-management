@@ -11,7 +11,6 @@ import {
   NoConfigurationError,
   roleConfig,
   scopedConfig,
-  type AgentKey,
   type AgentRuntime,
   type ModelRole,
   type DomainSetting,
@@ -229,12 +228,13 @@ export class Run {
       return exitCode;
     };
     // What the team asks of an agent is told once a run, in the step its role works in.
-    const followed = new Set<AgentKey>();
+    const followed = new Set<string>();
     const asked = (runtime: AgentRuntime, role: ModelRole): AgentRuntime =>
-      new TeamRuntime(runtime, config.agents, (agent, digest) => {
-        if (!followed.has(agent))
-          journal.record(role === "cartographer" ? "cartography" : "design", "info", `The ${agent} follows the instructions of the team (${digest}).`);
-        followed.add(agent);
+      new TeamRuntime(runtime, config.agents, (agent, part, digest) => {
+        const what = part === "prompt" ? "a prompt of the team" : "the instructions of the team";
+        if (!followed.has(`${agent} ${part}`))
+          journal.record(role === "cartographer" ? "cartography" : "design", "info", `The ${agent} follows ${what} (${digest}).`);
+        followed.add(`${agent} ${part}`);
       });
     // The runtime of a role is opened by the first step that calls its model; roles on the same model share it.
     const agents = async (role: ModelRole): Promise<AgentRuntime> => {

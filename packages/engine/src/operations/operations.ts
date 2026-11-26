@@ -1,4 +1,5 @@
 import { OPERATIONS } from "@open-qa-stack/domain";
+import type { AgentPrompts } from "../agents/agent-prompts.ts";
 import type { Campaigns } from "../campaigns/campaigns.ts";
 import type { Configuration } from "../configuration/configuration.ts";
 import type { ModelConnection } from "../configuration/model-connection.ts";
@@ -34,6 +35,7 @@ export interface EngineClasses {
   readonly Executions: Executions;
   readonly PastRuns: PastRuns;
   readonly Campaigns: Campaigns;
+  readonly AgentPrompts: AgentPrompts;
 }
 
 /** The methods of each class of the engine, by the name of the class. */

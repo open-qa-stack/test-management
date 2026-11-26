@@ -4,7 +4,7 @@ import type { SessionsUse } from "../source-workflow/group-elements.ts";
 import { runMapSession } from "../source-workflow/map-session.ts";
 import type { SourceFolder } from "../source-workflow/source-folder.ts";
 import { writeMap } from "../source-workflow/written-map.ts";
-import { applicationExplorerInstructions, explorationRequest } from "./application-explorer-prompt.ts";
+import { applicationExplorerInstructions, applicationExplorerValues, explorationRequest } from "./application-explorer-prompt.ts";
 import { ApplicationMap } from "./application-map.ts";
 import { ScreenTrail, type ExplorationMode } from "./screen-trail.ts";
 
@@ -61,6 +61,7 @@ export async function mapApplication(options: MapApplicationOptions): Promise<Se
   const task = {
     agent: "application-explorer" as const,
     instructions: applicationExplorerInstructions(source.id, options.mode),
+    values: applicationExplorerValues(source.id, options.mode),
     tools: [...trail.watched(options.browser), ...options.notes, ...map.tools()],
     request: explorationRequest(source.id, options.environment, options.uiUrl),
     reminder: () => map.reminder(),

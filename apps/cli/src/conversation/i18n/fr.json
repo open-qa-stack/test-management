@@ -109,7 +109,7 @@
     "stop": "Arrêter la session à l’écran, après confirmation",
     "ui": "Servir la console web depuis ce processus et écrire son adresse",
     "model": "Régler la connexion au modèle pas à pas ; suivi de status ou set, comme oqas model",
-    "agents": "instruct ou clear : ce que l’équipe demande à chaque agent, comme oqas agents",
+    "agents": "instruct, clear, prompt, default, replace ou reset : ce que l’équipe demande à chaque agent, comme oqas agents",
     "config": "show, import ou export : la configuration en vigueur et oqas.json, comme oqas config",
     "knowledge": "list, mapping, check, remap ou add-document : les sources de connaissance, comme oqas knowledge",
     "applications": "check : tester que chaque adresse des environnements répond, comme oqas applications",

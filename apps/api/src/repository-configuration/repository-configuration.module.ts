@@ -1,8 +1,9 @@
 import { Module } from "@nestjs/common";
-import { Configuration, EnvironmentAddresses, FileSecretStore, ModelConnection, RepositorySetup, Secrets } from "@open-qa-stack/engine";
+import { AgentPrompts, Configuration, EnvironmentAddresses, FileSecretStore, ModelConnection, RepositorySetup, Secrets } from "@open-qa-stack/engine";
 import { ConfigurationStore } from "@open-qa-stack/store";
 import { ApiConfiguration } from "../config/api-configuration.ts";
 import { DatabaseModule } from "../database/database.module.ts";
+import { AgentsController } from "./agents.controller.ts";
 import { ConfigurationController } from "./configuration.controller.ts";
 import { RepositoryController } from "./repository.controller.ts";
 import { SecretsController } from "./secrets.controller.ts";
@@ -16,7 +17,7 @@ import { SecretsController } from "./secrets.controller.ts";
  */
 @Module({
   imports: [DatabaseModule],
-  controllers: [ConfigurationController, RepositoryController, SecretsController],
+  controllers: [ConfigurationController, AgentsController, RepositoryController, SecretsController],
   providers: [
     {
       provide: Configuration,
@@ -36,6 +37,7 @@ import { SecretsController } from "./secrets.controller.ts";
     },
     { provide: ModelConnection, inject: [Secrets], useFactory: (secrets: Secrets) => new ModelConnection(secrets) },
     { provide: EnvironmentAddresses, useFactory: () => new EnvironmentAddresses() },
+    { provide: AgentPrompts, useFactory: () => new AgentPrompts() },
   ],
   exports: [Configuration, Secrets],
 })

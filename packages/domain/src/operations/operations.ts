@@ -21,6 +21,7 @@ export const OPERATIONS = {
   TestSources: ["read", "change"],
   Executions: ["page", "get", "ofFile", "verdicts", "versions"],
   Campaigns: ["plan", "list", "progress", "choose", "ready", "launch", "close"],
+  AgentPrompts: ["list"],
 } as const;
 
 /** An operation of the engine, named `Class.method`. */

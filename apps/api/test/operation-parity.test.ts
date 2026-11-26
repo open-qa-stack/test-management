@@ -66,6 +66,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "Campaigns.ready": "POST /campaigns/c/readiness",
   "Campaigns.launch": "POST /campaigns/c/launches",
   "Campaigns.close": "POST /campaigns/c/closure",
+  "AgentPrompts.list": "GET /configuration/agents",
 };
 
 describe("the operations of the engine, as the API offers them", () => {

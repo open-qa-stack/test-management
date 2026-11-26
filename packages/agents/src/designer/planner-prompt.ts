@@ -4,7 +4,7 @@ import { scopedToolName } from "@open-qa-stack/tools";
 import { DOMAIN_TOOL, LIST_TOOL, READ_TOOL } from "./index-map.ts";
 import { PLAN_TOOL } from "./plan-proposal.ts";
 import { REPAIR_TOOL } from "./test-repairs.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** The prompt of the agent that plans the tests of a design, with the tools it names. */
 export const PLANNER_PROMPT = {
@@ -47,18 +47,21 @@ Keep with remember a fact the agents after you should know, such as a rule or a 
   variables: ["plan_tool", "domain_tool", "list_tool", "read_tool", "tests_list_tool", "repair_tool"],
 } as const satisfies PromptTemplate;
 
-/**
- * System instructions of the agent that plans the tests of a design: what it is for, how the harness
- * answers it, its method, each step with what ends it, and the rules that cause most refusals.
- */
-export const PLANNER_INSTRUCTIONS = promptOf(PLANNER_PROMPT, {
+/** What each variable of the prompt of the planner of the tests stands for. */
+export const PLANNER_VALUES: PromptValues<typeof PLANNER_PROMPT> = {
   plan_tool: PLAN_TOOL,
   domain_tool: DOMAIN_TOOL,
   list_tool: LIST_TOOL,
   read_tool: READ_TOOL,
   tests_list_tool: TESTS_LIST_TOOL,
   repair_tool: REPAIR_TOOL,
-});
+};
+
+/**
+ * System instructions of the agent that plans the tests of a design: what it is for, how the harness
+ * answers it, its method, each step with what ends it, and the rules that cause most refusals.
+ */
+export const PLANNER_INSTRUCTIONS = promptOf(PLANNER_PROMPT, PLANNER_VALUES);
 
 /** What a plan of one level alone makes of a brief, whatever the brief asks as a whole. */
 const LEVEL_READINGS: Readonly<Record<ScenarioLevel, string>> = {

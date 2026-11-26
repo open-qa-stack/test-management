@@ -17,3 +17,6 @@ export function promptOf<Variable extends string>(prompt: PromptTemplate<Variabl
   const known: Readonly<Record<string, string | undefined>> = values;
   return prompt.template.replaceAll(/\{\{(\w+)\}\}/g, (whole, name: string) => known[name] ?? whole);
 }
+
+/** What each variable of a prompt stands for in a session. */
+export type PromptValues<Prompt extends PromptTemplate> = Readonly<Record<Prompt["variables"][number], string>>;

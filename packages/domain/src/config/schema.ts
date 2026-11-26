@@ -1,4 +1,5 @@
 import { AGENT_KEYS } from "../agent/agent-key.ts";
+import { MAX_REPLACED_PROMPT } from "../agent/agent-prompt.ts";
 import { MAX_TEAM_INSTRUCTIONS } from "../agent/team-instructions.ts";
 import { LANGUAGES } from "./language.ts";
 
@@ -32,6 +33,9 @@ const folderPath = {
 const charterRuleId = { type: "string", pattern: CHARTER_RULE_ID_PATTERN } as const;
 /** Pattern of container names, as Podman and Docker accept them. */
 export const CONTAINER_NAME_PATTERN = "^[A-Za-z0-9][A-Za-z0-9_.-]*$";
+
+/** A SHA-256 in hexadecimal, such as the digest of the prompt a team replaced. */
+export const DIGEST_PATTERN = "^[0-9a-f]{64}$";
 
 const positiveInteger = { type: "integer", minimum: 1 } as const;
 const language = { enum: LANGUAGES } as const;
@@ -73,7 +77,26 @@ const agentSettings = {
       type: "string",
       minLength: 1,
       maxLength: MAX_TEAM_INSTRUCTIONS,
-      description: "What is added at the end of the prompt of the agent, which stays as it is.",
+      description: "What is added at the end of the prompt of the agent.",
+    },
+    prompt: {
+      type: "object",
+      additionalProperties: false,
+      required: ["text", "basedOn"],
+      description: "What the team writes in place of the prompt of the agent; the agent keeps its own when left out.",
+      properties: {
+        text: {
+          type: "string",
+          minLength: 1,
+          maxLength: MAX_REPLACED_PROMPT,
+          description: "The prompt, where {{name}} stands for a variable of the prompt it replaces, such as the name of a tool.",
+        },
+        basedOn: {
+          type: "string",
+          pattern: DIGEST_PATTERN,
+          description: "The SHA-256 of the prompt it replaced, when it was written: the prompt of the agent may have changed since.",
+        },
+      },
     },
   },
 } as const;
@@ -118,7 +141,7 @@ export const configSchema = {
     agents: {
       type: "object",
       additionalProperties: false,
-      description: "What the team asks of each agent, added at the end of its prompt.",
+      description: "What the team asks of each agent: instructions added at the end of its prompt, or a prompt in place of its own.",
       properties: Object.fromEntries(AGENT_KEYS.map((agent) => [agent, agentSettings])),
     },
     autonomy: { $ref: "#/$defs/autonomy" },

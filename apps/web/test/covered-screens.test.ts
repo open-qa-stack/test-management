@@ -627,17 +627,32 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("dialog").waitFor({ state: "detached" });
         await page.getByRole("status").filter({ hasText: "Révision 6 enregistrée" }).waitFor();
+        // The whole prompt of an agent is replaced from a copy of its own, saved though it leaves a variable out, then given back.
+        await page.getByRole("link", { name: "Modifier Rédacteur d’un test" }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Remplacer tout le prompt" }).click();
+        await page.getByRole("dialog").getByLabel("Prompt de l’équipe").fill("Write with {{run_tool}}.");
+        await page.getByRole("dialog").getByRole("status").filter({ hasText: "Il manque {{propose_tool}}" }).waitFor();
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("status").filter({ hasText: "Révision 7 enregistrée" }).waitFor();
+        assert.deepEqual(instance.saved.at(-1)?.document.agents?.writer?.prompt, { text: "Write with {{run_tool}}.", basedOn: "b".repeat(64) });
+        await page.getByRole("link", { name: "Modifier Rédacteur d’un test" }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Revenir au prompt par défaut" }).click();
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("status").filter({ hasText: "Révision 8 enregistrée" }).waitFor();
+        assert.equal(instance.saved.at(-1)?.document.agents?.writer?.prompt, undefined);
         // A value typed is saved alone, out of the configuration, which does not change.
         await page.getByLabel("Clé", { exact: true }).fill("typed-key");
         await page.getByRole("button", { name: "Tester la connexion" }).last().click();
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Les valeurs tapées sont enregistrées sur cet ordinateur." }).waitFor();
         assert.equal(instance.values.get("MODEL_KEY"), "typed-key");
-        assert.equal(instance.revisions[0]?.number, 6, "the configuration did not change");
+        assert.equal(instance.revisions[0]?.number, 8, "the configuration did not change");
         // An instance with no configuration yet is set up step by step, then its repository prepared.
         instance.view = { file: "missing" };
         instance.revisions = [];
         instance.fileChanged = false;
+        // An instance that cannot give the prompts of the agents leaves them unread.
+        instance.prompts = undefined;
         await page.goto("http://console.test/#/agent");
         // The screen of the configuration is left, and its draft with it, before it opens again.
         await page.getByRole("heading", { name: "Agents", exact: true }).waitFor({ state: "detached" });

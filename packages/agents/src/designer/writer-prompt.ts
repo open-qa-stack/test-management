@@ -1,6 +1,6 @@
 import type { Account, Application, TestArchitecture } from "@open-qa-stack/domain";
 import { PLAYWRIGHT_READ_TOOL } from "@open-qa-stack/tools";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 import { PROPOSE_TOOL, RUN_TOOL } from "./test-proposals.ts";
 
 /** What the agent that writes a test copies from its sheet, by how the tests of the repository are built. */
@@ -45,18 +45,28 @@ Never
 } as const satisfies PromptTemplate;
 
 /**
+ * What each variable of the prompt of the writer of a test stands for in a session.
+ *
+ * @param architecture - How the tests of the repository are built.
+ * @returns The value of each variable.
+ */
+export function writerValues(architecture: TestArchitecture): PromptValues<typeof WRITER_PROMPT> {
+  return {
+    run_tool: RUN_TOOL,
+    propose_tool: PROPOSE_TOOL,
+    playwright_read_tool: PLAYWRIGHT_READ_TOOL,
+    copied: COPIED[architecture],
+  };
+}
+
+/**
  * Writes the part of the system instructions of the agent that writes a test that is its own, before the charter.
  *
  * @param architecture - How the tests of the repository are built.
  * @returns The prompt of the agent, for that architecture.
  */
 export function writerInstructions(architecture: TestArchitecture): string {
-  return promptOf(WRITER_PROMPT, {
-    run_tool: RUN_TOOL,
-    propose_tool: PROPOSE_TOOL,
-    playwright_read_tool: PLAYWRIGHT_READ_TOOL,
-    copied: COPIED[architecture],
-  });
+  return promptOf(WRITER_PROMPT, writerValues(architecture));
 }
 
 /** A test the repository has that the session repairs: its file, and its text now. */

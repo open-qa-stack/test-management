@@ -1,7 +1,7 @@
 import { scopedToolName, type DocumentFile } from "@open-qa-stack/tools";
 import { MAX_DOMAIN_FILE_LENGTH } from "../source-workflow/domain-file-control.ts";
 import { SET_ASIDE_TOOL, WRITE_DOMAIN_TOOL } from "../source-workflow/handed-in-map.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** Most documents of the root the request lists. */
 const MAX_LISTED = 40;
@@ -44,14 +44,14 @@ Keep with remember what the agents after you should know and no single document 
 } as const satisfies PromptTemplate;
 
 /**
- * System instructions of the agent that maps the documents of one source.
+ * What each variable of the prompt of the cartographer of a source of documents stands for in a session.
  *
  * @param sourceId - Identifier of the source, which names its tools.
- * @returns The instructions.
+ * @returns The value of each variable.
  */
-export function documentCartographerInstructions(sourceId: string): string {
+export function documentCartographerValues(sourceId: string): PromptValues<typeof DOCUMENT_CARTOGRAPHER_PROMPT> {
   const tool = (action: string) => scopedToolName(sourceId, action);
-  return promptOf(DOCUMENT_CARTOGRAPHER_PROMPT, {
+  return {
     list_files_tool: tool("list_files"),
     list_sections_tool: tool("list_sections"),
     read_section_tool: tool("read_section"),
@@ -60,7 +60,17 @@ export function documentCartographerInstructions(sourceId: string): string {
     write_domain_tool: WRITE_DOMAIN_TOOL,
     set_aside_tool: SET_ASIDE_TOOL,
     max_length: String(MAX_DOMAIN_FILE_LENGTH),
-  });
+  };
+}
+
+/**
+ * System instructions of the agent that maps the documents of one source.
+ *
+ * @param sourceId - Identifier of the source, which names its tools.
+ * @returns The instructions.
+ */
+export function documentCartographerInstructions(sourceId: string): string {
+  return promptOf(DOCUMENT_CARTOGRAPHER_PROMPT, documentCartographerValues(sourceId));
 }
 
 /**

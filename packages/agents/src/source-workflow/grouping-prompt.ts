@@ -3,7 +3,7 @@ import type { ExportedElement } from "@open-qa-stack/tools";
 import { batchSummary } from "./element-batches.ts";
 import type { Grouping } from "./grouping.ts";
 import { sourceWords } from "./source-words.ts";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** Name of the tool the model places the elements of a batch with. */
 export const PLACE_TOOL = "place_elements";
@@ -26,14 +26,24 @@ Rules:
 } as const satisfies PromptTemplate;
 
 /**
+ * What each variable of the prompt of the grouping of the elements of a source stands for in a session.
+ *
+ * @param type - What the source is, which names its elements.
+ * @returns The value of each variable.
+ */
+export function groupingValues(type: IndexSourceType): PromptValues<typeof GROUPING_PROMPT> {
+  const words = sourceWords(type);
+  return { elements: words.elements, set_aside: words.aside, place_tool: PLACE_TOOL };
+}
+
+/**
  * System instructions of the grouping of the elements of one source, batch by batch.
  *
  * @param type - What the source is, which names its elements.
  * @returns The instructions.
  */
 export function groupingInstructions(type: IndexSourceType): string {
-  const words = sourceWords(type);
-  return promptOf(GROUPING_PROMPT, { elements: words.elements, set_aside: words.aside, place_tool: PLACE_TOOL });
+  return promptOf(GROUPING_PROMPT, groupingValues(type));
 }
 
 /**

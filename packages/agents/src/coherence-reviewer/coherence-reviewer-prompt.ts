@@ -1,5 +1,5 @@
 import type { PlannedScenario } from "@open-qa-stack/domain";
-import { promptOf, type PromptTemplate } from "../common/prompt-template.ts";
+import { promptOf, type PromptTemplate, type PromptValues } from "../common/prompt-template.ts";
 
 /** Name of the tool the reviewer of a test reports its findings with. */
 export const FINDINGS_TOOL = "report_findings";
@@ -20,8 +20,11 @@ Call {{findings_tool}} once: each finding with where it is — the step, by its 
   variables: ["findings_tool"],
 } as const satisfies PromptTemplate;
 
+/** What each variable of the prompt of the reviewer of the coherence of a test stands for. */
+export const COHERENCE_REVIEWER_VALUES: PromptValues<typeof COHERENCE_REVIEWER_PROMPT> = { findings_tool: FINDINGS_TOOL };
+
 /** System instructions of the agent that reviews a test against the scenario of its plan. */
-export const COHERENCE_REVIEWER_INSTRUCTIONS = promptOf(COHERENCE_REVIEWER_PROMPT, { findings_tool: FINDINGS_TOOL });
+export const COHERENCE_REVIEWER_INSTRUCTIONS = promptOf(COHERENCE_REVIEWER_PROMPT, COHERENCE_REVIEWER_VALUES);
 
 /**
  * Writes the request of a review: the scenario as its plan holds it, then the test.

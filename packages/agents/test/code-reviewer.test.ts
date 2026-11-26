@@ -10,22 +10,25 @@ const TEST = 'import { test } from "@playwright/test";\n\ntest("Find an order", 
 describe("the agent that reviews the quality of the code of a test", () => {
   it("runs in a session of its own, with the instructions of its caller, given the test alone, and reports through its one tool", async () => {
     const tasks: Parameters<ReviewSession>[0][] = [];
-    const reviewer = new CodeReviewer(async (task) => {
-      tasks.push(task);
-      const reminded = task.reminder();
-      await task.tools[0]!.execute({
-        findings: [
-          { where: "line 7", what: `A try and catch\n hides the failure.  ${"x".repeat(400)}`, rule: " PW-KEEP-01 ", concerns: "test" },
-          { where: "step 1", what: "The date asserted changes every day.", concerns: "plan", rule: "" },
-          { where: "step 2", what: "No word on what it concerns." },
-          { where: "step 2", what: "Concerns nothing known.", concerns: "style" },
-          null,
-          ...Array.from({ length: 6 }, (_, at) => ({ where: `line ${at}`, what: "One more.", concerns: "test" })),
-        ],
-      });
-      assert.deepEqual([typeof reminded, task.reminder()], ["string", undefined]);
-      return END;
-    }, "Review against the charter.");
+    const reviewer = new CodeReviewer(
+      async (task) => {
+        tasks.push(task);
+        const reminded = task.reminder();
+        await task.tools[0]!.execute({
+          findings: [
+            { where: "line 7", what: `A try and catch\n hides the failure.  ${"x".repeat(400)}`, rule: " PW-KEEP-01 ", concerns: "test" },
+            { where: "step 1", what: "The date asserted changes every day.", concerns: "plan", rule: "" },
+            { where: "step 2", what: "No word on what it concerns." },
+            { where: "step 2", what: "Concerns nothing known.", concerns: "style" },
+            null,
+            ...Array.from({ length: 6 }, (_, at) => ({ where: `line ${at}`, what: "One more.", concerns: "test" })),
+          ],
+        });
+        assert.deepEqual([typeof reminded, task.reminder()], ["string", undefined]);
+        return END;
+      },
+      { instructions: "Review against the charter.", values: { report_tool: "report_quality" } },
+    );
     const found = await reviewer.judge(TEST);
     // An entry without its place, its sentence and what it concerns is left out; each is put on one line and cut; five at most are kept.
     assert.deepEqual(
@@ -37,7 +40,7 @@ describe("the agent that reviews the quality of the code of a test", () => {
       ],
     );
     const [task] = tasks;
-    assert.equal(task!.instructions, "Review against the charter.");
+    assert.deepEqual([task!.instructions, task!.values], ["Review against the charter.", { report_tool: "report_quality" }]);
     assert.deepEqual(
       task!.tools.map((tool) => tool.name),
       ["report_quality"],
@@ -54,7 +57,7 @@ describe("the agent that reviews the quality of the code of a test", () => {
         await task.tools.at(-1)!.execute({ findings: [] });
         return END;
       },
-      "Review.",
+      { instructions: "Review.", values: {} },
       [reference],
     );
     await reviewer.judge(TEST);
@@ -62,11 +65,14 @@ describe("the agent that reviews the quality of the code of a test", () => {
   });
 
   it("finds nothing in a test it reports nothing of, and throws when its session ends without a report", async () => {
-    const quiet = new CodeReviewer(async (task) => {
-      await task.tools[0]!.execute({});
-      return END;
-    }, "Review.");
+    const quiet = new CodeReviewer(
+      async (task) => {
+        await task.tools[0]!.execute({});
+        return END;
+      },
+      { instructions: "Review.", values: {} },
+    );
     assert.deepEqual(await quiet.judge(TEST), []);
-    await assert.rejects(new CodeReviewer(async () => END, "Review.").judge(TEST), /the review ended without a report\./);
+    await assert.rejects(new CodeReviewer(async () => END, { instructions: "Review.", values: {} }).judge(TEST), /the review ended without a report\./);
   });
 });

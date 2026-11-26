@@ -2,7 +2,7 @@ import type { PlannedScenario } from "@open-qa-stack/domain";
 import { findingLine, reportedFindings, type ReviewSession } from "../common/reported-findings.ts";
 import type { CoherenceJudge } from "../designer/coherence-judge.ts";
 import type { CoherenceFinding } from "../designer/design-state.ts";
-import { COHERENCE_REVIEWER_INSTRUCTIONS, FINDINGS_TOOL, coherenceRequest } from "./coherence-reviewer-prompt.ts";
+import { COHERENCE_REVIEWER_INSTRUCTIONS, COHERENCE_REVIEWER_VALUES, FINDINGS_TOOL, coherenceRequest } from "./coherence-reviewer-prompt.ts";
 
 /** Longest text of a finding, in characters. */
 export const MAX_FINDING_LENGTH = 300;
@@ -38,6 +38,7 @@ export class CoherenceReviewer implements CoherenceJudge {
     return reportedFindings(this.run, {
       agent: "coherence-reviewer",
       instructions: COHERENCE_REVIEWER_INSTRUCTIONS,
+      values: COHERENCE_REVIEWER_VALUES,
       request: coherenceRequest(scenario, test),
       tool: FINDINGS_TOOL,
       description: "Reports what the test does not do or verify of its scenario; an empty list when it is coherent with it.",

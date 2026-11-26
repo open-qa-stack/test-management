@@ -31,6 +31,10 @@ The command is a presentation of [the operations on sessions](../../../packages/
 | `oqas attach <session>` | Follows a session to its end, whoever runs it, and exits with the code of its run. A session that ended is printed whole, at once. |
 | `oqas say <session> <text>` | Says something to the agents of a session that goes on: see [Speaking to a session](#speaking-to-a-session). Goes on with a session that ended: see [Going on with a session that ended](#going-on-with-a-session-that-ended). |
 | `oqas stop <session>` | Interrupts a session that goes on: see [Stopping a session](#stopping-a-session). |
+| `oqas agents` | Lists what the team asks of each agent: its own prompt alone, a prompt of the team, instructions of the team. |
+| `oqas agents instruct <agent> <text>` | Adds instructions of the team at the end of the prompt of an agent; `oqas agents clear <agent>` takes them back. |
+| `oqas agents prompt <agent>` | Prints the prompt of an agent in force; `oqas agents default <agent>` prints it as the code writes it, with its variables. |
+| `oqas agents replace <agent> <file>` | Puts the prompt the file holds in place of that of an agent, and tells what it may break and the variables it leaves out; `oqas agents reset <agent>` gives the agent its own prompt back. See [the agents of the configuration](../../../packages/domain/docs/configuration.md#agents). |
 | `oqas config show` | Prints the configuration in force, and how `oqas.json` stands to it: see [The configuration](#the-configuration). |
 | `oqas config import` | Takes `oqas.json` as the configuration in force, when it changed. |
 | `oqas config export` | Writes the configuration in force over `oqas.json`, when it changed. |

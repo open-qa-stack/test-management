@@ -6,7 +6,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] attach <session> [--follow] [--output text|json]
        oqas [--repository <folder>] say <session> <text> [--output text|json]
        oqas [--repository <folder>] stop <session> [--output text|json]
-       oqas [--repository <folder>] agents [instruct <agent> <text>|clear <agent>] [--output text|json]
+       oqas [--repository <folder>] agents [instruct <agent> <text>|clear <agent>|prompt <agent>|default <agent>|replace <agent> <file>|reset <agent>] [--output text|json]
        oqas [--repository <folder>] config show|import|export|history|check [--output text|json]
        oqas [--repository <folder>] project [--output text|json]
        oqas [--repository <folder>] repository [--output text|json]
@@ -59,6 +59,11 @@ Commands:
   agents instruct <agent> <text>
                          Add instructions of the team at the end of the prompt of an agent.
   agents clear <agent>   Take them back.
+  agents prompt <agent>  Print the prompt of an agent in force: its own, or the one of the team.
+  agents default <agent> Print the prompt of an agent as the code writes it, where {{name}} stands for a variable.
+  agents replace <agent> <file>
+                         Put the prompt the file holds in place of that of an agent; what the harness adds after it stays.
+  agents reset <agent>   Give the agent its own prompt back.
   config show            Print the configuration in force, and how oqas.json stands to it.
   config import          Take oqas.json as the configuration in force, when it differs.
   config export          Write the configuration in force over oqas.json, when it differs.
