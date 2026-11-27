@@ -1,0 +1,30 @@
+/* The screen of the memory: the views and the types, then the lines, each with its type, what it says and where it comes from. */
+.memory-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.memory-row .grow {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.memory-text {
+  overflow-wrap: anywhere;
+}
+
+.memory-row .btn {
+  min-height: 44px;
+}
+
+.memory-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.memory-refusal {
+  color: var(--ko);
+}

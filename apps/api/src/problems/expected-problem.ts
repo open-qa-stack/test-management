@@ -22,6 +22,8 @@ import {
   ReviewRefusedError,
   UnknownDefectError,
   DefectRefusedError,
+  MemoryRefusedError,
+  UnknownMemoryError,
   UnknownSessionError,
   DomainRefusedError,
   UnknownDomainError,
@@ -126,6 +128,8 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof ReviewRefusedError) return problemOf("review_refused", error.message);
   if (error instanceof UnknownDefectError) return problemOf("unknown_defect", `${error.message} List them with GET /defects.`);
   if (error instanceof DefectRefusedError) return problemOf("defect_refused", error.message);
+  if (error instanceof UnknownMemoryError) return problemOf("unknown_memory", `${error.message} List them with GET /memory.`);
+  if (error instanceof MemoryRefusedError) return problemOf("memory_refused", error.message);
   if (error instanceof LaunchRefusedError) return problemOf("launch_refused", error.message);
   if (error instanceof UnknownCampaignError) return problemOf("unknown_campaign", `${error.message} ${NO_CAMPAIGN}`);
   if (error instanceof CampaignRefusedError) return problemOf("campaign_refused", error.message);

@@ -33,6 +33,10 @@ import type {
   RepositoryTest,
   RepositoryTestList,
   CorrectedTest,
+  LessonDraft,
+  MemoryChange,
+  MemoryItem,
+  MemoryList,
   ReviewCorrection,
   ReviewDecision,
   ReviewQueue,
@@ -346,6 +350,32 @@ export class ApiClient {
    */
   public async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
     return this.#ask<DecidedTest>(`/reviews/${encodeURIComponent(id)}/decision`, { ...posting(decision), method: "PUT" });
+  }
+
+  /** @returns The lines of the memory of the agents, the latest first, and how many are active and set aside. */
+  public async memory(): Promise<MemoryList> {
+    return this.#ask<MemoryList>("/memory");
+  }
+
+  /**
+   * Gives the agents an instruction.
+   *
+   * @param draft - What it says, where, for what, and whether it applies.
+   * @returns It, as a line of the memory.
+   */
+  public async addLesson(draft: LessonDraft): Promise<MemoryItem> {
+    return this.#ask<MemoryItem>("/memory", posting(draft));
+  }
+
+  /**
+   * Changes a line of the memory of the agents.
+   *
+   * @param id - Its identifier.
+   * @param change - What changes.
+   * @returns The line as it stands; the failure carries the code `unknown_memory` or `memory_refused` when the instance refuses it.
+   */
+  public async changeMemory(id: string, change: MemoryChange): Promise<MemoryItem> {
+    return this.#ask<MemoryItem>(`/memory/${encodeURIComponent(id)}`, { ...posting(change), method: "PATCH" });
   }
 
   /**

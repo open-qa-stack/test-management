@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Session, SessionMessage } from "@open-qa-stack/domain/sessions";
@@ -13,6 +14,7 @@ import {
   reviewStatusAfter,
   type ConfigurationQueries,
   type CorrectedTest,
+  type LessonStorePort,
   type ReviewCorrection,
   type ReviewStatus,
   type DecidedTest,
@@ -78,6 +80,8 @@ export class TestReviews {
   readonly #decisions: TestDecisionStorePort;
   readonly #sessions: ReviewSessions;
   readonly #now: () => Date;
+  readonly #lessons: Pick<LessonStorePort, "add"> | undefined;
+  readonly #newId: () => string;
 
   /**
    * @param repository - Absolute path of the test repository; `undefined` for a host that has none, which lists none.
@@ -86,6 +90,8 @@ export class TestReviews {
    * @param sessions - The sessions of the instance: none may run while a test enters the working branch, and the one that
    * wrote a test is resumed to correct it, by a host that runs sessions.
    * @param now - The clock the decisions are dated by.
+   * @param lessons - What keeps the lessons a correction asked is kept as, when the person asks it.
+   * @param newId - Gives the identifier of such a lesson.
    */
   constructor(
     repository: string | undefined,
@@ -93,7 +99,11 @@ export class TestReviews {
     decisions: TestDecisionStorePort,
     sessions: ReviewSessions,
     now: () => Date = () => new Date(),
+    lessons?: Pick<LessonStorePort, "add">,
+    newId: () => string = randomUUID,
   ) {
+    this.#lessons = lessons;
+    this.#newId = newId;
     this.#repository = repository;
     this.#configuration = configuration;
     this.#decisions = decisions;
@@ -194,7 +204,7 @@ export class TestReviews {
    * test is in correction while the session goes on, and to review again once it ended.
    *
    * @param id - The identifier of a test the agents wrote.
-   * @param correction - What the person asks to change.
+   * @param correction - What the person asks to change, and whether it is kept as a lesson for the design of the tests of the application of the test.
    * @returns The decision kept, and the session resumed.
    * @throws UnknownProposalError when no design gave a test of the identifier.
    * @throws ReviewRefusedError when the test is not in review, when no session of the instance wrote it, or when that
@@ -219,8 +229,21 @@ export class TestReviews {
       `What the person asks:\n${correction.instruction}`,
     ].join(" ");
     const session = await this.#sessions.resume!(writer.id, { text });
-    const decision = { id, status: "in_correction" as const, at: this.#now().toISOString(), instruction: correction.instruction, session: writer.id };
+    const at = this.#now().toISOString();
+    const decision = { id, status: "in_correction" as const, at, instruction: correction.instruction, session: writer.id };
     await this.#decisions.set(decision);
+    // Kept as a lesson, the instruction is given to the agents that design the tests of the application from then on.
+    if (correction.remember === true)
+      await this.#lessons?.add({
+        id: this.#newId(),
+        kind: "correction",
+        text: correction.instruction,
+        application: scenario.application,
+        target: "design",
+        active: true,
+        at,
+        test: id,
+      });
     return { decision, session };
   }
 

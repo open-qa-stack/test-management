@@ -280,5 +280,21 @@ export {
   type MemoryQuery,
 } from "./memory/memory.ts";
 export { closeMemories, MAX_CLOSE_MEMORIES, rankMemories } from "./memory/memory-ranking.ts";
+export {
+  LESSON_KINDS,
+  LESSON_TARGETS,
+  lessonDraftOf,
+  lessonsFor,
+  lessonsRule,
+  MAX_LESSON,
+  type Lesson,
+  type LessonDraft,
+  type LessonKind,
+  type LessonTarget,
+} from "./lessons/lesson.ts";
+export type { LessonStorePort } from "./lessons/lesson-store-port.ts";
+export { memoryChangeOf, type MemoryChange, type MemoryItem, type MemoryItemType, type MemoryList } from "./lessons/memory-item.ts";
+export { UnknownMemoryError } from "./lessons/unknown-memory-error.ts";
+export { MemoryRefusedError } from "./lessons/memory-refused-error.ts";
 export type { MemoryStorePort } from "./memory/memory-store-port.ts";
 export type { RepositoryPreparation, RepositoryState } from "./test-repository/repository-setup-state.ts";

@@ -3,6 +3,9 @@ import type { Application, ConfiguredApplication } from "@open-qa-stack/domain/s
 /** The name of each application of the project, by its identifier, as the instance last described the project. */
 let names: ReadonlyMap<string, string> = new Map();
 
+/** The identifiers of the applications of the project, as the instance last described it. */
+let ids: readonly string[] = [];
+
 /**
  * Keeps the names of the applications of the project, which every screen then shows instead of their identifiers.
  *
@@ -10,6 +13,12 @@ let names: ReadonlyMap<string, string> = new Map();
  */
 export function nameApplications(applications: readonly Application[]): void {
   names = new Map(applications.filter(({ name }) => name !== "").map(({ id, name }) => [id, name]));
+  ids = applications.map(({ id }) => id);
+}
+
+/** @returns The identifiers of the applications of the project, as the instance last described it. */
+export function applicationIds(): readonly string[] {
+  return ids;
 }
 
 /**

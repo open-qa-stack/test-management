@@ -116,6 +116,7 @@
     "tests": "read, executions, versions, trace or capture: the tests of the test repository, as oqas tests does",
     "reviews": "The tests the agents wrote for you to review, or show one, as oqas reviews does",
     "defects": "The defects reported from tests that failed, or report, fix, close or open one, as oqas defects does",
+    "memory": "The memory of the agents, or add an instruction, or on, off or reword a line, as oqas memory does",
     "launch": "Launch tests as they are, with no agent, in this process, and tell their execution once they ended, as oqas launch does",
     "campaigns": "plan, choose, ready, launch, show or close: the campaigns of tests, as oqas campaigns does",
     "executions": "The executions of tests, the latest first, or show one, as oqas executions does",

@@ -9,6 +9,7 @@ import { HealthModule } from "./health/health.module.ts";
 import { KnowledgeModule } from "./knowledge/knowledge.module.ts";
 import { ReviewsModule } from "./reviews/reviews.module.ts";
 import { DefectsModule } from "./defects/defects.module.ts";
+import { MemoryModule } from "./memory/memory.module.ts";
 import { TestsModule } from "./tests/tests.module.ts";
 import { ProblemFilter } from "./problems/problem.filter.ts";
 import { RepositoryConfigurationModule } from "./repository-configuration/repository-configuration.module.ts";
@@ -31,6 +32,7 @@ export class AppModule {
         TestsModule,
         ReviewsModule,
         DefectsModule,
+        MemoryModule,
         ExecutionsModule,
         CampaignsModule,
       ],

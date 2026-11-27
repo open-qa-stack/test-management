@@ -34,5 +34,10 @@ describe("the memories kept in memory", () => {
       { ...memory("m2", "customers", "shop-db"), text: "Here.", revised },
     ]);
     assert.equal(await memories.revise("m3", { text: "None.", tags: [] }, revised), false);
+    assert.equal(await memories.enable("m1", false), true);
+    assert.equal((await memories.list({}))[0]!.disabled, true);
+    assert.equal(await memories.enable("m1", true), true);
+    assert.equal((await memories.list({}))[0]!.disabled, undefined);
+    assert.equal(await memories.enable("m3", false), false);
   });
 });

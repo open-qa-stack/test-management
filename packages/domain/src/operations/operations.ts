@@ -19,6 +19,7 @@ export const OPERATIONS = {
   RepositoryTests: ["listed"],
   TestReviews: ["queue", "proposal", "decide", "restore", "correct"],
   Defects: ["list", "report", "change"],
+  AgentMemory: ["list", "add", "change"],
   TestReadings: ["read", "trace", "capture"],
   TestSources: ["read", "change"],
   Executions: ["page", "get", "ofFile", "verdicts", "versions"],

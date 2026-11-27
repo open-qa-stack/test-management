@@ -70,6 +70,13 @@ export function ReviewCorrect({
             </button>
           ))}
         </div>
+        <label className="check">
+          <input type="checkbox" name="remember" defaultChecked aria-describedby="review-remember-hint" />
+          <span>{t("review.correct.remember")}</span>
+        </label>
+        <span id="review-remember-hint" className="field-hint">
+          {t("review.correct.rememberHint")}
+        </span>
         <p className="small muted">{t("review.correct.guardrails")}</p>
       </form>
     </SidePanel>

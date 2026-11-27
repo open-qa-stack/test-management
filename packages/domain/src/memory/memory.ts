@@ -52,6 +52,8 @@ export interface Memory extends MemoryContent {
   readonly written: MemoryOrigin;
   /** Who corrected it last, and when; none for a memory never corrected. */
   readonly revised?: MemoryOrigin;
+  /** Set when a person set it aside: the agents recall it no more. */
+  readonly disabled?: true;
 }
 
 /** Which memories to list: each filter given keeps those that equal it exactly. */

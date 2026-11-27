@@ -74,4 +74,14 @@ describe("the memories the store keeps", () => {
     assert.equal(await store.revise("unknown", { text: "Nothing.", tags: [] }, revised), false);
     assert.equal((await store.list({})).length, 1);
   });
+
+  it("sets a memory aside and takes it back, and tells when it keeps none of that identifier", async () => {
+    const memory = written("m1", "orders", "pitfall", 1);
+    await store.add(memory);
+    assert.equal(await store.enable("m1", false), true);
+    assert.deepEqual(await store.list({}), [{ ...memory, disabled: true }]);
+    assert.equal(await store.enable("m1", true), true);
+    assert.deepEqual(await store.list({}), [memory]);
+    assert.equal(await store.enable("unknown", false), false);
+  });
 });

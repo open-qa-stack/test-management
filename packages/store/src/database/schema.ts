@@ -216,6 +216,20 @@ export interface MemoriesTable {
   revised_role: string | null;
   revised_task: string | null;
   revised_at: StoredInstant | null;
+  /** 1 when a person set the memory aside, 0 otherwise. */
+  disabled: number;
+}
+
+/** The lessons the people of the project give the agents; whether one is active is 0 or 1. */
+export interface LessonsTable {
+  id: string;
+  kind: string;
+  text: string;
+  application: string | null;
+  target: string;
+  active: number;
+  written_at: string;
+  test: string | null;
 }
 
 /** What a person set of the domains of the knowledge, each under its identifier; whether it is excluded is 0 or 1. */
@@ -272,4 +286,5 @@ export interface StoreSchema {
   test_decisions: TestDecisionsTable;
   defects: DefectsTable;
   memories: MemoriesTable;
+  lessons: LessonsTable;
 }

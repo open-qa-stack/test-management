@@ -15,6 +15,7 @@ import type { Secrets } from "../secrets/secrets.ts";
 import type { Sessions } from "../sessions/sessions.ts";
 import type { TestReviews } from "../reviews/test-reviews.ts";
 import type { Defects } from "../defects/defects.ts";
+import type { AgentMemory } from "../memory/agent-memory.ts";
 import type { RepositoryTests } from "../tests/repository-tests.ts";
 import type { TestReadings } from "../tests/test-readings.ts";
 import type { TestSources } from "../tests/test-sources.ts";
@@ -34,6 +35,7 @@ export interface EngineClasses {
   readonly RepositoryTests: RepositoryTests;
   readonly TestReviews: TestReviews;
   readonly Defects: Defects;
+  readonly AgentMemory: AgentMemory;
   readonly TestReadings: TestReadings;
   readonly TestSources: TestSources;
   readonly Executions: Executions;

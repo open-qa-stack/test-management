@@ -174,7 +174,9 @@ export function memoryTools(memory: MemoryStorePort, writer: MemoryWriter): Tool
           ...(of === undefined ? {} : { kind: of }),
           ...(source === undefined ? {} : { source }),
         });
-        return rankMemories(kept, { ...(wanted === undefined ? {} : { tags: wanted }), ...(text === undefined ? {} : { text }), limit }).map(shown);
+        // A memory a person set aside is recalled no more.
+        const enabled = kept.filter((memory) => memory.disabled !== true);
+        return rankMemories(enabled, { ...(wanted === undefined ? {} : { tags: wanted }), ...(text === undefined ? {} : { text }), limit }).map(shown);
       },
     },
   ];

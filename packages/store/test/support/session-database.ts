@@ -47,6 +47,7 @@ export class SessionDatabase {
     await this.database.kysely.deleteFrom("test_decisions").execute();
     await this.database.kysely.deleteFrom("defects").execute();
     await this.database.kysely.deleteFrom("memories").execute();
+    await this.database.kysely.deleteFrom("lessons").execute();
     await this.database.kysely.deleteFrom("execution_results").execute();
     await this.database.kysely.deleteFrom("test_versions").execute();
     await this.database.kysely.deleteFrom("tests").execute();

@@ -9,6 +9,7 @@ export { DatabaseUnavailableError } from "./database/database-unavailable-error.
 export { DatabaseUrl } from "./database/database-url.ts";
 export { DomainSettingStore } from "./domains/domain-setting-store.ts";
 export { TestDecisionStore } from "./reviews/test-decision-store.ts";
+export { LessonStore } from "./lessons/lesson-store.ts";
 export { DefectStore } from "./defects/defect-store.ts";
 export { MemoryStore } from "./memory/memory-store.ts";
 export { InstanceDatabase } from "./instance/instance-database.ts";

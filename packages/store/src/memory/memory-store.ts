@@ -6,7 +6,7 @@ import type { MemoriesTable, StoreSchema } from "../database/schema.ts";
 
 /** A row of the memories as the memory it holds, its empty columns left out. */
 function memoryOf(row: Selectable<MemoriesTable>): Memory {
-  const { id, domain, kind, text, tags, source, written_role, written_task, written_at, revised_role, revised_task, revised_at } = row;
+  const { id, domain, kind, text, tags, source, written_role, written_task, written_at, revised_role, revised_task, revised_at, disabled } = row;
   return {
     id,
     domain,
@@ -16,6 +16,7 @@ function memoryOf(row: Selectable<MemoriesTable>): Memory {
     ...(source === null ? {} : { source }),
     written: { role: written_role, task: written_task, at: instant(written_at) },
     ...(revised_at === null ? {} : { revised: { role: revised_role!, task: revised_task!, at: instant(revised_at) } }),
+    ...(disabled === 1 ? { disabled: true as const } : {}),
   };
 }
 
@@ -65,6 +66,7 @@ export class MemoryStore implements MemoryStorePort {
         revised_role: null,
         revised_task: null,
         revised_at: null,
+        disabled: 0,
       })
       .execute();
   }
@@ -81,6 +83,16 @@ export class MemoryStore implements MemoryStorePort {
         revised_task: revised.task,
         revised_at: instant(revised.at),
       })
+      .where("id", "=", id)
+      .executeTakeFirst();
+    return changed.numUpdatedRows > 0n;
+  }
+
+  /** Sets a memory aside, or takes it back, and tells whether it was kept. */
+  async enable(id: string, enabled: boolean): Promise<boolean> {
+    const changed = await this.#database
+      .updateTable("memories")
+      .set({ disabled: enabled ? 0 : 1 })
       .where("id", "=", id)
       .executeTakeFirst();
     return changed.numUpdatedRows > 0n;

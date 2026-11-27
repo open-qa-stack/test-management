@@ -5,6 +5,7 @@ import { DocumentStore } from "../documents/document-store.ts";
 import { CampaignStore } from "../campaigns/campaign-store.ts";
 import { DomainSettingStore } from "../domains/domain-setting-store.ts";
 import { TestDecisionStore } from "../reviews/test-decision-store.ts";
+import { LessonStore } from "../lessons/lesson-store.ts";
 import { DefectStore } from "../defects/defect-store.ts";
 import { ExecutionStore } from "../executions/execution-store.ts";
 import { MemoryStore } from "../memory/memory-store.ts";
@@ -51,6 +52,8 @@ export class InstanceDatabase {
   readonly defects: DefectStore;
   /** The store of the memories of the agents, which the runs are given. */
   readonly memory: MemoryStore;
+  /** The store of the lessons the people of the project give the agents, which the runs and the operations on the memory are given. */
+  readonly lessons: LessonStore;
   /** The store of the tests under their identifiers, which the operations on the tests of the repository are given. */
   readonly tests: TestStore;
 
@@ -72,6 +75,7 @@ export class InstanceDatabase {
     this.testDecisions = new TestDecisionStore(this.database);
     this.defects = new DefectStore(this.database);
     this.memory = new MemoryStore(this.database);
+    this.lessons = new LessonStore(this.database);
     this.tests = new TestStore(this.database);
   }
 

@@ -197,7 +197,7 @@ describe("the review of the tests the agents wrote", () => {
     const panel = screen("#/review?panel=correct", { value: QUEUE }, { value: PROPOSAL }, CONTROLS);
     assert.match(
       textOf(panel),
-      /Demander une correction · A quote expires after thirty days Dites à l’agent ce qu’il faut changer\. .* Consigne Par exemple : .* \+ changer l’oracle de données \+ ajouter un cas limite \+ renommer le test La session repart dans ses garde-fous habituels\. Annuler Envoyer au concepteur$/,
+      /Demander une correction · A quote expires after thirty days Dites à l’agent ce qu’il faut changer\. .* Consigne Par exemple : .* \+ changer l’oracle de données \+ ajouter un cas limite \+ renommer le test Mémoriser comme consigne Gardée dans la Mémoire pour la conception des tests de cette application, modifiable ensuite\. La session repart dans ses garde-fous habituels\. Annuler Envoyer au concepteur$/,
     );
     assert.match(panel, /<textarea id="review-instruction" name="instruction" maxLength="2000" rows="5" required=""/);
     assert.match(

@@ -14,6 +14,7 @@ import "./discovery/discovery.css";
 import "./tests/tests.css";
 import "./review/review.css";
 import "./defects/defects.css";
+import "./memory/memory.css";
 import "./executions/executions.css";
 import "./campaigns/campaigns.css";
 
