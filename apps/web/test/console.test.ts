@@ -321,8 +321,8 @@ describe("the console", () => {
   it("leads only to screens that exist", () => {
     const told = { live: liveOf(), sessions: [RUNNING] };
     for (const from of ["#/agent", SESSION, "#/nowhere"]) {
-      // The menu opens over the screen it is on, wherever that leads.
-      for (const link of linksOf(consoleAt(from, told)).filter((href) => !href.endsWith("nav=open"))) {
+      // The menu and the help of the shortcuts open over the screen they are on, wherever that leads.
+      for (const link of linksOf(consoleAt(from, told)).filter((href) => !/(nav|keys)=open$/.test(href))) {
         assert.doesNotMatch(consoleAt(link, told), /introuvable|Ouverture de la session/, `${link}, from ${from}`);
       }
     }

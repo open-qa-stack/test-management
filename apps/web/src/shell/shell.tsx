@@ -6,6 +6,8 @@ import { Icon } from "../ui/icon.tsx";
 import { SidePanel } from "../ui/side-panel.tsx";
 import { entryAt, HOME_PATH, isMenuOpen, withMenu } from "./navigation.ts";
 import { NavigationList } from "./navigation-list.tsx";
+import { isShortcutsOpen, withShortcuts } from "./shortcuts-help.ts";
+import { ShortcutsList } from "./shortcuts-list.tsx";
 
 /** The menu of a wide screen, which the person folds to its icons and unfolds. */
 export interface ShellMenu {
@@ -32,7 +34,8 @@ export interface ShellProps {
 /**
  * The frame of every screen: a band when the instance cannot be reached, the top bar, the navigation and the page.
  * On a phone the bar names the screen beside a button that opens the navigation over it, in a panel its address
- * keeps; beside the mark on a tablet, a sidebar on a wide screen, which a button of the bar folds to its icons.
+ * keeps; beside the mark on a tablet, a sidebar on a wide screen, which a button of the bar folds to its icons. From a
+ * tablet, a button of the bar opens the help of the shortcuts, as `?` does, in a panel its address keeps.
  * A project that has no name yet is not named.
  *
  * @param props - The route, the project and the page to frame.
@@ -70,6 +73,16 @@ export function Shell({ route, project, unreachable = false, menu, children }: S
         <a className="btn top-menu" href={withMenu(route, true)} aria-haspopup="dialog">
           {t("shell.menuTitle")}
         </a>
+        <a
+          className="top-help"
+          href={withShortcuts(route, true)}
+          aria-haspopup="dialog"
+          aria-keyshortcuts="?"
+          aria-label={t("shortcuts.title")}
+          title={t("shortcuts.title")}
+        >
+          <Icon name="help" />
+        </a>
       </header>
       <aside id="shell-sidebar" className="shell-sidebar">
         <NavigationList route={route} project={project} />
@@ -78,6 +91,11 @@ export function Shell({ route, project, unreachable = false, menu, children }: S
       {isMenuOpen(route) && (
         <SidePanel id="shell-menu" title={t("shell.menuTitle")} close={withMenu(route, false)}>
           <NavigationList route={route} project={project} />
+        </SidePanel>
+      )}
+      {isShortcutsOpen(route) && (
+        <SidePanel id="shell-shortcuts" title={t("shortcuts.title")} close={withShortcuts(route, false)}>
+          <ShortcutsList />
         </SidePanel>
       )}
     </div>

@@ -1604,5 +1604,34 @@
     "none": "No execution runs",
     "noneNote": "One shows here as soon as tests are launched.",
     "last": "See the last one launched"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "groups": {
+      "everywhere": "Everywhere",
+      "agent": "Agent",
+      "review": "To review",
+      "test": "A test",
+      "result": "The result of an execution"
+    },
+    "does": {
+      "help": "Open this help",
+      "close": "Close the open panel",
+      "send": "Send the request (⌘ + Enter on a Mac)",
+      "say": "Send a message to a session",
+      "newLine": "Start a new line in a message",
+      "next": "Next test",
+      "previous": "Previous test",
+      "validate": "Validate the test shown",
+      "relaunch": "Run the test again",
+      "stepBefore": "Step before",
+      "stepAfter": "Step after"
+    },
+    "keys": {
+      "escape": "Esc",
+      "enter": "Enter",
+      "shift": "Shift",
+      "control": "Ctrl"
+    }
   }
 }

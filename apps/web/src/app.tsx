@@ -22,6 +22,8 @@ import { api } from "./api/instance-api.ts";
 import { i18n } from "./i18n/i18n.ts";
 import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "./console.tsx";
 import { keepMenuFold, readMenuFold } from "./shell/menu-fold.ts";
+import { withShortcuts } from "./shell/shortcuts-help.ts";
+import { hearShortcuts } from "./ui/shortcuts.ts";
 import { hrefTo, parseRoute } from "./routing/route.ts";
 
 /** How long a beat of a replay lasts, in milliseconds. */
@@ -98,6 +100,8 @@ export function App(): ReactNode {
   // The words of a thread are those of the language it is read in: it is read again in another.
   const script = useMemo(() => (session === undefined || events === undefined ? undefined : scriptOf(session, events)), [session, events, spoken]);
 
+  // ? opens the help of the shortcuts over any screen.
+  useEffect(() => hearShortcuts(document, { "?": () => (window.location.hash = withShortcuts(parseRoute(currentHash()), true)) }), []);
   useEffect(() => sync.project(), [sync]);
   useEffect(() => sync.language(), [sync]);
   useEffect(() => sync.sessions(), [sync]);
