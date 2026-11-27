@@ -29,6 +29,9 @@ export class ReviewedInstance {
   /** The code the instance refuses the next decision with, once; none to take it. */
   public refusal: string | undefined;
 
+  /** The corrections the console asked, in order, each with the test it is of. */
+  public readonly corrections: { readonly id: string; readonly instruction: string }[] = [];
+
   /** The tests the console put back in review, in order. */
   public readonly restored: string[] = [];
 
@@ -63,6 +66,19 @@ export class ReviewedInstance {
     };
   }
 
+  /** Asks for the correction of a test: refused once when the test asks it; otherwise the session that corrects it is resumed. */
+  #corrected(id: string, body: string): { status: number; body: string } {
+    const refused = this.#refused();
+    if (refused !== undefined) return refused;
+    const { instruction } = JSON.parse(body) as { instruction: string };
+    this.corrections.push({ id, instruction });
+    const session = { id: "s9", openedAt: "2026-11-27T09:00:00.000Z", lastEventAt: "2026-11-27T10:00:00.000Z", state: "running" };
+    return {
+      status: 200,
+      body: JSON.stringify({ decision: { id, status: "in_correction", at: "2026-11-27T10:00:00.000Z", instruction, session: "s9" }, session }),
+    };
+  }
+
   /** Puts a test set aside back in review: refused once when the test asks it; otherwise it goes back among the new tests. */
   #restored(id: string): { status: number; body: string } {
     const refused = this.#refused();
@@ -76,6 +92,8 @@ export class ReviewedInstance {
     const decided = /^\/api\/reviews\/([^/]+)\/decision$/.exec(request.path)?.[1];
     if (decided !== undefined && request.method === "PUT") return this.#decided(decided, request.body!);
     if (decided !== undefined && request.method === "DELETE") return this.#restored(decided);
+    const corrected = /^\/api\/reviews\/([^/]+)\/correction$/.exec(request.path)?.[1];
+    if (corrected !== undefined) return this.#corrected(corrected, request.body!);
     if (request.path === "/api/reviews")
       return this.unread ? { status: 503, body: JSON.stringify({ code: "unavailable" }) } : { status: 200, body: JSON.stringify(this.queue) };
     const id = /^\/api\/reviews\/([^/]+)$/.exec(request.path)?.[1];

@@ -27,7 +27,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests step <test> <title> <step> <text> [--output text|json]
        oqas [--repository <folder>] tests trace <test> <file>
        oqas [--repository <folder>] tests capture <test> <step> <file>
-       oqas [--repository <folder>] reviews [show <id>|validate <id>|restore <id>] [--output text|json]
+       oqas [--repository <folder>] reviews [show <id>|validate <id>|restore <id>|correct <id> <what to change>] [--output text|json]
        oqas [--repository <folder>] defects [report <test> <title of the test> <severity> <title> [<description>]|fix|close|open <id>] [--output text|json]
        oqas [--repository <folder>] reviews set-aside <id> covered <test> [<note>]|out-of-scope|wrong-oracle|wrong-level [<note>] [--output text|json]
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
@@ -135,6 +135,9 @@ Commands:
                          Leave the test out, with why: covered then the test that covers it, out-of-scope,
                          wrong-oracle or wrong-level. It stays listed, set aside.
   reviews restore <id>   Put a test you set aside back in review, as it was.
+  reviews correct <id> <what to change>
+                         Have the session that wrote the test correct it as you say: this command runs its new turn
+                         and follows it. The test is to review again once it ended.
   launch [<test>...]     Launch tests of the test repository as they are, with no agent, in this process, against
                          --environment, and follow them to their end: every test, or those of the files named.
                          It exits with 0 when each passed, 1 when one failed, 2 when one was skipped.

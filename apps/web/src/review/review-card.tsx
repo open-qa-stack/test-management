@@ -5,13 +5,16 @@ import { t } from "../i18n/i18n.ts";
 import { levelName } from "../i18n/vocabulary.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Code } from "../ui/code.tsx";
+import { hrefTo } from "../routing/route.ts";
 
-/** What a person does of the test on the card: validate it, open the panel that sets it aside, or put it back in review once set aside, while no decision is under way. */
+/** What a person does of the test on the card: validate it, open the panel that sets it aside or the one that asks for its correction, or put it back in review once set aside, while no decision is under way. */
 export interface ReviewGestures {
   readonly validate: () => void;
   readonly restore: () => void;
   /** The link to the panel that sets it aside. */
   readonly setAside: string;
+  /** The link to the panel that asks for its correction. */
+  readonly correct: string;
   /** Whether a decision is under way, which leaves the gestures inactive. */
   readonly pending: boolean;
   /** Why the instance refused the last decision, when it did. */
@@ -44,7 +47,7 @@ function Restore({ gestures }: { readonly gestures: ReviewGestures | undefined }
   );
 }
 
-/** The gestures of a test to review: set aside, ask for a correction — which stays inactive —, and validate. */
+/** The gestures of a test to review: set aside, ask for a correction, and validate. */
 function Gestures({ gestures }: { readonly gestures: ReviewGestures | undefined }): ReactNode {
   const idle = gestures !== undefined && !gestures.pending;
   return (
@@ -60,9 +63,15 @@ function Gestures({ gestures }: { readonly gestures: ReviewGestures | undefined 
             {t("review.gestures.setAside")}
           </button>
         )}
-        <button type="button" className="btn" disabled aria-keyshortcuts="C">
-          {t("review.gestures.correct")}
-        </button>
+        {idle ? (
+          <a className="btn" href={gestures.correct} aria-keyshortcuts="C">
+            {t("review.gestures.correct")}
+          </a>
+        ) : (
+          <button type="button" className="btn" disabled aria-keyshortcuts="C">
+            {t("review.gestures.correct")}
+          </button>
+        )}
         <button type="button" className="btn primary" disabled={!idle} aria-keyshortcuts="V" onClick={gestures?.validate}>
           {t(gestures?.pending === true ? "review.gestures.validating" : "review.gestures.validate")}
         </button>
@@ -85,7 +94,9 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
     <article className="card review-card" aria-labelledby="review-title">
       <header className="review-card-head">
         <div className="review-badges">
-          <Badge tone={proposal.status === "set_aside" ? "neutral" : "warn"}>{t(`review.status.${proposal.status}`)}</Badge>
+          <Badge tone={proposal.status === "set_aside" ? "neutral" : proposal.status === "in_correction" ? "info" : "warn"}>
+            {t(`review.status.${proposal.status}`)}
+          </Badge>
           <Badge tone="outline">{levelName(proposal.level)}</Badge>
           {proposal.kind === "visual" && <Badge tone="outline">{t("review.visual")}</Badge>}
           <Badge tone={proposal.reviewed ? "ok" : "neutral"}>{t(proposal.reviewed ? "review.reviewed" : "review.notReviewed")}</Badge>
@@ -96,6 +107,14 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
           {t("review.where", { application: applicationName(proposal.application), domain: proposal.domain, feature: proposal.feature })}
         </p>
       </header>
+      {decision?.status === "in_correction" && (
+        <p className="review-decision" role="note">
+          {t("review.correction", { instruction: decision.instruction })}{" "}
+          <a href={hrefTo(`/agent/sessions/${decision.session}`)}>
+            {t(proposal.status === "in_correction" ? "review.followCorrection" : "review.readCorrection")}
+          </a>
+        </p>
+      )}
       {decision?.status === "set_aside" && (
         <p className="review-decision" role="note">
           {t(`review.reasons.${decision.reason}`)}

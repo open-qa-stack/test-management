@@ -131,7 +131,16 @@ export {
 } from "../defects/defect.ts";
 export { SET_ASIDE_REASONS } from "../test-review/test-review.ts";
 export { defectMovesFrom } from "../defects/defect-life.ts";
-export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "../test-review/review-decision.ts";
+export {
+  MAX_CORRECTION,
+  MAX_SET_ASIDE_NOTE,
+  reviewCorrectionOf,
+  reviewDecisionOf,
+  type CorrectedTest,
+  type DecidedTest,
+  type ReviewCorrection,
+  type ReviewDecision,
+} from "../test-review/review-decision.ts";
 export type {
   ProposedFile,
   ReviewedTest,

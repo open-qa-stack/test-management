@@ -1,15 +1,20 @@
 import { execFile } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Session, SessionMessage } from "@open-qa-stack/domain/sessions";
 import { LocalMerge } from "./local-merge.ts";
 import { countedTests, DESIGNS_FOLDER, readPlanFile, type DesignedTest, type DesignState } from "@open-qa-stack/agents";
 import {
   CONFIG_FILE_NAME,
   DEFAULT_REPOSITORY,
+  isTerminal,
   ReviewRefusedError,
   reviewRefusalOf,
   reviewStatusAfter,
   type ConfigurationQueries,
+  type CorrectedTest,
+  type ReviewCorrection,
+  type ReviewStatus,
   type DecidedTest,
   type ReviewDecision,
   type SessionQueries,
@@ -30,6 +35,23 @@ const GIT_OUTPUT_LIMIT = 16 * 1024 * 1024;
 /** The identifier a test bears, in its tag. */
 const TEST_ID = /@oqas-id-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/;
 
+/** The sessions of the instance, as the review reads them, and resumes one to correct a test on a host that runs sessions. */
+export type ReviewSessions = Pick<SessionQueries, "sessions"> & { resume?(id: string, message: SessionMessage): Promise<Session> };
+
+/**
+ * Where a test stands, from what a person decided of it: a test whose correction was asked is in correction while the
+ * session that corrects it goes on, and to review again once it ended.
+ *
+ * @param decision - What the person decided of it, when they did.
+ * @param sessions - The sessions of the instance.
+ * @returns Where it stands.
+ */
+function statusOf(decision: TestDecision | undefined, sessions: readonly Session[]): ReviewStatus {
+  if (decision?.status !== "in_correction") return decision?.status ?? "in_review";
+  const correcting = sessions.find((session) => session.id === decision.session);
+  return correcting !== undefined && !isTerminal(correcting.state) ? "in_correction" : "in_review";
+}
+
 /** A test of a design, as its state, its plan and its branch tell it. */
 interface Designed {
   readonly id: string;
@@ -47,27 +69,29 @@ interface Designed {
  * in the state folder of the test repository, names it, its plan gives its scenario, and the branch has its file, whose
  * tag gives its identifier. A test a later design wrote again is the one of that design. What a person decided of it
  * is kept by its identifier: a test validated has entered the working branch and leaves the queue; one set aside
- * stays listed with them. Nothing is kept of the queue itself: it is read at each call.
+ * stays listed with them; one whose correction was asked is in correction while the session that corrects it goes on,
+ * and to review again once it ended, with what was asked. Nothing is kept of the queue itself: it is read at each call.
  */
 export class TestReviews {
   readonly #repository: string | undefined;
   readonly #configuration: ConfigurationQueries;
   readonly #decisions: TestDecisionStorePort;
-  readonly #sessions: Pick<SessionQueries, "sessions">;
+  readonly #sessions: ReviewSessions;
   readonly #now: () => Date;
 
   /**
    * @param repository - Absolute path of the test repository; `undefined` for a host that has none, which lists none.
    * @param configuration - What tells the revision in force of the configuration, which names the state folder.
    * @param decisions - What keeps what a person decided of each test.
-   * @param sessions - The sessions of the instance: none may run while a test enters the working branch.
+   * @param sessions - The sessions of the instance: none may run while a test enters the working branch, and the one that
+   * wrote a test is resumed to correct it, by a host that runs sessions.
    * @param now - The clock the decisions are dated by.
    */
   constructor(
     repository: string | undefined,
     configuration: ConfigurationQueries,
     decisions: TestDecisionStorePort,
-    sessions: Pick<SessionQueries, "sessions">,
+    sessions: ReviewSessions,
     now: () => Date = () => new Date(),
   ) {
     this.#repository = repository;
@@ -80,10 +104,13 @@ export class TestReviews {
   /** @returns The tests to review and those set aside, the oldest design first, and how many of each. */
   async queue(): Promise<ReviewQueue> {
     const decided = await this.#decided();
-    const tests = (await this.#designed()).map((designed) => listed(designed, decided.get(designed.id))).filter((test) => test.status !== "validated");
+    const sessions = await this.#sessions.sessions();
+    const tests = (await this.#designed())
+      .map((designed) => listed(designed, statusOf(decided.get(designed.id), sessions)))
+      .filter((test) => test.status !== "validated");
     return {
       tests,
-      counts: { inReview: tests.filter((test) => test.status === "in_review").length, setAside: tests.filter((test) => test.status === "set_aside").length },
+      counts: { inReview: tests.filter((test) => test.status !== "set_aside").length, setAside: tests.filter((test) => test.status === "set_aside").length },
     };
   }
 
@@ -99,7 +126,7 @@ export class TestReviews {
     const decision = (await this.#decided()).get(id);
     const { state, test, scenario } = designed;
     return {
-      ...listed(designed, decision),
+      ...listed(designed, statusOf(decision, await this.#sessions.sessions())),
       ...(state.brief === undefined ? {} : { brief: state.brief }),
       intent: scenario.intent,
       sources: scenario.sources.map(({ source, item }) => (item === undefined ? { source } : { source, item })),
@@ -125,7 +152,8 @@ export class TestReviews {
   async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
     const designed = (await this.#designed()).find((candidate) => candidate.id === id);
     if (designed === undefined) throw new UnknownProposalError(id);
-    const status = (await this.#decided()).get(id)?.status ?? "in_review";
+    const sessions = await this.#sessions.sessions();
+    const status = statusOf((await this.#decided()).get(id), sessions);
     if (reviewStatusAfter(decision.status === "validated" ? "validate" : "set_aside", status) === undefined)
       throw new ReviewRefusedError(reviewRefusalOf(designed.test.path, status));
     const at = this.#now().toISOString();
@@ -134,7 +162,6 @@ export class TestReviews {
       await this.#decisions.set(kept);
       return { decision: kept };
     }
-    const sessions = await this.#sessions.sessions();
     if (sessions.some(({ state }) => state === "running" || state === "queued"))
       throw new ReviewRefusedError("A session runs or waits in the test repository: validate the test once it ended.");
     const reserved = [...(await this.#reserved()), CONFIG_FILE_NAME];
@@ -156,9 +183,45 @@ export class TestReviews {
   async restore(id: string): Promise<void> {
     const designed = (await this.#designed()).find((candidate) => candidate.id === id);
     if (designed === undefined) throw new UnknownProposalError(id);
-    const status = (await this.#decided()).get(id)?.status ?? "in_review";
+    const status = statusOf((await this.#decided()).get(id), await this.#sessions.sessions());
     if (reviewStatusAfter("restore", status) === undefined) throw new ReviewRefusedError(reviewRefusalOf(designed.test.path, status));
     await this.#decisions.drop(id);
+  }
+
+  /**
+   * Asks the session that wrote a test to review to correct it, as the person says: the session is resumed with what
+   * they ask, and its agents repair the test in its own file on the branch of its design, keeping to its scenario. The
+   * test is in correction while the session goes on, and to review again once it ended.
+   *
+   * @param id - The identifier of a test the agents wrote.
+   * @param correction - What the person asks to change.
+   * @returns The decision kept, and the session resumed.
+   * @throws UnknownProposalError when no design gave a test of the identifier.
+   * @throws ReviewRefusedError when the test is not in review, when no session of the instance wrote it, or when that
+   * session still goes on.
+   */
+  async correct(id: string, correction: ReviewCorrection): Promise<CorrectedTest> {
+    const designed = (await this.#designed()).find((candidate) => candidate.id === id);
+    if (designed === undefined) throw new UnknownProposalError(id);
+    const { state, test, scenario } = designed;
+    const sessions = await this.#sessions.sessions();
+    const status = statusOf((await this.#decided()).get(id), sessions);
+    if (reviewStatusAfter("correct", status) === undefined) throw new ReviewRefusedError(reviewRefusalOf(test.path, status));
+    // The sessions are listed the latest first: the one that wrote the design last is the one that goes on with its branch.
+    const writer = sessions.find((session) => session.result?.branch === state.branch);
+    if (writer === undefined)
+      throw new ReviewRefusedError(`No session of this instance wrote the test ${test.path}: open one that asks to fix it, in your words.`);
+    if (!isTerminal(writer.state))
+      throw new ReviewRefusedError(`The session ${writer.id} that wrote the test ${test.path} still goes on: ask for the correction once it ended.`);
+    const text = [
+      `Fix the test ${test.path}, "${scenario.title}", which a person reviewed and asks to correct.`,
+      "Repair it in its own file, keeping to its scenario, and run it again.",
+      `What the person asks:\n${correction.instruction}`,
+    ].join(" ");
+    const session = await this.#sessions.resume!(writer.id, { text });
+    const decision = { id, status: "in_correction" as const, at: this.#now().toISOString(), instruction: correction.instruction, session: writer.id };
+    await this.#decisions.set(decision);
+    return { decision, session };
   }
 
   /** What a person decided, by test. */
@@ -234,7 +297,7 @@ function supportOf(changed: ReadonlyMap<string, number>, reserved: readonly stri
 }
 
 /** A test of a design as the queue lists it, with what a person decided of it. */
-function listed({ id, state, test, scenario }: Designed, decision: TestDecision | undefined): ReviewedTest {
+function listed({ id, state, test, scenario }: Designed, status: ReviewStatus): ReviewedTest {
   return {
     id,
     path: test.path,
@@ -250,7 +313,7 @@ function listed({ id, state, test, scenario }: Designed, decision: TestDecision 
     runs: test.runs.length,
     reviewed: test.review !== undefined,
     remarkCount: (test.review?.findings.length ?? 0) + (test.quality?.findings.length ?? 0),
-    status: decision?.status ?? "in_review",
+    status,
   };
 }
 

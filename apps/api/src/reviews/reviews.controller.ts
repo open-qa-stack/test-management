@@ -1,10 +1,11 @@
-import { BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Put } from "@nestjs/common";
-import { reviewDecisionOf } from "@open-qa-stack/domain";
+import { BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Post, Put } from "@nestjs/common";
+import { reviewCorrectionOf, reviewDecisionOf } from "@open-qa-stack/domain";
 import { TestReviews } from "@open-qa-stack/engine";
-import type { DecidedTest, ReviewQueue, TestProposal } from "@open-qa-stack/domain/sessions";
+import type { CorrectedTest, DecidedTest, ReviewQueue, TestProposal } from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /reviews`, `GET /reviews/:id`, `PUT /reviews/:id/decision` and `DELETE /reviews/:id/decision`: the operations of the review of the tests the
+ * `GET /reviews`, `GET /reviews/:id`, `PUT /reviews/:id/decision`, `DELETE /reviews/:id/decision` and
+ * `POST /reviews/:id/correction`: the operations of the review of the tests the
  * agents wrote, said in HTTP. A test is named by the identifier of its tag `@oqas-id-…`.
  */
 @Controller("reviews")
@@ -36,6 +37,15 @@ export class ReviewsController {
     const decision = reviewDecisionOf(body);
     if (typeof decision === "string") throw new BadRequestException(decision);
     return this.#reviews.decide(id, decision);
+  }
+
+  /** @returns The decision that keeps a test in correction, and the session resumed to correct it; `invalid_request` for a body that is no correction. */
+  @Post(":id/correction")
+  @Header("Cache-Control", "no-store")
+  correct(@Param("id") id: string, @Body() body: unknown): Promise<CorrectedTest> {
+    const correction = reviewCorrectionOf(body);
+    if (typeof correction === "string") throw new BadRequestException(correction);
+    return this.#reviews.correct(id, correction);
   }
 
   /** Puts a test set aside back in review, answered with `204`; `review_refused` for a test that is not set aside. */

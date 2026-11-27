@@ -20,10 +20,7 @@ export class TestDecisionStore implements TestDecisionStorePort {
 
   /** Keeps a decision, in place of the one before for the same test. */
   async set(decision: TestDecision): Promise<void> {
-    const kept =
-      decision.status === "validated"
-        ? { status: decision.status, decided_at: decision.at, reason: null, covered_by: null, note: null }
-        : { status: decision.status, decided_at: decision.at, reason: decision.reason, covered_by: decision.coveredBy ?? null, note: decision.note ?? null };
+    const kept = rowOf(decision);
     await this.#database
       .insertInto("test_decisions")
       .values({ id: decision.id, ...kept })
@@ -37,8 +34,17 @@ export class TestDecisionStore implements TestDecisionStorePort {
   }
 }
 
+/** The columns a decision is kept in, but its identifier. */
+function rowOf(decision: TestDecision): Omit<TestDecisionsTable, "id"> {
+  const none = { decided_at: decision.at, reason: null, covered_by: null, note: null, session: null };
+  if (decision.status === "validated") return { ...none, status: decision.status };
+  if (decision.status === "in_correction") return { ...none, status: decision.status, note: decision.instruction, session: decision.session };
+  return { ...none, status: decision.status, reason: decision.reason, covered_by: decision.coveredBy ?? null, note: decision.note ?? null };
+}
+
 function decisionOf(row: Selectable<TestDecisionsTable>): TestDecision {
   if (row.status === "validated") return { id: row.id, status: "validated", at: row.decided_at };
+  if (row.status === "in_correction") return { id: row.id, status: "in_correction", at: row.decided_at, instruction: row.note!, session: row.session! };
   return {
     id: row.id,
     status: "set_aside",

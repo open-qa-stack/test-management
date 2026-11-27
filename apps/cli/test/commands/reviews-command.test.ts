@@ -82,13 +82,36 @@ describe("oqas reviews", () => {
     });
   });
 
+  it("has the session that wrote a test correct it, runs its new turn in this command and follows it, then shows the test to review again with what was asked", async () => {
+    terminal = await Terminal.open(chain());
+    await terminal.oqas(BRIEF);
+    const [first] = (JSON.parse((await terminal.oqas(["reviews", "--output", "json"])).out) as ReviewQueue).tests;
+    const corrected = await terminal.oqas(["reviews", "correct", first!.id, "Use the order of Max."]);
+    const session = /^Session (\S+)\n/.exec(corrected.err)?.[1];
+    assert.ok(session !== undefined, corrected.err);
+    assert.match(corrected.out, new RegExp(`^Session ${session}: `));
+    // The new turn is followed from what was asked on.
+    assert.match(corrected.err, /^Session \S+\n\S+ person: Fix the test \S+, "[^"]+", which a person reviewed and asks to correct\./);
+    // The session ended: the test is to review again, and says what was asked.
+    const shown = await terminal.oqas(["reviews", "show", first!.id]);
+    assert.match(shown.out, new RegExp(`^${first!.id}  to review  `));
+    assert.match(shown.out, new RegExp(`\nCorrection asked of the session ${session}: Use the order of Max\\.\n`));
+    assert.deepEqual(await terminal.oqas(["reviews", "correct", "44444444-4444-4444-8444-444444444444", "x"]), {
+      code: 3,
+      out: "",
+      err: "No test the agents wrote bears the identifier 44444444-4444-4444-8444-444444444444.\n",
+    });
+  });
+
   it("is refused with what it takes", async () => {
     terminal = await Terminal.open([]);
-    const usage = /^oqas reviews takes nothing; show, validate or restore then the identifier of a test; or set-aside then/;
+    const usage =
+      /^oqas reviews takes nothing; show, validate or restore then the identifier of a test; correct then the identifier and what to change; or set-aside then/;
     for (const args of [
       ["reviews", "open"],
       ["reviews", "show"],
       ["reviews", "restore"],
+      ["reviews", "correct", "r"],
       ["reviews", "set-aside", "r"],
       ["reviews", "set-aside", "r", "covered", "a", "b", "c"],
       ["reviews", "set-aside", "r", "out-of-scope", "a", "b"],
@@ -96,6 +119,11 @@ describe("oqas reviews", () => {
       const refused = await terminal.oqas(args);
       assert.deepEqual([refused.code, usage.test(refused.err)], [3, true], `${args.join(" ")}: ${refused.err}`);
     }
+    assert.deepEqual(await terminal.oqas(["reviews", "correct", "r", "x".repeat(2001)]), {
+      code: 3,
+      out: "",
+      err: 'A correction is { "instruction" }: what to change in the test, 1 to 2000 characters.\n',
+    });
     assert.match(
       (await terminal.oqas(["reviews", "--brief", "x"])).err,
       /oqas reviews reads the tests the agents wrote: it takes no --brief, --environment nor --follow\./,

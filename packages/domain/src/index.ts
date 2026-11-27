@@ -255,7 +255,16 @@ export { DEFECT_LIFE, defectMovesFrom, defectRefusalOf, type DefectEvent } from 
 export { REVIEW_LIFE, reviewRefusalOf, reviewStatusAfter, type ReviewEvent } from "./test-review/review-life.ts";
 export type { DefectStorePort } from "./defects/defect-store-port.ts";
 export { ReviewRefusedError } from "./test-review/review-refused-error.ts";
-export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "./test-review/review-decision.ts";
+export {
+  MAX_CORRECTION,
+  MAX_SET_ASIDE_NOTE,
+  reviewCorrectionOf,
+  reviewDecisionOf,
+  type CorrectedTest,
+  type DecidedTest,
+  type ReviewCorrection,
+  type ReviewDecision,
+} from "./test-review/review-decision.ts";
 export { DomainRefusedError } from "./knowledge-base/domain-refused-error.ts";
 export { UnknownDomainError } from "./knowledge-base/unknown-domain-error.ts";
 export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./knowledge-base/knowledge-domain.ts";

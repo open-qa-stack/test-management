@@ -6,7 +6,8 @@ import { dirname, join } from "node:path";
 import { describe, it } from "vitest";
 import { planFileText, type DesignedTest } from "@open-qa-stack/agents";
 import { ReviewRefusedError, UnknownProposalError, type OqasConfig, type PlannedScenario } from "@open-qa-stack/domain";
-import { TestReviews } from "../src/index.ts";
+import { TestReviews, type ReviewSessions } from "../src/index.ts";
+import type { Session } from "@open-qa-stack/domain/sessions";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { MemoryTestDecisionStore } from "./support/memory-test-decision-store.ts";
 
@@ -401,5 +402,73 @@ describe("the decisions of the review", () => {
     written(root, ".git/hooks/pre-commit", "#!/bin/sh\necho 'The commit is refused by the team.' >&2\nexit 1\n");
     chmodSync(join(root, ".git/hooks/pre-commit"), 0o755);
     await assert.rejects(reviews.decide(OPEN, { status: "validated" }), /^ReviewRefusedError: git commit failed: The commit is refused by the team\.$/);
+  });
+});
+
+describe("the correction of a test to review", () => {
+  const AT = new Date("2026-11-27T10:00:00.000Z");
+  const BRANCH = "oqas/design-20261127T090000Z";
+
+  /** The sessions of an instance, the one that wrote the design among them, which a correction resumes. */
+  function writers(state: Session["state"] = "completed", branch = BRANCH): ReviewSessions & { resumed: [string, string][]; list: Session[] } {
+    const result = { outcome: "passed" as const, durationMs: 1, modelRequests: 1, branch, tests: [] };
+    const fake = {
+      resumed: [] as [string, string][],
+      list: [{ id: "s1", openedAt: "2026-11-27T09:00:00.000Z", lastEventAt: "2026-11-27T09:30:00.000Z", state, result }] as Session[],
+      sessions: () => Promise.resolve(fake.list),
+      resume: (id: string, { text }: { text: string }) => {
+        fake.resumed.push([id, text]);
+        fake.list = fake.list.map((session) => (session.id === id ? { ...session, state: "running" } : session));
+        return Promise.resolve(fake.list[0]!);
+      },
+    };
+    return fake;
+  }
+
+  it("resumes the session that wrote the test with what the person asks, and keeps it in correction while that session goes on", async () => {
+    const decisions = new MemoryTestDecisionStore();
+    const sessions = writers();
+    const reviews = new TestReviews(repository(), await configured(), decisions, sessions, () => AT);
+    const corrected = await reviews.correct(LIST, { instruction: "Use the order of Max." });
+    const decision = { id: LIST, status: "in_correction", at: AT.toISOString(), instruction: "Use the order of Max.", session: "s1" };
+    assert.deepEqual([corrected.decision, corrected.session.state], [decision, "running"]);
+    assert.deepEqual(sessions.resumed, [
+      [
+        "s1",
+        `Fix the test ${FOLDER}/list-orders.spec.ts, "The orders are listed", which a person reviewed and asks to correct. Repair it in its own file, keeping to its scenario, and run it again. What the person asks:\nUse the order of Max.`,
+      ],
+    ]);
+    const queue = await reviews.queue();
+    assert.deepEqual([queue.tests.find(({ id }) => id === LIST)?.status, queue.counts.inReview], ["in_correction", 2]);
+    await assert.rejects(
+      reviews.decide(LIST, { status: "validated" }),
+      new ReviewRefusedError(`The test ${FOLDER}/list-orders.spec.ts is being corrected: decide of it once the session that corrects it ended.`),
+    );
+    // Once the session ended, the test is to review again, with what was asked.
+    sessions.list = sessions.list.map((session) => ({ ...session, state: "completed" }));
+    const proposal = await reviews.proposal(LIST);
+    assert.deepEqual([proposal.status, proposal.decision], ["in_review", decision]);
+    await reviews.correct(LIST, { instruction: "Again." });
+    assert.equal(sessions.resumed.length, 2);
+  });
+
+  it("is refused for a test not in review, one no session of the instance wrote, one whose session goes on, or one no design gave", async () => {
+    const decisions = new MemoryTestDecisionStore();
+    const reviews = (sessions: ReviewSessions) =>
+      configured().then((configuration) => new TestReviews(repository(), configuration, decisions, sessions, () => AT));
+    await decisions.set({ id: LIST, status: "set_aside", at: AT.toISOString(), reason: "wrong_level" });
+    await assert.rejects(
+      (await reviews(writers())).correct(LIST, { instruction: "x" }),
+      new ReviewRefusedError(`The test ${FOLDER}/list-orders.spec.ts is set aside already.`),
+    );
+    await assert.rejects(
+      (await reviews(writers("completed", "oqas/elsewhere"))).correct(OPEN, { instruction: "x" }),
+      new ReviewRefusedError(`No session of this instance wrote the test ${FOLDER}/open-order.spec.ts: open one that asks to fix it, in your words.`),
+    );
+    await assert.rejects(
+      (await reviews(writers("running"))).correct(OPEN, { instruction: "x" }),
+      new ReviewRefusedError(`The session s1 that wrote the test ${FOLDER}/open-order.spec.ts still goes on: ask for the correction once it ended.`),
+    );
+    await assert.rejects((await reviews(writers())).correct("44444444-4444-4444-8444-444444444444", { instruction: "x" }), UnknownProposalError);
   });
 });

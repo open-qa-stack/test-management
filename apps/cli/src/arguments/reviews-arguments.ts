@@ -1,13 +1,13 @@
-import { reviewDecisionOf } from "@open-qa-stack/domain";
+import { reviewCorrectionOf, reviewDecisionOf } from "@open-qa-stack/domain";
 import type { Command } from "./command.ts";
 
 /** What `oqas reviews` takes after it, for what it is asked. */
 const USAGE =
-  "oqas reviews takes nothing; show, validate or restore then the identifier of a test; or set-aside then the identifier, a reason (covered then the path of the test that covers it, out-of-scope, wrong-oracle or wrong-level) and a note.";
+  "oqas reviews takes nothing; show, validate or restore then the identifier of a test; correct then the identifier and what to change; or set-aside then the identifier, a reason (covered then the path of the test that covers it, out-of-scope, wrong-oracle or wrong-level) and a note.";
 
 /**
  * What `oqas reviews` asks for, or why it is refused: the queue of the review; one test of it, by its identifier, to read,
- * to validate, to set aside with why or to put back in review; and nothing of a session.
+ * to validate, to set aside with why, to put back in review or to correct as the person says; and nothing of a session.
  */
 export function reviewsOf(words: readonly string[], ofASession: boolean): Command | string {
   if (ofASession) return "oqas reviews reads the tests the agents wrote: it takes no --brief, --environment nor --follow.";
@@ -15,6 +15,11 @@ export function reviewsOf(words: readonly string[], ofASession: boolean): Comman
   const [action, id, reason, ...rest] = words;
   if (words.length === 2 && (action === "show" || action === "restore")) return { name: "reviews", action, id: id! };
   if (words.length === 2 && action === "validate") return { name: "reviews", action: "decide", id: id!, decision: { status: "validated" } };
+  if (action === "correct" && id !== undefined && reason !== undefined) {
+    // What to change is the rest of the words, as a conversation types them unquoted.
+    const correction = reviewCorrectionOf({ instruction: words.slice(2).join(" ") });
+    return typeof correction === "string" ? correction : { name: "reviews", action: "correct", id, correction };
+  }
   if (action !== "set-aside" || reason === undefined) return USAGE;
   const covered = reason === "covered";
   const [coveredBy, note] = covered ? rest : [undefined, rest[0]];

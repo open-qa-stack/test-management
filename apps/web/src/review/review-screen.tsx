@@ -9,15 +9,21 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { ReviewCard, type ReviewGestures } from "./review-card.tsx";
 import { ReviewSetAside } from "./review-set-aside.tsx";
+import { ReviewCorrect } from "./review-correct.tsx";
 import { REVIEW_VIEWS, reviewHref, type ReviewPlace, type ReviewView } from "./review-paths.ts";
 
 /** The panel of the review that sets the test shown aside, as the address names it. */
 export const SET_ASIDE_PANEL = "set-aside";
 
+/** The panel of the review that asks for the correction of the test shown, as the address names it. */
+export const CORRECT_PANEL = "correct";
+
 /** What the person does of the test shown, which a static rendering of the screen has none of. */
 export interface ReviewControls {
   readonly validate: () => void;
   readonly setAside: FormEventHandler<HTMLFormElement>;
+  /** Asks for the correction of the test shown, from the form of its panel. */
+  readonly correct: FormEventHandler<HTMLFormElement>;
   /** Puts the test shown, set aside, back in review. */
   readonly restore: () => void;
   /** Whether a decision is under way. */
@@ -46,7 +52,8 @@ export interface ReviewScreenProps {
 /** The tests of a view, in the order of the queue. */
 function inView(queue: ReviewQueue, view: ReviewView): readonly ReviewedTest[] {
   if (view === "updates") return [];
-  return queue.tests.filter((test) => test.status === (view === "new" ? "in_review" : "set_aside"));
+  // The tests in correction stay among the new ones, which they come back to.
+  return queue.tests.filter((test) => (view === "new" ? test.status !== "set_aside" : test.status === "set_aside"));
 }
 
 /**
@@ -117,6 +124,7 @@ function Row({ test, place, shown }: { readonly test: ReviewedTest; readonly pla
     levelName(test.level),
     t(`review.verdicts.${test.verdict === "passed" ? "passed" : "failed"}`),
     t(test.reviewed ? "review.reviewed" : "review.notReviewed"),
+    ...(test.status === "in_correction" ? [t("review.status.in_correction")] : []),
   ].join(" · ");
   return (
     <a className={shown ? "row review-row on" : "row review-row"} href={reviewHref({ ...place, id: test.id })} aria-current={shown ? "true" : undefined}>
@@ -198,10 +206,14 @@ export function ReviewScreen({ project, route, place, queue, proposal, controls 
           validate: controls.validate,
           restore: controls.restore,
           setAside: withPanel(route, SET_ASIDE_PANEL),
+          correct: withPanel(route, CORRECT_PANEL),
           pending: controls.pending,
           ...(controls.refusal === undefined ? {} : { refusal: controls.refusal }),
         };
-  const panel = route.query["panel"] === SET_ASIDE_PANEL && proposal?.value?.status === "in_review" ? proposal.value : undefined;
+  // A panel is for the test to review it names; one that is no longer is not opened.
+  const reviewing = proposal?.value?.status === "in_review" ? proposal.value : undefined;
+  const panel = route.query["panel"] === SET_ASIDE_PANEL ? reviewing : undefined;
+  const correcting = route.query["panel"] === CORRECT_PANEL ? reviewing : undefined;
   return (
     <Page crumbs={crumbs} title={title} hint={t("review.lead")}>
       {queue.unread !== undefined && (
@@ -240,6 +252,14 @@ export function ReviewScreen({ project, route, place, queue, proposal, controls 
           close={close}
           pending={controls?.pending ?? false}
           {...(controls === undefined ? {} : { onSubmit: controls.setAside })}
+        />
+      )}
+      {correcting !== undefined && (
+        <ReviewCorrect
+          proposal={correcting}
+          close={close}
+          pending={controls?.pending ?? false}
+          {...(controls === undefined ? {} : { onSubmit: controls.correct })}
         />
       )}
     </Page>

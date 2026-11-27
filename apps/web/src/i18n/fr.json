@@ -905,7 +905,8 @@
     "status": {
       "in_review": "À relire",
       "validated": "Validé",
-      "set_aside": "Écarté"
+      "set_aside": "Écarté",
+      "in_correction": "En correction"
     },
     "visual": "Visuel",
     "reviewed": "relu ✔",
@@ -986,6 +987,29 @@
       "unchanged": "Validé : {{branch}} l’avait déjà tel que la conception l’a écrit.",
       "setAside": "Écarté : le test reste consultable dans « Écartés ».",
       "restored": "Remis en relecture : le test attend de nouveau votre décision dans « Nouveaux tests »."
+    },
+    "correction": "Correction demandée : « {{instruction}} »",
+    "followCorrection": "Suivre la correction",
+    "readCorrection": "Lire la session",
+    "correct": {
+      "title": "Demander une correction · {{title}}",
+      "intro": "Dites à l’agent ce qu’il faut changer. La session qui a écrit ce test le corrige, le rejoue et le relit, puis il revient ici.",
+      "instruction": "Consigne",
+      "example": "Par exemple : utilise la police de Max Mustermann comme donnée de référence plutôt que de créer un client.",
+      "starters": {
+        "oracle": "+ changer l’oracle de données",
+        "edge": "+ ajouter un cas limite",
+        "rename": "+ renommer le test"
+      },
+      "startsWith": {
+        "oracle": "Vérifie plutôt que ",
+        "edge": "Ajoute le cas limite où ",
+        "rename": "Renomme le test en "
+      },
+      "guardrails": "La session repart dans ses garde-fous habituels.",
+      "cancel": "Annuler",
+      "confirm": "Envoyer au concepteur",
+      "sending": "Envoi…"
     }
   },
   "defects": {

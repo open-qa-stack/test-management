@@ -159,6 +159,13 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const restored = clientOf(() => new Response(null, { status: 204 }));
     await restored.client.restore("a b");
     assert.deepEqual(restored.calls, [["/api/reviews/a%20b/decision", { method: "DELETE" }]]);
+    const corrected = { decision: { id: "a", status: "in_correction", instruction: "Use Max.", session: "s1" }, session: { id: "s1" } };
+    const correct = clientOf(() => json(corrected));
+    assert.deepEqual(await correct.client.correct("a b", { instruction: "Use Max." }), corrected);
+    assert.deepEqual(
+      correct.calls.map(([path, init]) => [path, init?.method, init?.body]),
+      [["/api/reviews/a%20b/correction", "POST", '{"instruction":"Use Max."}']],
+    );
   });
 
   it("lists the tests of the test repository out of the envelope the API answers", async () => {

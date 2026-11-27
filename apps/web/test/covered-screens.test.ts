@@ -40,8 +40,8 @@ describe("the code of the console is covered in full", () => {
 
   it("runs every line of the screen of the review in the browser, from the menu, and goes through its tests with J and K", async () => {
     const instance = new ReviewedInstance();
-    const [screen] = await app().measure(
-      ["src/review/review-page.tsx"],
+    const [screen, correct] = await app().measure(
+      ["src/review/review-page.tsx", "src/review/review-correct.tsx"],
       async (page) => {
         await page.goto("http://console.test/#/agent");
         await page.getByRole("link", { name: "À relire" }).first().click();
@@ -55,6 +55,24 @@ describe("the code of the console is covered in full", () => {
         await page.keyboard.press("k");
         await page.getByRole("heading", { name: "A quote expires after thirty days" }).waitFor();
         await page.keyboard.press("k");
+        // C asks for the correction of the test shown, in its panel: a starter begins what the person writes; refused, the
+        // panel says why; taken, the session that corrects the test is followed.
+        await page.keyboard.press("c");
+        const correcting = page.getByRole("dialog");
+        await correcting.getByRole("button", { name: "+ ajouter un cas limite" }).click();
+        await page.keyboard.type("the quote is a day old.");
+        assert.equal(await correcting.getByLabel("Consigne").inputValue(), "Ajoute le cas limite où the quote is a day old.");
+        instance.refusal = "review_refused";
+        await correcting.getByRole("button", { name: "Envoyer au concepteur" }).click();
+        await page.locator(".review-refusal").waitFor({ state: "attached" });
+        await correcting.getByRole("button", { name: "Envoyer au concepteur" }).click();
+        await page.waitForURL(/#\/agent\/sessions\/s9$/);
+        await page.goBack();
+        await page.goBack();
+        assert.deepEqual(
+          instance.corrections.map(({ instruction }) => instruction),
+          ["Ajoute le cas limite où the quote is a day old."],
+        );
         // A test no design gives any more says so on its card.
         instance.queue = { ...instance.queue, tests: [...instance.queue.tests, { ...POLICY, id: "44444444-4444-4444-8444-444444444444", title: "Gone" }] };
         await page.goto("http://console.test/#/review?id=44444444-4444-4444-8444-444444444444");
@@ -117,8 +135,10 @@ describe("the code of the console is covered in full", () => {
       },
       instance.api,
     );
-    assert.ok(screen!.lines.length > 0, "the module is in the build");
-    assert.deepEqual(screen!.uncovered, []);
+    for (const measured of [screen, correct]) {
+      assert.ok(measured!.lines.length > 0, "the module is in the build");
+      assert.deepEqual(measured!.uncovered, []);
+    }
   });
 
   it("lets the screen of the tests, its long paths and its filter, fit the width of a small phone", async () => {
