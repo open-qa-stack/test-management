@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { MAX_SET_ASIDE_NOTE, reviewDecisionOf } from "../src/index.ts";
+import { MAX_CORRECTION, MAX_SET_ASIDE_NOTE, reviewCorrectionOf, reviewDecisionOf } from "../src/index.ts";
 
 describe("a decision of the review, as a client sends it", () => {
   it("validates a test, or sets it aside with a reason, the test that covers it for one covered, and a note, each trimmed", () => {
@@ -32,5 +32,14 @@ describe("a decision of the review, as a client sends it", () => {
       reviewDecisionOf({ status: "set_aside", reason: "wrong_level", note: "x".repeat(MAX_SET_ASIDE_NOTE + 1) }),
       `The note of a test set aside is ${MAX_SET_ASIDE_NOTE} characters at most.`,
     );
+  });
+});
+
+describe("a correction of a test, as a client sends it", () => {
+  it("is what to change, trimmed, and is refused without it or when too long", () => {
+    assert.deepEqual(reviewCorrectionOf({ instruction: "  Use the policy of Max.  " }), { instruction: "Use the policy of Max." });
+    const refused = `A correction is { "instruction" }: what to change in the test, 1 to ${MAX_CORRECTION} characters.`;
+    for (const body of [null, {}, { instruction: " " }, { instruction: 3 }, { instruction: "x".repeat(MAX_CORRECTION + 1) }])
+      assert.equal(reviewCorrectionOf(body), refused);
   });
 });

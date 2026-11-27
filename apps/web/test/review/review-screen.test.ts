@@ -28,6 +28,7 @@ const CONTROLS: ReviewControls = {
   validate: () => assert.fail("nothing is validated"),
   setAside: () => assert.fail("nothing is set aside"),
   restore: () => assert.fail("nothing is put back in review"),
+  correct: () => assert.fail("no correction is asked"),
   pending: false,
 };
 
@@ -159,10 +160,10 @@ describe("the review of the tests the agents wrote", () => {
 
   it("gives the gestures of a test to review, opens the panel that sets it aside, and tells what came of a decision", () => {
     const html = screen("#/review", { value: QUEUE }, { value: PROPOSAL }, CONTROLS);
-    // Set aside opens its panel, validate is a button; ask for a correction stays inactive.
+    // Set aside and ask for a correction open their panels, validate is a button.
     assert.ok(linksOf(html).includes("#/review?panel=set-aside"));
     assert.match(html, /<button type="button" class="btn primary" aria-keyshortcuts="V">Valider<\/button>/);
-    assert.match(html, /<button type="button" class="btn" disabled="" aria-keyshortcuts="C">Demander une correction<\/button>/);
+    assert.match(html, /<a class="btn" href="#\/review\?panel=correct" aria-keyshortcuts="C">Demander une correction<\/a>/);
     const panel = textOf(screen("#/review?panel=set-aside", { value: QUEUE }, { value: PROPOSAL }, CONTROLS));
     assert.match(
       panel,
@@ -186,5 +187,40 @@ describe("the review of the tests the agents wrote", () => {
     const aside = { ...PROPOSAL, status: "set_aside" } as const;
     const set = textOf(screen("#/review?panel=set-aside", { value: QUEUE }, { value: aside }, CONTROLS));
     assert.doesNotMatch(set, /Valider|Pourquoi l’écarter/);
+    assert.match(
+      screen("#/review", { value: QUEUE }, { value: PROPOSAL }, { ...CONTROLS, pending: true }),
+      /<button type="button" class="btn" disabled="" aria-keyshortcuts="C">/,
+    );
+  });
+
+  it("asks for the correction of a test in its panel, with starters, and shows a test in correction, and what was asked of one", () => {
+    const panel = screen("#/review?panel=correct", { value: QUEUE }, { value: PROPOSAL }, CONTROLS);
+    assert.match(
+      textOf(panel),
+      /Demander une correction · A quote expires after thirty days Dites à l’agent ce qu’il faut changer\. .* Consigne Par exemple : .* \+ changer l’oracle de données \+ ajouter un cas limite \+ renommer le test La session repart dans ses garde-fous habituels\. Annuler Envoyer au concepteur$/,
+    );
+    assert.match(panel, /<textarea id="review-instruction" name="instruction" maxLength="2000" rows="5" required=""/);
+    assert.match(
+      screen("#/review?panel=correct", { value: QUEUE }, { value: PROPOSAL }),
+      /<button type="submit" form="review-correct" class="btn primary" disabled="">/,
+    );
+    assert.match(
+      screen("#/review?panel=correct", { value: QUEUE }, { value: PROPOSAL }, { ...CONTROLS, pending: true }),
+      /<button type="submit" form="review-correct" class="btn primary" disabled="">Envoi…<\/button>/,
+    );
+    const decision = { id: PROPOSAL.id, status: "in_correction", at: "2026-11-27T10:00:00.000Z", instruction: "Use Max.", session: "s1" } as const;
+    const correcting = { ...PROPOSAL, status: "in_correction", decision } as const;
+    const queue = { ...QUEUE, tests: QUEUE.tests.map((test) => (test.id === PROPOSAL.id ? { ...test, status: "in_correction" as const } : test)) };
+    const shown = screen("#/review?panel=correct", { value: queue }, { value: correcting }, CONTROLS);
+    // A test in correction stays among the new tests, without gestures nor panel, and leads to the session that corrects it.
+    assert.match(textOf(shown), / · En correction /);
+    assert.match(textOf(shown), / En correction Fonctionnel .* Correction demandée : « Use Max\. » Suivre la correction Pourquoi/);
+    assert.ok(linksOf(shown).includes("#/agent/sessions/s1"));
+    assert.doesNotMatch(textOf(shown), /Valider|Consigne/);
+    // Back in review, it keeps what was asked.
+    assert.match(
+      textOf(screen("#/review", { value: QUEUE }, { value: { ...PROPOSAL, decision } }, CONTROLS)),
+      /Correction demandée : « Use Max\. » Lire la session/,
+    );
   });
 });

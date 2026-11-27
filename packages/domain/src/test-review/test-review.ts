@@ -2,10 +2,11 @@ import type { ScenarioKind, ScenarioLevel } from "../test/test-plan.ts";
 import type { Verdict } from "../test/verdict.ts";
 
 /**
- * Where a test the agents wrote stands in the review of a person: `in_review` until the person decides, `validated` once
- * it entered the working branch of the test repository, `set_aside` when the person left it out.
+ * Where a test the agents wrote stands in the review of a person: `in_review` until the person decides, `in_correction`
+ * while the session that wrote it corrects it as the person asked, `validated` once it entered the working branch of the
+ * test repository, `set_aside` when the person left it out.
  */
-export type ReviewStatus = "in_review" | "validated" | "set_aside";
+export type ReviewStatus = "in_review" | "in_correction" | "validated" | "set_aside";
 
 /** Why a person sets a test aside: another test already verifies it, it is out of the scope, it checks the wrong thing, or it is not at the right level. */
 export const SET_ASIDE_REASONS = ["covered", "out_of_scope", "wrong_oracle", "wrong_level"] as const;
@@ -25,6 +26,15 @@ export type TestDecision =
       readonly coveredBy?: string;
       /** What the person added, in their words. */
       readonly note?: string;
+    }
+  | {
+      readonly id: string;
+      readonly status: "in_correction";
+      readonly at: string;
+      /** What the person asked the agents to change, in their words. */
+      readonly instruction: string;
+      /** The session that corrects it: the one that wrote it, resumed with the instruction. */
+      readonly session: string;
     };
 
 /** A test the agents wrote, as the queue of the review lists it. */
@@ -96,7 +106,7 @@ export interface TestProposal extends ReviewedTest {
   readonly decision?: TestDecision;
 }
 
-/** The queue of the review: the tests to review, those set aside, and how many of each. */
+/** The queue of the review: the tests to review, those set aside, and how many of each; those in correction count among those to review. */
 export interface ReviewQueue {
   readonly tests: readonly ReviewedTest[];
   readonly counts: { readonly inReview: number; readonly setAside: number };

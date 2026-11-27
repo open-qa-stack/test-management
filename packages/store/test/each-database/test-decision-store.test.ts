@@ -31,6 +31,14 @@ describe("the decisions of the review the store keeps", () => {
       { id: "b", status: "validated", at: "2026-11-27T10:00:00.000Z" },
       { id: "c", status: "set_aside", at: "2026-11-27T10:02:00.000Z", reason: "out_of_scope" },
     ]);
+    await store.set({ id: "c", status: "in_correction", at: "2026-11-27T10:03:00.000Z", instruction: "Use the policy of Max.", session: "s1" });
+    assert.deepEqual((await store.list())[2], {
+      id: "c",
+      status: "in_correction",
+      at: "2026-11-27T10:03:00.000Z",
+      instruction: "Use the policy of Max.",
+      session: "s1",
+    });
     await store.set({ id: "a", status: "validated", at: "2026-11-27T11:00:00.000Z" });
     assert.deepEqual((await store.list())[0], { id: "a", status: "validated", at: "2026-11-27T11:00:00.000Z" });
   });

@@ -1,4 +1,5 @@
 import { isRecord } from "../json.ts";
+import type { Session } from "../sessions/session.ts";
 import { SET_ASIDE_REASONS, type SetAsideReason, type TestDecision } from "./test-review.ts";
 
 /** The longest note a person adds to a test they set aside, in characters. */
@@ -46,4 +47,32 @@ export function reviewDecisionOf(value: unknown): ReviewDecision | string {
   const note = textOf(value["note"]);
   if (note !== undefined && note.length > MAX_SET_ASIDE_NOTE) return `The note of a test set aside is ${MAX_SET_ASIDE_NOTE} characters at most.`;
   return { status: "set_aside", reason, ...(reason === "covered" ? { coveredBy: coveredBy! } : {}), ...(note === undefined ? {} : { note }) };
+}
+
+/** The longest instruction a person gives to correct a test, in characters. */
+export const MAX_CORRECTION = 2000;
+
+/** What a person asks the agents to change in a test to review. */
+export interface ReviewCorrection {
+  /** What to change, in their words. */
+  readonly instruction: string;
+}
+
+/** What came of a correction asked: the decision kept, and the session that corrects the test, resumed. */
+export interface CorrectedTest {
+  readonly decision: Extract<TestDecision, { status: "in_correction" }>;
+  readonly session: Session;
+}
+
+/**
+ * Reads what a person asks the agents to change in a test, as a client sends it.
+ *
+ * @param value - The body: `{ instruction }`.
+ * @returns The correction, its instruction trimmed; or why it is refused, in a sentence: no instruction, or one too long.
+ */
+export function reviewCorrectionOf(value: unknown): ReviewCorrection | string {
+  const instruction = isRecord(value) ? textOf(value["instruction"]) : undefined;
+  if (instruction === undefined || instruction.length > MAX_CORRECTION)
+    return `A correction is { "instruction" }: what to change in the test, 1 to ${MAX_CORRECTION} characters.`;
+  return { instruction };
 }

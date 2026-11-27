@@ -233,6 +233,7 @@ export interface TestDecisionsTable {
   reason: string | null;
   covered_by: string | null;
   note: string | null;
+  session: string | null;
 }
 
 /** The defects a person reported from a test that failed, each under its number. */

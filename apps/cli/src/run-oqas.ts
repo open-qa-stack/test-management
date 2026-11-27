@@ -67,6 +67,7 @@ async function onSessions(command: Exclude<Command, { name: "help" }>, options: 
   if (command.name === "run") return opened({ command, options, io }, repository);
   if (command.name === "say") return said({ command, options, io }, repository);
   if (command.name === "remap") return remapped({ command, options, io }, repository);
+  if (command.name === "reviews" && command.action === "correct") return corrected({ command, options, io }, repository);
   if (command.name === "ui") return servedConsole(command, repository, io);
   if (command.name === "converse") {
     if (io.terminal === undefined) throw new UsageError(NO_TERMINAL);
@@ -164,12 +165,13 @@ function opened({ command, options, io }: Omit<Asked<"run">, "sessions">, reposi
 async function hosting(
   { options, io }: Pick<Asked<Command["name"]>, "options" | "io">,
   repository: string,
-  begin: (sessions: Sessions) => Promise<Hosted | undefined>,
+  begin: (sessions: Sessions, operations: Operations) => Promise<Hosted | undefined>,
 ): Promise<ExitCodeValue> {
-  const { sessions, close } = await openOperations(io, repository, true);
+  const operations = await openOperations(io, repository, true);
+  const { sessions, close } = operations;
   let withinMs: number | undefined;
   try {
-    const hosted = await begin(sessions);
+    const hosted = await begin(sessions, operations);
     if (hosted === undefined) return ExitCode.passed;
     const { id, after } = hosted;
     io.stderr.write(`Session ${id}\n`);
@@ -212,6 +214,20 @@ function remapped({ command, options, io }: Omit<Asked<"remap">, "sessions">, re
 async function attached({ sessions, command, options, io }: Asked<"attach">): Promise<ExitCodeValue> {
   const { id } = await named(sessions, command.session);
   return followed({ sessions, options, io }, id, 0);
+}
+
+/**
+ * `oqas reviews correct`: has the session that wrote a test to review correct it, as the person says. This command runs
+ * the new turn of that session, as `oqas say` runs one it resumes, and follows it from what the person asked on.
+ */
+function corrected({ command, options, io }: Omit<Asked<"reviews">, "sessions">, repository: string): Promise<ExitCodeValue> {
+  const { id, correction } = command as Extract<Command, { name: "reviews"; action: "correct" }>;
+  return hosting({ options, io }, repository, async (sessions, { reviews }) => {
+    const { session } = await reviews.correct(id, correction);
+    // The new turn starts at what the person asked, the last request of the thread.
+    const thread = await sessions.thread(session.id);
+    return { id: session.id, after: thread.findLastIndex((event) => event.type === "user_message" && event.number === undefined) };
+  });
 }
 
 /**

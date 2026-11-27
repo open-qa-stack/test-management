@@ -49,6 +49,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "TestReviews.proposal": { client: "proposal" },
   "TestReviews.decide": { client: "decide" },
   "TestReviews.restore": { client: "restore" },
+  "TestReviews.correct": { client: "correct" },
   "Defects.list": { client: "defects" },
   "Defects.report": { client: "reportDefect" },
   "Defects.change": { client: "changeDefect" },

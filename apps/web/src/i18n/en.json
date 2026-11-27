@@ -905,7 +905,8 @@
     "status": {
       "in_review": "To review",
       "validated": "Validated",
-      "set_aside": "Set aside"
+      "set_aside": "Set aside",
+      "in_correction": "In correction"
     },
     "visual": "Visual",
     "reviewed": "reviewed ✔",
@@ -986,6 +987,29 @@
       "unchanged": "Validated: {{branch}} had it already as its design wrote it.",
       "setAside": "Set aside: the test stays to read among those set aside.",
       "restored": "Back in review: the test waits for your decision again among the new tests."
+    },
+    "correction": "Correction asked: “{{instruction}}”",
+    "followCorrection": "Follow the correction",
+    "readCorrection": "Read the session",
+    "correct": {
+      "title": "Ask for a correction · {{title}}",
+      "intro": "Tell the agent what to change. The session that wrote this test corrects it, runs it again and reviews it, then it comes back here.",
+      "instruction": "Instruction",
+      "example": "For instance: use the policy of Max Mustermann as reference data rather than creating a customer.",
+      "starters": {
+        "oracle": "+ change the data oracle",
+        "edge": "+ add an edge case",
+        "rename": "+ rename the test"
+      },
+      "startsWith": {
+        "oracle": "Check instead that ",
+        "edge": "Add the edge case where ",
+        "rename": "Rename the test to "
+      },
+      "guardrails": "The session goes on within its usual guardrails.",
+      "cancel": "Cancel",
+      "confirm": "Send to the designer",
+      "sending": "Sending…"
     }
   },
   "defects": {

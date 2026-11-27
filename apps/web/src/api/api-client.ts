@@ -32,6 +32,8 @@ import type {
   RepositoryState,
   RepositoryTest,
   RepositoryTestList,
+  CorrectedTest,
+  ReviewCorrection,
   ReviewDecision,
   ReviewQueue,
   TestExecution,
@@ -344,6 +346,17 @@ export class ApiClient {
    */
   public async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
     return this.#ask<DecidedTest>(`/reviews/${encodeURIComponent(id)}/decision`, { ...posting(decision), method: "PUT" });
+  }
+
+  /**
+   * Asks the session that wrote a test to review to correct it, as the person says.
+   *
+   * @param id - The identifier of the test.
+   * @param correction - What to change.
+   * @returns The decision that keeps the test in correction, and the session resumed to correct it.
+   */
+  public async correct(id: string, correction: ReviewCorrection): Promise<CorrectedTest> {
+    return this.#ask<CorrectedTest>(`/reviews/${encodeURIComponent(id)}/correction`, posting(correction));
   }
 
   /**

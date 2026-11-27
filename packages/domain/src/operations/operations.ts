@@ -17,7 +17,7 @@ export const OPERATIONS = {
   KnowledgeSources: ["check"],
   KnowledgeMapping: ["state"],
   RepositoryTests: ["listed"],
-  TestReviews: ["queue", "proposal", "decide", "restore"],
+  TestReviews: ["queue", "proposal", "decide", "restore", "correct"],
   Defects: ["list", "report", "change"],
   TestReadings: ["read", "trace", "capture"],
   TestSources: ["read", "change"],

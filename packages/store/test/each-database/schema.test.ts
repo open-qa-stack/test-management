@@ -113,7 +113,15 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     fixed_at: "text, or nothing",
     closed_at: "text, or nothing",
   },
-  test_decisions: { id: "text", status: "text", decided_at: "text", reason: "text, or nothing", covered_by: "text, or nothing", note: "text, or nothing" },
+  test_decisions: {
+    id: "text",
+    status: "text",
+    decided_at: "text",
+    reason: "text, or nothing",
+    covered_by: "text, or nothing",
+    note: "text, or nothing",
+    session: "text, or nothing",
+  },
   memories: {
     id: "text",
     domain: "text",

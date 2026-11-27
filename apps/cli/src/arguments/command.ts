@@ -7,6 +7,7 @@ import type {
   DefectStatus,
   ExecutionOrigin,
   ExecutionOutcome,
+  ReviewCorrection,
   ReviewDecision,
   TestEdit,
 } from "@open-qa-stack/domain";
@@ -95,6 +96,8 @@ export type Command =
   | { readonly name: "reviews"; readonly action: "decide"; readonly id: string; readonly decision: ReviewDecision }
   /** Put one of them that was set aside back in review, as it was. */
   | { readonly name: "reviews"; readonly action: "restore"; readonly id: string }
+  /** Have the session that wrote one of them correct it, as the person says. */
+  | { readonly name: "reviews"; readonly action: "correct"; readonly id: string; readonly correction: ReviewCorrection }
   /** List the defects reported from tests that failed. */
   | { readonly name: "defects"; readonly action: "list" }
   /** Report a defect of a test. */

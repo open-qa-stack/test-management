@@ -1,7 +1,7 @@
 import type { ReviewedTest, TestProposal } from "@open-qa-stack/domain";
 
 /** How each status of the review is told. */
-const STATUSES = { in_review: "to review", validated: "validated", set_aside: "set aside" } as const;
+const STATUSES = { in_review: "to review", in_correction: "in correction", validated: "validated", set_aside: "set aside" } as const;
 
 /** @returns The line of a test of the queue: its identifier, its status, its title, then where it comes from and how it went. */
 export function reviewLine(test: ReviewedTest): string {
@@ -15,6 +15,9 @@ export function proposalLines(proposal: TestProposal): string[] {
     reviewLine(proposal),
     `${proposal.path}, on ${proposal.branch}`,
     ...(proposal.brief === undefined ? [] : [`Asked: ${proposal.brief}`]),
+    ...(proposal.decision?.status === "in_correction"
+      ? [`Correction asked of the session ${proposal.decision.session}: ${proposal.decision.instruction}`]
+      : []),
     `Why: ${proposal.intent}`,
     `Sources: ${proposal.sources.map(({ source, item }) => (item === undefined ? source : `${source} — ${item}`)).join(", ") || "none"}`,
     ...proposal.steps.flatMap(({ action, expects }, at) => [`${at + 1}. ${action}`, ...expects.map((expected) => `   expects: ${expected}`)]),
