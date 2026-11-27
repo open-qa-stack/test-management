@@ -53,7 +53,7 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the applications, the defects, the applications, the knowledge and the configuration as links", () => {
+  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the defects, the applications, the knowledge and the configuration as links, after the help of the shortcuts", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
@@ -62,6 +62,7 @@ describe("the shell", () => {
     assert.deepEqual(linksOf(html), [
       "#/agent",
       "#/?nav=open",
+      "#/?keys=open",
       "#/agent",
       "#/discovery",
       "#/review",
@@ -85,6 +86,24 @@ describe("the shell", () => {
     assert.deepEqual(marked("#/executions"), ["#/executions"]);
     assert.deepEqual(marked("#/campaigns/view?id=c1"), ["#/campaigns"]);
     assert.deepEqual(marked("#/nowhere"), []);
+  });
+
+  it("opens the help of the shortcuts in a panel over the screen, keeping where the screen is, each named in the language of the console", async () => {
+    const closed = shell("#/review?id=a");
+    assert.match(
+      closed,
+      /<a class="top-help" href="#\/review\?id=a&amp;keys=open" aria-haspopup="dialog" aria-keyshortcuts="\?" aria-label="Raccourcis clavier" title="Raccourcis clavier"><svg /,
+    );
+    assert.doesNotMatch(closed, /<dialog/);
+    const open = shell("#/review?id=a&keys=open");
+    assert.match(open, /<dialog class="side-panel" aria-labelledby="shell-shortcuts">/);
+    assert.match(open, /<a class="side-panel-close" href="#\/review\?id=a"/);
+    assert.match(
+      textOf(open),
+      /Raccourcis clavier Partout \? Ouvrir cette aide Échap Fermer le panneau ouvert Agent Ctrl Entrée Envoyer la demande \(⌘ \+ Entrée sur Mac\) Entrée Envoyer un message à une session Maj Entrée Aller à la ligne dans un message À relire J Test suivant K Test précédent V Valider le test affiché Fiche d’un test R Relancer le test Résultat d’une exécution ← Étape précédente → Étape suivante$/,
+    );
+    await inEnglish();
+    assert.match(textOf(shell("#/?keys=open")), /Keyboard shortcuts Everywhere \? Open this help Esc Close the open panel Agent Ctrl Enter Send the request/);
   });
 
   it("has a button that folds the menu to its icons and unfolds it, when it is given one, and none otherwise", () => {

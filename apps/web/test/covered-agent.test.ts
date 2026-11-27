@@ -29,6 +29,11 @@ describe("the code of the console is covered in full", () => {
         await page.keyboard.press("Tab");
         await page.keyboard.press("Escape");
         await page.getByRole("dialog").waitFor({ state: "detached" });
+        // ? opens the help of the shortcuts, which Escape closes.
+        await page.keyboard.press("Shift+?");
+        await page.getByRole("dialog", { name: "Raccourcis clavier" }).waitFor();
+        await page.keyboard.press("Escape");
+        await page.getByRole("dialog").waitFor({ state: "detached" });
         await page.locator(".refusals > summary").click();
         await page.getByRole("button", { name: "Lire la suite" }).click();
         await page.getByRole("button", { name: "Replier", exact: true }).waitFor();

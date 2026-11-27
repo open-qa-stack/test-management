@@ -97,6 +97,66 @@
   flex: none;
 }
 
+/* The button that opens the help of the shortcuts: a phone has no keyboard to press them on. */
+.top-help {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control);
+  height: var(--control);
+  margin-left: auto;
+  border-radius: var(--radius-control);
+  color: var(--text-2);
+}
+
+.top-help:hover {
+  background: var(--neutral-soft);
+  color: var(--text);
+}
+
+/* The help lists the keys of each shortcut beside what it does, under the part of the console it is for. */
+.shortcuts-group + .shortcuts-group {
+  margin-top: var(--space-2);
+}
+
+.shortcuts-group h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--type-reading);
+}
+
+.shortcuts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.shortcut {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.shortcut dt {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.shortcut dd {
+  margin: 0;
+}
+
+.shortcut kbd {
+  min-width: 1.75em;
+  padding: 0 var(--space-1);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--neutral-soft);
+  font-family: inherit;
+  font-size: var(--type-small);
+  text-align: center;
+}
+
 /* The button that folds the menu: the sidebar it folds exists only on a wide screen. */
 .menu-toggle {
   display: none;
@@ -254,6 +314,10 @@
   .top-screen,
   .top-menu {
     display: none;
+  }
+
+  .top-help {
+    display: inline-flex;
   }
 
   .shell-sidebar {

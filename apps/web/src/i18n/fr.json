@@ -1604,5 +1604,34 @@
     "none": "Aucune exécution en cours",
     "noneNote": "Elle apparaît ici dès que des tests sont lancés.",
     "last": "Voir la dernière lancée"
+  },
+  "shortcuts": {
+    "title": "Raccourcis clavier",
+    "groups": {
+      "everywhere": "Partout",
+      "agent": "Agent",
+      "review": "À relire",
+      "test": "Fiche d’un test",
+      "result": "Résultat d’une exécution"
+    },
+    "does": {
+      "help": "Ouvrir cette aide",
+      "close": "Fermer le panneau ouvert",
+      "send": "Envoyer la demande (⌘ + Entrée sur Mac)",
+      "say": "Envoyer un message à une session",
+      "newLine": "Aller à la ligne dans un message",
+      "next": "Test suivant",
+      "previous": "Test précédent",
+      "validate": "Valider le test affiché",
+      "relaunch": "Relancer le test",
+      "stepBefore": "Étape précédente",
+      "stepAfter": "Étape suivante"
+    },
+    "keys": {
+      "escape": "Échap",
+      "enter": "Entrée",
+      "shift": "Maj",
+      "control": "Ctrl"
+    }
   }
 }

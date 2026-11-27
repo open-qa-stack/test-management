@@ -30,6 +30,17 @@ describe("the shortcuts of a page", () => {
     assert.deepEqual(done, ["r", "r", "left"]);
   });
 
+  it("hear a sign typed with Shift, as many keyboards type it, but no letter nor named key with Shift", () => {
+    const page = new Keyed();
+    const done: string[] = [];
+    hearShortcuts(page as unknown as Document, { "?": () => done.push("?"), r: () => done.push("r"), ArrowLeft: () => done.push("left") });
+    assert.deepEqual(
+      [page.press("?", { shiftKey: true }), page.press("?"), page.press("R", { shiftKey: true }), page.press("ArrowLeft", { shiftKey: true })],
+      [true, true, false, false],
+    );
+    assert.deepEqual(done, ["?", "?"]);
+  });
+
   it("leave the key to a field, a dialog, the browser and what handled it already, and do not repeat for a key held down", () => {
     const page = new Keyed();
     const done: string[] = [];
