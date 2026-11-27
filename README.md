@@ -38,13 +38,25 @@ An AI agent writes tests in minutes — tests that pass. Locators it guessed, as
 
 Specialised agents work in turn, level by level: smoke, functional, business, cross-application, then visual. Each level builds on the tests of the one before. At every step a harness checks what the agents submit against what was really seen in your application — and refuses the rest.
 
+## The whole flow
+
+<p align="center">
+  <img src="docs/assets/whole-flow.svg" width="100%" alt="The whole flow of Open QA Stack: what you know of your applications, your request and the memory of the agents go in. Agents map each source once. Then, level by level — smoke, functional, business, cross-application, end-to-end, visual — a planner explores the application, a plan reviewer sets aside what is already tested, a writer writes and runs each Playwright test, and two reviewers check it, inside a harness that accepts on evidence. The result is a Playwright project in your repository, on a branch. People review each test, report defects and run campaigns; a correction goes back to the writer and can become an instruction in the memory.">
+</p>
+
+First, agents map what you know: each source once, kept until it changes, grouped by business domain. Then, for each level, a planner explores your application and proposes scenarios, a reviewer sets aside what is already tested, a writer writes each Playwright test and runs it, and two more reviewers check it against its plan and for code quality.
+
+Then your team decides. Each test waits for review: validate it, set it aside, or ask for a correction, which the writer makes. A correction can be kept as an instruction the agents read before every task.
+
+Every step, every agent and every rule of the harness: [Inside a session](docs/how-it-works.md).
+
 ## Watch the agents work
 
 <p align="center">
   <img src="docs/assets/console-session.png" width="100%" alt="The console of Open QA Stack following a session live: the planner, a line per action with its duration, two refusals of the harness, one with its code, and under the thread the field to speak to the agents.">
 </p>
 
-The console shows the agents at work, live: what each of them thinks, what it tells the others, what it does, and every time the harness says no — with the reason. Nothing in it is sample data: it follows the sessions of your test repository event by event, a session can be spoken to and stopped from it, and one that ended can be replayed step by step. `oqas --ui` is all it takes to open it. The agents are the first part of the console; its other screens are on their way.
+The console shows the agents at work, live: what each of them thinks, what it tells the others, what it does, and every time the harness says no — with the reason. Nothing in it is sample data: it follows the sessions of your test repository event by event, a session can be spoken to and stopped from it, and one that ended can be replayed step by step. `oqas --ui` is all it takes to open it. Beside the agents, the console holds the tests to review, the defects, the memory of the agents, the tests of your repository, their executions and your campaigns.
 
 ## What you get
 
