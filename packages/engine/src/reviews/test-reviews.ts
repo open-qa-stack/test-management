@@ -1,10 +1,16 @@
 import { execFile } from "node:child_process";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { LocalMerge } from "./local-merge.ts";
 import { countedTests, DESIGNS_FOLDER, readPlanFile, type DesignedTest, type DesignState } from "@open-qa-stack/agents";
 import {
+  CONFIG_FILE_NAME,
   DEFAULT_REPOSITORY,
+  ReviewRefusedError,
   type ConfigurationQueries,
+  type DecidedTest,
+  type ReviewDecision,
+  type SessionQueries,
   type PlannedScenario,
   type ProposedFile,
   type ReviewedTest,
@@ -45,16 +51,28 @@ export class TestReviews {
   readonly #repository: string | undefined;
   readonly #configuration: ConfigurationQueries;
   readonly #decisions: TestDecisionStorePort;
+  readonly #sessions: Pick<SessionQueries, "sessions">;
+  readonly #now: () => Date;
 
   /**
    * @param repository - Absolute path of the test repository; `undefined` for a host that has none, which lists none.
    * @param configuration - What tells the revision in force of the configuration, which names the state folder.
    * @param decisions - What keeps what a person decided of each test.
+   * @param sessions - The sessions of the instance: none may run while a test enters the working branch.
+   * @param now - The clock the decisions are dated by.
    */
-  constructor(repository: string | undefined, configuration: ConfigurationQueries, decisions: TestDecisionStorePort) {
+  constructor(
+    repository: string | undefined,
+    configuration: ConfigurationQueries,
+    decisions: TestDecisionStorePort,
+    sessions: Pick<SessionQueries, "sessions">,
+    now: () => Date = () => new Date(),
+  ) {
     this.#repository = repository;
     this.#configuration = configuration;
     this.#decisions = decisions;
+    this.#sessions = sessions;
+    this.#now = now;
   }
 
   /** @returns The tests to review and those set aside, the oldest design first, and how many of each. */
@@ -89,6 +107,41 @@ export class TestReviews {
       files: await this.#files(state, test.path, await this.#reserved()),
       ...(decision === undefined ? {} : { decision }),
     };
+  }
+
+  /**
+   * Keeps what a person decides of a test to review. A test validated enters the working branch of the test repository:
+   * its file and those its design wrote for it are taken from the branch of its design and committed there, in the
+   * checkout of the repository, which is left on that branch; nothing is pushed. A test set aside stays out of it.
+   *
+   * @param id - The identifier of a test the agents wrote.
+   * @param decision - To validate it, or to set it aside, with why.
+   * @returns The decision kept, and for a test validated, the branch it entered.
+   * @throws UnknownProposalError when no design gave a test of the identifier.
+   * @throws ReviewRefusedError when the test was decided already, when a session runs, or when the repository cannot take it now.
+   */
+  async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
+    const designed = (await this.#designed()).find((candidate) => candidate.id === id);
+    if (designed === undefined) throw new UnknownProposalError(id);
+    const before = (await this.#decided()).get(id);
+    if (before !== undefined)
+      throw new ReviewRefusedError(`The test ${designed.test.path} is ${before.status === "validated" ? "validated" : "set aside"} already.`);
+    const at = this.#now().toISOString();
+    if (decision.status === "set_aside") {
+      const kept = { id, at, ...decision };
+      await this.#decisions.set(kept);
+      return { decision: kept };
+    }
+    const sessions = await this.#sessions.sessions();
+    if (sessions.some(({ state }) => state === "running" || state === "queued"))
+      throw new ReviewRefusedError("A session runs or waits in the test repository: validate the test once it ended.");
+    const reserved = [...(await this.#reserved()), CONFIG_FILE_NAME];
+    const { state, test, scenario } = designed;
+    const files = [test.path, ...supportOf(await this.#changed(state), reserved)];
+    const entered = await new LocalMerge(this.#repository!).take(state, files, reserved, `test: keep ${scenario.title}`);
+    const kept = { id, status: "validated" as const, at };
+    await this.#decisions.set(kept);
+    return { decision: kept, entered };
   }
 
   /** What a person decided, by test. */
@@ -128,15 +181,8 @@ export class TestReviews {
 
   /** The file of a test, then the files its design wrote besides the tests, such as page objects, with how many lines it added to each. */
   async #files(state: DesignState, path: string, reserved: readonly string[]): Promise<ProposedFile[]> {
-    const counts = (await this.#git("diff", "--numstat", state.base, state.branch)) ?? "";
-    const added = new Map(
-      counts
-        .split("\n")
-        .filter((line) => line !== "")
-        .map((line) => line.split("\t"))
-        .map(([plus, , file]) => [file!, Number(plus)] as const),
-    );
-    const support = [...added.keys()].filter((file) => !file.endsWith(".spec.ts") && !reserved.some((folder) => file.startsWith(folder)));
+    const added = await this.#changed(state);
+    const support = supportOf(added, reserved);
     const files: ProposedFile[] = [];
     for (const file of [path, ...support]) {
       const content = await this.#git("show", `${state.branch}:${file}`);
@@ -145,12 +191,29 @@ export class TestReviews {
     return files;
   }
 
+  /** The files a design changed on its branch, from the revision it started from, by how many lines it added to each. */
+  async #changed(state: DesignState): Promise<Map<string, number>> {
+    const counts = (await this.#git("diff", "--numstat", state.base, state.branch)) ?? "";
+    return new Map(
+      counts
+        .split("\n")
+        .filter((line) => line !== "")
+        .map((line) => line.split("\t"))
+        .map(([plus, , file]) => [file!, Number(plus)] as const),
+    );
+  }
+
   /** What git writes out in the test repository; `undefined` when it fails. */
   #git(...args: string[]): Promise<string | undefined> {
     return new Promise((resolve) =>
       execFile("git", args, { cwd: this.#repository, maxBuffer: GIT_OUTPUT_LIMIT }, (error, stdout) => resolve(error === null ? stdout : undefined)),
     );
   }
+}
+
+/** The files a design changed besides its tests and what the harness keeps: those a test relies on, such as page objects. */
+function supportOf(changed: ReadonlyMap<string, number>, reserved: readonly string[]): string[] {
+  return [...changed.keys()].filter((file) => !file.endsWith(".spec.ts") && !reserved.some((folder) => file.startsWith(folder)));
 }
 
 /** A test of a design as the queue lists it, with what a person decided of it. */

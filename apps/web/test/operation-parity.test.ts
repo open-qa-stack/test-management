@@ -47,6 +47,7 @@ const CONSOLE: Readonly<Record<OperationId, Offer>> = {
   "RepositoryTests.listed": { client: "tests" },
   "TestReviews.queue": { client: "reviews" },
   "TestReviews.proposal": { client: "proposal" },
+  "TestReviews.decide": { client: "decide" },
   "TestReadings.read": { client: "testReading" },
   "TestReadings.trace": { address: "/tests/trace", in: "src/executions/executions-paths.ts" },
   "TestReadings.capture": { address: "/tests/capture", in: "src/executions/result-screen.tsx" },

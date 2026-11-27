@@ -376,6 +376,7 @@
     "test_change_refused": "Ce changement ne peut pas être écrit : le texte est vide ou trop long, un autre test du fichier porte déjà ce titre, ou le dépôt empêche de committer le fichier seul (fichier déjà modifié, pas de branche, fusion en cours…). Réglez cela dans le dépôt, puis réessayez.",
     "unknown_execution": "L’instance ne garde plus cette exécution.",
     "unknown_proposal": "Aucun test écrit par les agents ne porte plus cet identifiant.",
+    "review_refused": "Ce test ne peut pas entrer dans le dépôt maintenant : une session tourne, des fichiers suivis sont modifiés, aucune de vos branches ne se distingue pour le recevoir, ou git refuse le commit. Réglez cela dans le dépôt, puis réessayez.",
     "launch_refused": "Les tests ne peuvent pas être lancés maintenant : une session ou un autre lancement tourne, ou l’environnement demandé n’est pas déclaré.",
     "unknown_campaign": "L’instance ne garde pas cette campagne.",
     "campaign_refused": "La campagne refuse ce changement : son état ne le permet pas, un test qu’elle nomme n’est pas dans le dépôt, ou aucun test n’est encore choisi.",
@@ -931,7 +932,8 @@
     "gestures": {
       "setAside": "Écarter",
       "correct": "Demander une correction",
-      "validate": "Valider"
+      "validate": "Valider",
+      "validating": "Validation…"
     },
     "reasons": {
       "covered": "Écarté : déjà couvert",
@@ -958,6 +960,28 @@
     "emptyNote": {
       "updates": "Les mises à jour de tests proposées par les agents apparaîtront ici.",
       "set_aside": "Les tests que vous écartez restent consultables ici."
+    },
+    "setAside": {
+      "title": "Écarter « {{title}} »",
+      "reason": "Pourquoi l’écarter",
+      "reasons": {
+        "covered": "Déjà couvert par un autre test",
+        "out_of_scope": "Hors périmètre",
+        "wrong_oracle": "Oracle incorrect : il ne vérifie pas ce qu’il faut",
+        "wrong_level": "Pas au bon niveau de la pyramide"
+      },
+      "coveredBy": "Le test qui le couvre déjà",
+      "coveredByHint": "Son chemin dans le dépôt, si vous l’écartez comme déjà couvert.",
+      "note": "Précision",
+      "kept": "Réversible : le test reste consultable dans « Écartés ».",
+      "cancel": "Annuler",
+      "confirm": "Écarter ce test",
+      "incomplete": "Choisissez un motif, et pour « déjà couvert » le chemin du test qui le couvre."
+    },
+    "told": {
+      "committed": "Validé : le test est entré dans {{branch}}, commité ; rien n’a été poussé.",
+      "unchanged": "Validé : {{branch}} l’avait déjà tel que la conception l’a écrit.",
+      "setAside": "Écarté : le test reste consultable dans « Écartés »."
     }
   },
   "test": {

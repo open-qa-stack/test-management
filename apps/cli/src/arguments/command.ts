@@ -1,4 +1,13 @@
-import type { AgentKey, DomainChange, CampaignDetails, CampaignLaunchScope, ExecutionOrigin, ExecutionOutcome, TestEdit } from "@open-qa-stack/domain";
+import type {
+  AgentKey,
+  DomainChange,
+  CampaignDetails,
+  CampaignLaunchScope,
+  ExecutionOrigin,
+  ExecutionOutcome,
+  ReviewDecision,
+  TestEdit,
+} from "@open-qa-stack/domain";
 
 /** What the command is asked to do, with what that takes. */
 export type Command =
@@ -80,6 +89,8 @@ export type Command =
   | { readonly name: "reviews"; readonly action: "list" }
   /** Tell what a person reads to decide of one of them, by its identifier. */
   | { readonly name: "reviews"; readonly action: "show"; readonly id: string }
+  /** Validate one of them, which enters the working branch, or set it aside with why. */
+  | { readonly name: "reviews"; readonly action: "decide"; readonly id: string; readonly decision: ReviewDecision }
   /** Launch tests of the test repository as they are, with no agent, in this process, and follow them to their end. */
   | { readonly name: "launch"; readonly paths: readonly string[]; readonly environment?: string }
   /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */

@@ -144,7 +144,7 @@ export async function openOperations(
     readings: new TestReadings(repository, instance.configuration, instance.executions),
     code: new TestSources({ repository, configuration: instance.configuration, tests, identities: instance.tests }),
     executions: new Executions(instance.executions),
-    reviews: new TestReviews(repository, instance.configuration, instance.testDecisions),
+    reviews: new TestReviews(repository, instance.configuration, instance.testDecisions, instance.sessions),
     close,
   };
 }

@@ -62,6 +62,19 @@ export function testsApiSuite(engine: DatabaseEngine): void {
   afterAll(() => database.drop());
 
   describe(`the tests of the test repository on ${engine.name}`, () => {
+    it("are decided of by a body that is a decision, and a test no design gave is not found", async () => {
+      const decide = (body: unknown) =>
+        fetch(`${api.url}/reviews/11111111-1111-4111-8111-111111111111/decision`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      const invalid = await decide({ status: "approved" });
+      assert.deepEqual([invalid.status, ((await invalid.json()) as Problem).code], [400, "invalid_request"]);
+      const unknown = await decide({ status: "validated" });
+      assert.deepEqual([unknown.status, ((await unknown.json()) as Problem).code], [404, "unknown_proposal"]);
+    });
+
     it("waiting for a review are none without a design, and a test no design gave is not found", async () => {
       const queue = await fetch(`${api.url}/reviews`);
       assert.deepEqual(

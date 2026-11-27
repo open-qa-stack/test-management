@@ -5,16 +5,26 @@ import type { ReviewQueue, TestProposal } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { nameApplications } from "../../src/applications/application-names.ts";
 import { reviewHref, reviewPlaceOf } from "../../src/review/review-paths.ts";
-import { ReviewScreen } from "../../src/review/review-screen.tsx";
+import { ReviewScreen, type ReviewControls } from "../../src/review/review-screen.tsx";
 import { parseRoute } from "../../src/routing/route.ts";
 import { linksOf, render, textOf } from "../render.ts";
 import { ASIDE, POLICY, PROPOSAL, QUEUE, QUOTE } from "./review-fixture.ts";
 
 /** The screen of an address, with what the instance told of the queue and of the test shown, as HTML. */
-const screen = (hash: string, queue: PolledState<ReviewQueue> = { value: QUEUE }, proposal?: PolledState<TestProposal>): string =>
+const screen = (hash: string, queue: PolledState<ReviewQueue> = { value: QUEUE }, proposal?: PolledState<TestProposal>, controls?: ReviewControls): string =>
   render(
-    createElement(ReviewScreen, { project: "lakeside-tests", place: reviewPlaceOf(parseRoute(hash)), queue, ...(proposal === undefined ? {} : { proposal }) }),
+    createElement(ReviewScreen, {
+      project: "lakeside-tests",
+      route: parseRoute(hash),
+      place: reviewPlaceOf(parseRoute(hash)),
+      queue,
+      ...(proposal === undefined ? {} : { proposal }),
+      ...(controls === undefined ? {} : { controls }),
+    }),
   );
+
+/** What the person does on the screen, which a static rendering never calls. */
+const CONTROLS: ReviewControls = { validate: () => assert.fail("nothing is validated"), setAside: () => assert.fail("nothing is set aside"), pending: false };
 
 describe("the place of the review in the address", () => {
   it("is the view of the new tests, every domain and the first test by default, and is written back the same", () => {
@@ -133,5 +143,36 @@ describe("the review of the tests the agents wrote", () => {
     assert.match(textOf(screen("#/review", { value: QUEUE }, { value: quiet })), / Avis des relecteurs Aucune remarque des agents qui l’ont relu\. /);
     const bare = { ...PROPOSAL, steps: [{ action: "Open the quotes", expects: [] }], files: [] } as TestProposal;
     assert.match(textOf(screen("#/review", { value: QUEUE }, { value: bare })), / Ce que le test vérifie Open the quotes Avis/);
+  });
+
+  it("gives the gestures of a test to review, opens the panel that sets it aside, and tells what came of a decision", () => {
+    const html = screen("#/review", { value: QUEUE }, { value: PROPOSAL }, CONTROLS);
+    // Set aside opens its panel, validate is a button; ask for a correction stays inactive.
+    assert.ok(linksOf(html).includes("#/review?panel=set-aside"));
+    assert.match(html, /<button type="button" class="btn primary" aria-keyshortcuts="V">Valider<\/button>/);
+    assert.match(html, /<button type="button" class="btn" disabled="" aria-keyshortcuts="C">Demander une correction<\/button>/);
+    const panel = textOf(screen("#/review?panel=set-aside", { value: QUEUE }, { value: PROPOSAL }, CONTROLS));
+    assert.match(
+      panel,
+      /Écarter « A quote expires after thirty days » Pourquoi l’écarter Déjà couvert par un autre test Hors périmètre Oracle incorrect : il ne vérifie pas ce qu’il faut Pas au bon niveau de la pyramide Le test qui le couvre déjà Son chemin dans le dépôt, si vous l’écartez comme déjà couvert\. Précision Réversible : le test reste consultable dans « Écartés »\. Annuler Écarter ce test$/,
+    );
+    // Under way, the gestures wait; refused, they say why; kept, the screen says what came of it.
+    const pending = screen("#/review?panel=set-aside", { value: QUEUE }, { value: PROPOSAL }, { ...CONTROLS, pending: true });
+    assert.match(pending, /<button type="button" class="btn primary" disabled="" aria-keyshortcuts="V">Validation…<\/button>/);
+    assert.match(pending, /<button type="submit" form="review-set-aside" class="btn primary" disabled="">/);
+    const refused = { ...CONTROLS, refusal: "Ce test ne peut pas entrer dans le dépôt maintenant." };
+    assert.match(
+      textOf(screen("#/review", { value: QUEUE }, { value: PROPOSAL }, refused)),
+      / Ce test ne peut pas entrer dans le dépôt maintenant\. Écarter Demander une correction Valider$/,
+    );
+    assert.match(textOf(screen("#/review", { value: QUEUE }, { value: PROPOSAL }, { ...CONTROLS, told: "Écarté." })), /sans vous\. Écarté\. Nouveaux tests/);
+    // Without what makes them, the panel cannot be submitted; a test set aside has no gesture, and opens no panel.
+    assert.match(
+      screen("#/review?panel=set-aside", { value: QUEUE }, { value: PROPOSAL }),
+      /<button type="submit" form="review-set-aside" class="btn primary" disabled="">/,
+    );
+    const aside = { ...PROPOSAL, status: "set_aside" } as const;
+    const set = textOf(screen("#/review?panel=set-aside", { value: QUEUE }, { value: aside }, CONTROLS));
+    assert.doesNotMatch(set, /Valider|Pourquoi l’écarter/);
   });
 });

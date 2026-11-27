@@ -6,15 +6,57 @@ import { levelName } from "../i18n/vocabulary.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Code } from "../ui/code.tsx";
 
+/** What a person does of the test on the card: validate it, or open the panel that sets it aside, while no decision is under way. */
+export interface ReviewGestures {
+  readonly validate: () => void;
+  /** The link to the panel that sets it aside. */
+  readonly setAside: string;
+  /** Whether a decision is under way, which leaves the gestures inactive. */
+  readonly pending: boolean;
+  /** Why the instance refused the last decision, when it did. */
+  readonly refusal?: string;
+}
+
+/** The gestures of a test to review: set aside, ask for a correction — which stays inactive —, and validate. */
+function Gestures({ gestures }: { readonly gestures: ReviewGestures | undefined }): ReactNode {
+  const idle = gestures !== undefined && !gestures.pending;
+  return (
+    <>
+      {gestures?.refusal !== undefined && (
+        <p className="review-refusal small" role="alert">
+          {gestures.refusal}
+        </p>
+      )}
+      <div className="review-actions">
+        {idle ? (
+          <a className="btn ghost" href={gestures.setAside}>
+            {t("review.gestures.setAside")}
+          </a>
+        ) : (
+          <button type="button" className="btn ghost" disabled>
+            {t("review.gestures.setAside")}
+          </button>
+        )}
+        <button type="button" className="btn" disabled aria-keyshortcuts="C">
+          {t("review.gestures.correct")}
+        </button>
+        <button type="button" className="btn primary" disabled={!idle} aria-keyshortcuts="V" onClick={gestures?.validate}>
+          {t(gestures?.pending === true ? "review.gestures.validating" : "review.gestures.validate")}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /**
  * The card of a test the agents wrote, which a person reads to decide of it: what it is, why it was written and what it
- * verifies first, then what the agents that reviewed it said, and its code, folded, last. The gestures are shown, and
- * stay inactive until the console can make them.
+ * verifies first, then what the agents that reviewed it said, and its code, folded, last; then, for a test to review, the
+ * gestures, inactive without what makes them.
  *
- * @param props - The test.
+ * @param props - The test, and what the gestures do.
  * @returns The card.
  */
-export function ReviewCard({ proposal }: { readonly proposal: TestProposal }): ReactNode {
+export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProposal; readonly gestures?: ReviewGestures }): ReactNode {
   const { decision } = proposal;
   return (
     <article className="card review-card" aria-labelledby="review-title">
@@ -93,17 +135,7 @@ export function ReviewCard({ proposal }: { readonly proposal: TestProposal }): R
         <p className="small muted">
           {t("review.runs", { count: proposal.runs })} · {proposal.reason}
         </p>
-        <div className="review-actions">
-          <button type="button" className="btn ghost" disabled>
-            {t("review.gestures.setAside")}
-          </button>
-          <button type="button" className="btn" disabled aria-keyshortcuts="C">
-            {t("review.gestures.correct")}
-          </button>
-          <button type="button" className="btn primary" disabled aria-keyshortcuts="V">
-            {t("review.gestures.validate")}
-          </button>
-        </div>
+        {proposal.status === "in_review" && <Gestures gestures={gestures} />}
       </footer>
     </article>
   );

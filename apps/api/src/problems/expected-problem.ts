@@ -19,6 +19,7 @@ import {
   UnknownDocumentSourceError,
   UnknownExecutionError,
   UnknownProposalError,
+  ReviewRefusedError,
   UnknownSessionError,
   DomainRefusedError,
   UnknownDomainError,
@@ -120,6 +121,7 @@ export function expectedProblem(error: unknown): Problem | undefined {
   if (error instanceof TestChangeRefusedError) return problemOf("test_change_refused", error.message);
   if (error instanceof UnknownExecutionError) return problemOf("unknown_execution", `${error.message} ${NO_EXECUTION}`);
   if (error instanceof UnknownProposalError) return problemOf("unknown_proposal", `${error.message} ${NO_PROPOSAL}`);
+  if (error instanceof ReviewRefusedError) return problemOf("review_refused", error.message);
   if (error instanceof LaunchRefusedError) return problemOf("launch_refused", error.message);
   if (error instanceof UnknownCampaignError) return problemOf("unknown_campaign", `${error.message} ${NO_CAMPAIGN}`);
   if (error instanceof CampaignRefusedError) return problemOf("campaign_refused", error.message);

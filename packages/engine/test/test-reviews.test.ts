@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, it } from "vitest";
 import { planFileText, type DesignedTest } from "@open-qa-stack/agents";
-import { UnknownProposalError, type OqasConfig, type PlannedScenario } from "@open-qa-stack/domain";
+import { ReviewRefusedError, UnknownProposalError, type OqasConfig, type PlannedScenario } from "@open-qa-stack/domain";
 import { TestReviews } from "../src/index.ts";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { MemoryTestDecisionStore } from "./support/memory-test-decision-store.ts";
+
+/** The sessions of an instance where none runs. */
+const IDLE = { sessions: () => Promise.resolve([]) };
 
 const DOCUMENT = {
   formatVersion: 1,
@@ -127,7 +130,7 @@ async function configured(): Promise<MemoryConfigurationStore> {
 describe("the review of the tests the agents wrote", () => {
   it("lists the tests a design kept as passing or failing because of the application, whose file its branch has, with what was decided of each", async () => {
     const decisions = new MemoryTestDecisionStore();
-    const reviews = new TestReviews(repository(), await configured(), decisions);
+    const reviews = new TestReviews(repository(), await configured(), decisions, IDLE);
     const queue = await reviews.queue();
     assert.deepEqual(queue.counts, { inReview: 2, setAside: 0 });
     assert.deepEqual(
@@ -149,7 +152,7 @@ describe("the review of the tests the agents wrote", () => {
   });
 
   it("tells what a person reads to decide of a test: its brief, its intent, its steps, the remarks of its reviewers and the files its design wrote", async () => {
-    const reviews = new TestReviews(repository(), await configured(), new MemoryTestDecisionStore());
+    const reviews = new TestReviews(repository(), await configured(), new MemoryTestDecisionStore(), IDLE);
     const proposal = (await reviews.proposal(OPEN))!;
     assert.deepEqual(
       [proposal.brief, proposal.intent, proposal.sources, proposal.steps, proposal.reason, proposal.decision],
@@ -182,12 +185,12 @@ describe("the review of the tests the agents wrote", () => {
   it("gives the decision made of a test, and lists none without a repository, a configuration in force or a design", async () => {
     const decisions = new MemoryTestDecisionStore();
     const root = repository();
-    const reviews = new TestReviews(root, await configured(), decisions);
+    const reviews = new TestReviews(root, await configured(), decisions, IDLE);
     await decisions.set({ id: LIST, status: "set_aside", at: "2026-11-27T10:00:00.000Z", reason: "out_of_scope" });
     assert.deepEqual((await reviews.proposal(LIST))!.decision, { id: LIST, status: "set_aside", at: "2026-11-27T10:00:00.000Z", reason: "out_of_scope" });
-    assert.deepEqual((await new TestReviews(undefined, await configured(), decisions).queue()).tests, []);
-    assert.deepEqual((await new TestReviews(root, new MemoryConfigurationStore(), decisions).queue()).tests, []);
-    assert.deepEqual((await new TestReviews(mkdtempSync(join(tmpdir(), "oqas-reviews-")), await configured(), decisions).queue()).tests, []);
+    assert.deepEqual((await new TestReviews(undefined, await configured(), decisions, IDLE).queue()).tests, []);
+    assert.deepEqual((await new TestReviews(root, new MemoryConfigurationStore(), decisions, IDLE).queue()).tests, []);
+    assert.deepEqual((await new TestReviews(mkdtempSync(join(tmpdir(), "oqas-reviews-")), await configured(), decisions, IDLE).queue()).tests, []);
   });
 
   it("keeps the latest design of a test, leaves out what cannot be read, and follows the folders the configuration names", async () => {
@@ -266,7 +269,7 @@ describe("the review of the tests the agents wrote", () => {
       { origin: "file", fileDigest: "a1", document: { ...DOCUMENT, repository: { stateDir: "state/", knowledgeDir: "kb" } } as OqasConfig },
       0,
     );
-    const reviews = new TestReviews(root, configuration, new MemoryTestDecisionStore());
+    const reviews = new TestReviews(root, configuration, new MemoryTestDecisionStore(), IDLE);
     const queue = await reviews.queue();
     assert.deepEqual(
       queue.tests.map(({ id, branch, designedAt }) => [id, branch, designedAt]),
@@ -284,5 +287,103 @@ describe("the review of the tests the agents wrote", () => {
       (await reviews.proposal(KEPT)).files.map(({ path, added }) => [path, added]),
       [[`${FOLDER}/kept.spec.ts`, 0]],
     );
+    // The page object the design removed is removed from the working branch with the test.
+    await reviews.decide(LIST, { status: "validated" });
+    assert.deepEqual(
+      git(root, "show", "--name-status", "--format=", "HEAD").trim().split("\n").toSorted(),
+      ["D\tapps/shop/pages/old-page.ts", `A\t${FOLDER}/list-orders.spec.ts`].toSorted(),
+    );
+  });
+});
+
+describe("the decisions of the review", () => {
+  const AT = new Date("2026-11-27T10:00:00.000Z");
+
+  it("set a test aside with why, keep it listed, and refuse to decide of it again or of a test no design gave", async () => {
+    const decisions = new MemoryTestDecisionStore();
+    const reviews = new TestReviews(repository(), await configured(), decisions, IDLE, () => AT);
+    const decided = await reviews.decide(LIST, { status: "set_aside", reason: "covered", coveredBy: `${FOLDER}/other.spec.ts`, note: "Same steps." });
+    const kept = { id: LIST, at: AT.toISOString(), status: "set_aside", reason: "covered", coveredBy: `${FOLDER}/other.spec.ts`, note: "Same steps." };
+    assert.deepEqual(decided, { decision: kept });
+    assert.deepEqual(await decisions.list(), [kept]);
+    await assert.rejects(reviews.decide(LIST, { status: "validated" }), new ReviewRefusedError(`The test ${FOLDER}/list-orders.spec.ts is set aside already.`));
+    await assert.rejects(reviews.decide("44444444-4444-4444-8444-444444444444", { status: "validated" }), UnknownProposalError);
+  });
+
+  it("validates a test: its file and those its design wrote enter the working branch, committed there, nothing pushed", async () => {
+    const root = repository();
+    const decisions = new MemoryTestDecisionStore();
+    const reviews = new TestReviews(root, await configured(), decisions, IDLE, () => AT);
+    assert.deepEqual(await reviews.decide(OPEN, { status: "validated" }), {
+      decision: { id: OPEN, status: "validated", at: AT.toISOString() },
+      entered: { branch: "main", committed: true },
+    });
+    assert.equal(git(root, "branch", "--show-current").trim(), "main");
+    assert.equal(git(root, "log", "-1", "--format=%s").trim(), "test: keep An order opens");
+    assert.deepEqual(git(root, "show", "--name-only", "--format=", "HEAD").trim().split("\n").toSorted(), [
+      "apps/shop/pages/orders-page.ts",
+      `${FOLDER}/open-order.spec.ts`,
+    ]);
+    // The test validated leaves the queue; validated again, it is refused.
+    assert.deepEqual(
+      (await reviews.queue()).tests.map(({ id }) => id),
+      [LIST],
+    );
+    await assert.rejects(reviews.decide(OPEN, { status: "validated" }), /is validated already\.$/);
+    // A test whose files the branch has already as its design wrote them enters it without a commit.
+    git(root, "checkout", "oqas/design-20261127T090000Z", "--", `${FOLDER}/list-orders.spec.ts`);
+    git(root, "commit", "-q", "-m", "test: take the listing by hand");
+    assert.deepEqual((await reviews.decide(LIST, { status: "validated" })).entered, { branch: "main", committed: false });
+  });
+
+  it("takes the test into the branch the person works on when the checkout is on the branch of a design", async () => {
+    const root = repository();
+    git(root, "branch", "feature");
+    git(root, "switch", "-q", "oqas/design-20261127T090000Z");
+    const reviews = new TestReviews(root, await configured(), new MemoryTestDecisionStore(), IDLE, () => AT);
+    // Of several branches that hold where the design started, main is the one.
+    assert.deepEqual((await reviews.decide(LIST, { status: "validated" })).entered, { branch: "main", committed: true });
+    assert.equal(git(root, "branch", "--show-current").trim(), "main");
+  });
+
+  it("refuses to validate while a session runs or waits, while a tracked file is changed, and when no branch of the person stands out", async () => {
+    const root = repository();
+    const busy = { sessions: () => Promise.resolve([{ state: "queued" }] as never) };
+    await assert.rejects(
+      new TestReviews(root, await configured(), new MemoryTestDecisionStore(), busy).decide(LIST, { status: "validated" }),
+      new ReviewRefusedError("A session runs or waits in the test repository: validate the test once it ended."),
+    );
+    const reviews = new TestReviews(root, await configured(), new MemoryTestDecisionStore(), IDLE);
+    // What the harness writes itself does not stop it; a file of the person does.
+    written(root, "oqas.json", "{}\n");
+    written(root, "package.json", '{ "changed": true }\n');
+    await assert.rejects(
+      reviews.decide(LIST, { status: "validated" }),
+      /^ReviewRefusedError: Tracked files are changed: package\.json\. Commit them or put them aside, then validate again\.$/,
+    );
+    git(root, "checkout", "--", "package.json");
+    // On the branch of the design, with two branches of the person and no main, none is chosen for them.
+    git(root, "branch", "-m", "main", "trunk");
+    git(root, "branch", "feature");
+    git(root, "switch", "-q", "oqas/design-20261127T090000Z");
+    await assert.rejects(
+      reviews.decide(LIST, { status: "validated" }),
+      /Several branches of yours hold the revision the design started from \(feature, trunk\)/,
+    );
+    git(root, "branch", "-D", "feature", "trunk");
+    await assert.rejects(reviews.decide(LIST, { status: "validated" }), /No branch of yours holds the revision the design started from/);
+  });
+
+  it("takes the test into the only branch of the person, from the branch of a design or a detached checkout, and says what git refused", async () => {
+    const root = repository();
+    git(root, "branch", "-m", "main", "trunk");
+    git(root, "switch", "-q", "oqas/design-20261127T090000Z");
+    const reviews = new TestReviews(root, await configured(), new MemoryTestDecisionStore(), IDLE, () => AT);
+    assert.deepEqual((await reviews.decide(LIST, { status: "validated" })).entered, { branch: "trunk", committed: true });
+    git(root, "switch", "-q", "--detach", "HEAD");
+    // git commits with the hooks of the repository: one that refuses the commit refuses the validation, with what git said.
+    written(root, ".git/hooks/pre-commit", "#!/bin/sh\necho 'The commit is refused by the team.' >&2\nexit 1\n");
+    chmodSync(join(root, ".git/hooks/pre-commit"), 0o755);
+    await assert.rejects(reviews.decide(OPEN, { status: "validated" }), /^ReviewRefusedError: git commit failed: The commit is refused by the team\.$/);
   });
 });

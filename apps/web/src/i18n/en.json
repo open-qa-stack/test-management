@@ -376,6 +376,7 @@
     "test_change_refused": "This change cannot be written: the text is empty or too long, another test of the file already has this title, or the repository keeps the file from being committed alone (file already changed, no branch, merge under way…). Settle that in the repository, then try again.",
     "unknown_execution": "The instance no longer keeps this execution.",
     "unknown_proposal": "No test the agents wrote bears this identifier any more.",
+    "review_refused": "This test cannot enter the repository now: a session runs, tracked files are changed, none of your branches stands out to take it, or git refuses the commit. Settle that in the repository, then try again.",
     "launch_refused": "The tests cannot be launched now: a session or another launch is running, or the environment asked for is not declared.",
     "unknown_campaign": "The instance does not keep this campaign.",
     "campaign_refused": "The campaign refuses this change: its state does not allow it, a test it names is not in the repository, or no test is chosen yet.",
@@ -931,7 +932,8 @@
     "gestures": {
       "setAside": "Set aside",
       "correct": "Ask for a correction",
-      "validate": "Validate"
+      "validate": "Validate",
+      "validating": "Validating…"
     },
     "reasons": {
       "covered": "Set aside: already covered",
@@ -958,6 +960,28 @@
     "emptyNote": {
       "updates": "The updates of tests the agents propose will show here.",
       "set_aside": "The tests you set aside stay to read here."
+    },
+    "setAside": {
+      "title": "Set “{{title}}” aside",
+      "reason": "Why set it aside",
+      "reasons": {
+        "covered": "Already covered by another test",
+        "out_of_scope": "Out of scope",
+        "wrong_oracle": "Wrong oracle: it does not check what it should",
+        "wrong_level": "Not at the right level of the pyramid"
+      },
+      "coveredBy": "The test that already covers it",
+      "coveredByHint": "Its path in the repository, when you set it aside as already covered.",
+      "note": "Note",
+      "kept": "Reversible: the test stays to read among those set aside.",
+      "cancel": "Cancel",
+      "confirm": "Set this test aside",
+      "incomplete": "Choose a reason, and for “already covered” the path of the test that covers it."
+    },
+    "told": {
+      "committed": "Validated: the test entered {{branch}}, committed; nothing was pushed.",
+      "unchanged": "Validated: {{branch}} had it already as its design wrote it.",
+      "setAside": "Set aside: the test stays to read among those set aside."
     }
   },
   "test": {

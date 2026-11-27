@@ -37,6 +37,47 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/review?view=updates");
         await page.getByText("Aucune mise à jour").waitFor();
         await page.keyboard.press("j");
+        // V validates the test shown; the next one is shown, and the screen says where it went.
+        await page.goto("http://console.test/#/review");
+        await page.getByRole("heading", { name: "A quote expires after thirty days" }).waitFor();
+        await page.keyboard.press("v");
+        await page.getByText("Validé : le test est entré dans main, commité ; rien n’a été poussé.").waitFor();
+        await page.getByRole("heading", { name: "Edit the dates of a policy" }).waitFor();
+        // A test the branch had already is validated without a commit, from a view narrowed to its domain.
+        instance.committed = false;
+        const closing = { ...POLICY, id: "55555555-5555-4555-8555-555555555555", title: "Close a policy" };
+        instance.queue = { ...instance.queue, tests: [...instance.queue.tests, closing] };
+        instance.proposals.set(closing.id, { ...instance.proposals.get(POLICY.id)!, ...closing });
+        await page.goto("http://console.test/#/review?domain=policies");
+        await page.getByRole("link", { name: /Close a policy/ }).click();
+        await page.getByRole("heading", { name: "Close a policy" }).waitFor();
+        await page.keyboard.press("v");
+        await page.getByText("Validé : main l’avait déjà tel que la conception l’a écrit.").waitFor();
+        await page.waitForURL(/#\/review\?domain=policies$/);
+        // A decision the instance refuses says why, and leaves the test where it is.
+        instance.refusal = "review_refused";
+        await page.getByRole("button", { name: "Valider" }).click();
+        await page.getByText("Ce test ne peut pas entrer dans le dépôt maintenant").waitFor();
+        // Set aside asks why in its panel: covered names the test that covers it.
+        await page.getByRole("link", { name: "Écarter" }).click();
+        await page.getByRole("dialog").getByLabel("Déjà couvert par un autre test").check();
+        await page.getByRole("dialog").getByRole("button", { name: "Écarter ce test" }).click();
+        await page.getByText("Choisissez un motif").waitFor();
+        await page.getByRole("dialog").getByLabel("Le test qui le couvre déjà").fill("apps/policy-management/tests/x.spec.ts");
+        await page.getByRole("dialog").getByLabel("Précision").fill("Same steps.");
+        await page.getByRole("dialog").getByRole("button", { name: "Écarter ce test" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.getByText("Écarté : le test reste consultable dans « Écartés ».").waitFor();
+        assert.deepEqual(instance.decisions, [
+          { id: "11111111-1111-4111-8111-111111111111", decision: { status: "validated" } },
+          { id: "55555555-5555-4555-8555-555555555555", decision: { status: "validated" } },
+          { id: POLICY.id, decision: { status: "set_aside", reason: "covered", coveredBy: "apps/policy-management/tests/x.spec.ts", note: "Same steps." } },
+        ]);
+        // V does nothing on a test set aside.
+        await page.goto("http://console.test/#/review?view=set_aside");
+        await page.getByText("Écarté : déjà couvert — apps/policy-management/tests/x.spec.ts · Same steps.").waitFor();
+        await page.keyboard.press("v");
+        assert.equal(instance.decisions.length, 3);
         // A queue the instance no longer gives stays shown, with why.
         instance.unread = true;
         await page.getByRole("alert").waitFor();

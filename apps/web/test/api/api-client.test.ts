@@ -129,6 +129,13 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     const read = clientOf(() => json({ id: "a b" }));
     assert.deepEqual(await read.client.proposal("a b"), { id: "a b" });
     assert.deepEqual(read.calls, [["/api/reviews/a%20b", undefined]]);
+    const decided = { decision: { id: "a", status: "validated", at: "2026-11-27T10:00:00.000Z" }, entered: { branch: "main", committed: true } };
+    const decide = clientOf(() => json(decided));
+    assert.deepEqual(await decide.client.decide("a b", { status: "validated" }), decided);
+    assert.deepEqual(
+      decide.calls.map(([path, init]) => [path, init?.method, init?.body]),
+      [["/api/reviews/a%20b/decision", "PUT", '{"status":"validated"}']],
+    );
   });
 
   it("lists the tests of the test repository out of the envelope the API answers", async () => {
