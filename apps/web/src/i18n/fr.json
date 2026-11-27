@@ -27,7 +27,8 @@
       "defects": "Anomalies",
       "knowledge": "Connaissances",
       "configuration": "Configuration",
-      "applications": "Applications"
+      "applications": "Applications",
+      "memory": "Mémoire"
     }
   },
   "console": {
@@ -52,7 +53,8 @@
       "discovery": "Découverte",
       "running": "Exécution en cours",
       "review": "À relire",
-      "defects": "Anomalies"
+      "defects": "Anomalies",
+      "memory": "Mémoire"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -387,7 +389,9 @@
     "unknown_domain": "Les connaissances ne contiennent plus ce domaine.",
     "domain_refused": "L’instance refuse : un domaine est exclu, ou son nom est vide ou trop long.",
     "unknown_defect": "L’instance ne garde plus cette anomalie.",
-    "defect_refused": "Cette anomalie ne peut pas passer là depuis son état : une anomalie fermée se rouvre avant d’être marquée corrigée."
+    "defect_refused": "Cette anomalie ne peut pas passer là depuis son état : une anomalie fermée se rouvre avant d’être marquée corrigée.",
+    "unknown_memory": "L’instance ne garde plus cette leçon.",
+    "memory_refused": "Ce qu’un agent a noté vaut pour tout travail et toute application : seuls son texte et son activité changent."
   },
   "configuration": {
     "rules": {
@@ -1009,7 +1013,9 @@
       "guardrails": "La session repart dans ses garde-fous habituels.",
       "cancel": "Annuler",
       "confirm": "Envoyer au concepteur",
-      "sending": "Envoi…"
+      "sending": "Envoi…",
+      "remember": "Mémoriser comme consigne",
+      "rememberHint": "Gardée dans la Mémoire pour la conception des tests de cette application, modifiable ensuite."
     }
   },
   "defects": {
@@ -1656,6 +1662,69 @@
       "enter": "Entrée",
       "shift": "Maj",
       "control": "Ctrl"
+    }
+  },
+  "memory": {
+    "title": "Mémoire",
+    "lead": "Ce que les agents relisent avant chaque tâche : vos consignes, et ce qu’ils ont noté en travaillant. Reformulez, changez la portée, mettez de côté sans supprimer.",
+    "reading": "Lecture de la mémoire",
+    "readingNote": "Elle apparaît dès que l’instance a répondu.",
+    "add": "+ Consigne",
+    "views": "Vues de la mémoire",
+    "view": {
+      "active": "Actives",
+      "inactive": "Mises de côté"
+    },
+    "typeFilter": "Types",
+    "allTypes": "Tous les types",
+    "types": {
+      "instruction": "Consigne",
+      "correction": "Correction",
+      "inferred": "Déduite"
+    },
+    "typesPlural": {
+      "instruction": "Consignes",
+      "correction": "Corrections",
+      "inferred": "Déduites"
+    },
+    "targets": {
+      "design": "Conception (concepteur, relecteurs)",
+      "discovery": "Découverte (cartographe)",
+      "all": "Tout"
+    },
+    "kinds": {
+      "business_rule": "règle de gestion",
+      "pitfall": "piège",
+      "test_data": "donnée de test",
+      "locator": "repère d’écran",
+      "navigation": "navigation",
+      "vocabulary": "vocabulaire"
+    },
+    "project": "Tout le projet",
+    "given": "{{where}} · {{target}} · {{date}}",
+    "noted": "Noté par un agent · {{domain}}, {{kind}} · {{date}}",
+    "adjust": "Ajuster",
+    "adjustNamed": "Ajuster « {{text}} »",
+    "empty": {
+      "active": "Aucune leçon active",
+      "inactive": "Aucune leçon mise de côté"
+    },
+    "emptyNote": "Les leçons viennent de vos consignes, des corrections que vous demandez en les mémorisant, et de ce que les agents notent en travaillant.",
+    "panel": {
+      "add": "Nouvelle consigne",
+      "adjust": "Ajuster une leçon",
+      "text": "Ce que les agents doivent retenir",
+      "textHint": "Formulez une règle, pas un contexte : les agents la relisent telle quelle avant chaque tâche.",
+      "scope": "Portée",
+      "project": "Projet · toutes les applications",
+      "application": "Application · {{name}}",
+      "target": "S’applique à",
+      "active": "Active",
+      "activeHint": "Mise de côté, la leçon est gardée mais plus jamais donnée aux agents.",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "incomplete": "Écrivez ce que les agents doivent retenir, en 600 caractères au plus."
     }
   }
 }

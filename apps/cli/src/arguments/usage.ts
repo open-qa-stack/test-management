@@ -29,6 +29,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests capture <test> <step> <file>
        oqas [--repository <folder>] reviews [show <id>|validate <id>|restore <id>|correct <id> <what to change>] [--output text|json]
        oqas [--repository <folder>] defects [report <test> <title of the test> <severity> <title> [<description>]|fix|close|open <id>] [--output text|json]
+       oqas [--repository <folder>] memory [add design|discovery|all project|<application> <instruction>|on <id>|off <id>|reword <id> <text>] [--output text|json]
        oqas [--repository <folder>] reviews set-aside <id> covered <test> [<note>]|out-of-scope|wrong-oracle|wrong-level [<note>] [--output text|json]
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
        oqas [--repository <folder>] campaigns [--output text|json]
@@ -129,6 +130,13 @@ Commands:
                          Report a defect of a test of the file, from S1 (blocking) to S4 (cosmetic).
   defects fix|close|open <id>
                          Mark a defect fixed, close it, or open it again. Fixed, its test is to run again until it passes.
+  memory                 List what the agents keep in mind: the instructions you gave them, and what they noted.
+  memory add <work> <where> <instruction>
+                         Give the agents an instruction, for design, discovery or all, kept to the project or to an
+                         application: they are given it before each task of that work.
+  memory on|off <id>     Have the agents keep a line in mind, or set it aside.
+  memory reword <id> <text>
+                         Change what a line says.
   reviews validate <id>  Take the test into the working branch: its file and those its design wrote are committed
                          there, in this checkout, which is left on that branch. Nothing is pushed.
   reviews set-aside <id> <reason> [<note>]

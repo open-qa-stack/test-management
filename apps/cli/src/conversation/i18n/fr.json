@@ -116,6 +116,7 @@
     "tests": "read, executions, versions, trace ou capture : les tests du dépôt, comme oqas tests",
     "reviews": "Les tests écrits par les agents qui attendent votre relecture, ou show pour l’un d’eux, comme oqas reviews",
     "defects": "Les anomalies signalées depuis des tests en échec, ou report, fix, close ou open pour l’une d’elles, comme oqas defects",
+    "memory": "La mémoire des agents, ou add pour une consigne, on, off ou reword pour une ligne, comme oqas memory",
     "launch": "Lancer des tests tels qu’ils sont, sans agent, dans ce processus, et dire leur exécution une fois finis, comme oqas launch",
     "campaigns": "plan, choose, ready, launch, show ou close : les campagnes de tests, comme oqas campaigns",
     "executions": "Les exécutions de tests, la plus récente d’abord, ou show pour l’une d’elles, comme oqas executions",

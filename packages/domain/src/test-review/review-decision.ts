@@ -56,6 +56,8 @@ export const MAX_CORRECTION = 2000;
 export interface ReviewCorrection {
   /** What to change, in their words. */
   readonly instruction: string;
+  /** Whether it is kept as a lesson for the design of the tests of the application of the test; not by default. */
+  readonly remember?: true;
 }
 
 /** What came of a correction asked: the decision kept, and the session that corrects the test, resumed. */
@@ -67,12 +69,12 @@ export interface CorrectedTest {
 /**
  * Reads what a person asks the agents to change in a test, as a client sends it.
  *
- * @param value - The body: `{ instruction }`.
+ * @param value - The body: `{ instruction, remember? }`.
  * @returns The correction, its instruction trimmed; or why it is refused, in a sentence: no instruction, or one too long.
  */
 export function reviewCorrectionOf(value: unknown): ReviewCorrection | string {
   const instruction = isRecord(value) ? textOf(value["instruction"]) : undefined;
   if (instruction === undefined || instruction.length > MAX_CORRECTION)
-    return `A correction is { "instruction" }: what to change in the test, 1 to ${MAX_CORRECTION} characters.`;
-  return { instruction };
+    return `A correction is { "instruction", "remember"? }: what to change in the test, 1 to ${MAX_CORRECTION} characters.`;
+  return { instruction, ...(isRecord(value) && value["remember"] === true ? { remember: true as const } : {}) };
 }

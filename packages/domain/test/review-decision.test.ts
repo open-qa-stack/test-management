@@ -38,7 +38,9 @@ describe("a decision of the review, as a client sends it", () => {
 describe("a correction of a test, as a client sends it", () => {
   it("is what to change, trimmed, and is refused without it or when too long", () => {
     assert.deepEqual(reviewCorrectionOf({ instruction: "  Use the policy of Max.  " }), { instruction: "Use the policy of Max." });
-    const refused = `A correction is { "instruction" }: what to change in the test, 1 to ${MAX_CORRECTION} characters.`;
+    assert.deepEqual(reviewCorrectionOf({ instruction: "x", remember: true }), { instruction: "x", remember: true });
+    assert.deepEqual(reviewCorrectionOf({ instruction: "x", remember: "yes" }), { instruction: "x" });
+    const refused = `A correction is { "instruction", "remember"? }: what to change in the test, 1 to ${MAX_CORRECTION} characters.`;
     for (const body of [null, {}, { instruction: " " }, { instruction: 3 }, { instruction: "x".repeat(MAX_CORRECTION + 1) }])
       assert.equal(reviewCorrectionOf(body), refused);
   });

@@ -5,6 +5,7 @@ import { RepositoryInit } from "../project/repository-init.ts";
 import { instructed } from "./agents-command.ts";
 import { reviewed } from "./reviews-command.ts";
 import { defected } from "./defects-command.ts";
+import { remembered } from "./memory-command.ts";
 import { addressesChecked } from "./applications-command.ts";
 import { campaigned } from "./campaigns-command.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -87,6 +88,8 @@ export async function runPrinting(
       return await reviewed(operations, command, { options, io });
     case "defects":
       return await defected(operations, command, { options, io });
+    case "memory":
+      return await remembered(operations, command, { options, io });
     case "executions":
       return await executed(operations, command, { options, io });
     case "launch":

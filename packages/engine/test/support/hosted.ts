@@ -12,6 +12,7 @@ import { MemoryDocumentStore } from "./memory-document-store.ts";
 import { MemoryExecutionStore } from "./memory-execution-store.ts";
 import { MemorySessionStore } from "./memory-session-store.ts";
 import { RecordingLogger } from "./recording-logger.ts";
+import { MemoryLessonStore } from "./memory-lesson-store.ts";
 
 /** The environment of the runs of the tests: the one variable the configuration of the test repository names. */
 export const ENV = { SHOP_DB_URL: WITNESS };
@@ -74,6 +75,7 @@ export class Hosted {
   readonly documents = new MemoryDocumentStore();
   /** The memories of the agents of the sessions. */
   readonly memory = new KeptMemories();
+  readonly lessons = new MemoryLessonStore();
   /** What a person set of the domains of the knowledge. */
   readonly domainSettings = new MemoryDomainSettingStore();
   /** The store of the executions of tests the sessions ran. */
@@ -103,6 +105,7 @@ export class Hosted {
       configuration: this.settings,
       documents: this.documents,
       memory: this.memory,
+      lessons: this.lessons,
       domainSettings: this.domainSettings,
       executions: this.executions,
       repository: this.root,

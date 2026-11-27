@@ -126,6 +126,7 @@ export default defineConfig({
         "**/src/review/review-page.tsx",
         "**/src/review/review-correct.tsx",
         "**/src/defects/defects-page.tsx",
+        "**/src/memory/memory-page.tsx",
         "**/src/executions/executions-page.tsx",
         "**/src/executions/execution-page.tsx",
         "**/src/executions/launch-page.tsx",

@@ -31,7 +31,7 @@ interface Shown {
 
 describe("criterion 3 — recall keeps exactly to a domain and a kind, then ranks lexically", () => {
   it("gives only the memories of the domain and the kind named, by tags, words and recency, ten by default and thirty at most", async () => {
-    const { remember, recall } = tools();
+    const { memories, remember, recall } = tools();
     await remember({ domain: "orders", kind: "pitfall", text: "The total clears when the currency changes.", tags: ["Checkout"], distinct: true });
     await remember({
       domain: "orders",
@@ -71,6 +71,12 @@ describe("criterion 3 — recall keeps exactly to a domain and a kind, then rank
       ["m2"],
     );
     assert.deepEqual(await recall({ domain: "customers" }), []);
+    // A memory a person set aside is recalled no more.
+    await memories.enable("m4", false);
+    assert.deepEqual(
+      (await recall({ kind: "pitfall" })).map(({ id }) => id),
+      ["m2", "m1"],
+    );
 
     const many = tools();
     for (let i = 0; i < MAX_FOUND_MEMORIES + 2; i++)

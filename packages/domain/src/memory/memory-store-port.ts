@@ -20,4 +20,13 @@ export interface MemoryStorePort {
    * @returns Whether a memory of that identifier was kept, and so corrected.
    */
   revise(id: string, content: MemoryContent, revised: MemoryOrigin): Promise<boolean>;
+
+  /**
+   * Sets a memory aside, or takes it back: the agents recall a memory set aside no more.
+   *
+   * @param id - The identifier of the memory.
+   * @param enabled - Whether the agents recall it.
+   * @returns Whether a memory of that identifier was kept, and so changed.
+   */
+  enable(id: string, enabled: boolean): Promise<boolean>;
 }

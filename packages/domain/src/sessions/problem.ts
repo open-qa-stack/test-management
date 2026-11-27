@@ -35,6 +35,8 @@ export type ProblemCode =
   | "review_refused"
   | "unknown_defect"
   | "defect_refused"
+  | "unknown_memory"
+  | "memory_refused"
   | "launch_refused"
   | "unknown_campaign"
   | "campaign_refused"

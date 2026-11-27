@@ -3,6 +3,8 @@ import { posix, relative, sep } from "node:path";
 import {
   activityRefusal,
   CONFIG_FILE_NAME,
+  lessonsFor,
+  lessonsRule,
   runIdAt,
   declaredValues,
   storedDocumentSources,
@@ -19,6 +21,7 @@ import {
   type CommandRunner,
   type DocumentStorePort,
   type ExitCodeValue,
+  type Lesson,
   type MemoryStorePort,
   type ResolvedConfig,
   type RunState,
@@ -47,6 +50,7 @@ import type { RunReference } from "../ports/run-reference.ts";
 import type { RunStore } from "../ports/run-store.ts";
 import { CountedRuntime } from "../runtime/counted-runtime.ts";
 import { GuardedRuntime } from "../runtime/guarded-runtime.ts";
+import { LessonedRuntime } from "../runtime/lessoned-runtime.ts";
 import { RunStoppedError } from "../runtime/run-stopped-error.ts";
 import { SpokenRuntime } from "../runtime/spoken-runtime.ts";
 import { StoppableRuntime } from "../runtime/stoppable-runtime.ts";
@@ -86,6 +90,8 @@ export interface RunOptions {
   readonly documents: Pick<DocumentStorePort, "documents">;
   /** Where the memories of the agents are kept, which they recall and add to. */
   readonly memory: MemoryStorePort;
+  /** The lessons the people of the project gave the agents, which each is given for its work; none by default. */
+  readonly lessons?: readonly Lesson[];
   /** What a person set of the domains of the knowledge, which the design follows; nothing by default. */
   readonly domainSettings?: readonly DomainSetting[];
   /** The environment of the process: the secrets and the accounts the configuration names. */
@@ -240,13 +246,22 @@ export class Run {
     };
     // What the team asks of an agent is told once a run, in the step its role works in.
     const followed = new Set<string>();
+    // The agents of a role are given the lessons the people of the project gave for its work: the cartographer those of the
+    // discovery, the others those of the design, each with the application it is kept to.
+    const lessoned = (runtime: AgentRuntime, role: ModelRole): AgentRuntime => {
+      const rule = lessonsRule(lessonsFor(this.options.lessons ?? [], role === "cartographer" ? "discovery" : "design"));
+      return rule === "" ? runtime : new LessonedRuntime(runtime, rule);
+    };
     const asked = (runtime: AgentRuntime, role: ModelRole): AgentRuntime =>
-      new TeamRuntime(runtime, config.agents, (agent, part, digest) => {
-        const what = part === "prompt" ? "a prompt of the team" : "the instructions of the team";
-        if (!followed.has(`${agent} ${part}`))
-          journal.record(role === "cartographer" ? "cartography" : "design", "info", `The ${agent} follows ${what} (${digest}).`);
-        followed.add(`${agent} ${part}`);
-      });
+      lessoned(
+        new TeamRuntime(runtime, config.agents, (agent, part, digest) => {
+          const what = part === "prompt" ? "a prompt of the team" : "the instructions of the team";
+          if (!followed.has(`${agent} ${part}`))
+            journal.record(role === "cartographer" ? "cartography" : "design", "info", `The ${agent} follows ${what} (${digest}).`);
+          followed.add(`${agent} ${part}`);
+        }),
+        role,
+      );
     // The runtime of a role is opened by the first step that calls its model; roles on the same model share it.
     const agents = async (role: ModelRole): Promise<AgentRuntime> => {
       const own = roleConfig(config, role);

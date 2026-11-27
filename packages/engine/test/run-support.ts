@@ -1,5 +1,5 @@
 import { scriptedServer, type ScriptedServer, KeptMemories } from "@open-qa-stack/testing";
-import type { RunEntry, RunState, TraceLine } from "@open-qa-stack/domain";
+import type { Lesson, RunEntry, RunState, TraceLine } from "@open-qa-stack/domain";
 import { Configuration, liveRuntime, Run, type RunOptions } from "../src/index.ts";
 import { MemoryJournal } from "./memory-journal.ts";
 import { MemoryRunStore } from "./memory-run-store.ts";
@@ -80,6 +80,7 @@ export async function ran(
     now?: () => Date;
     brief?: string;
     follow?: (line: TraceLine) => void;
+    lessons?: readonly Lesson[];
   } = {},
 ): Promise<Ran> {
   const server = await scriptedServer(replies);
@@ -97,6 +98,7 @@ export async function ran(
       repositoryRoot: root,
       ...(setup.environment === undefined ? {} : { environment: setup.environment }),
       ...(setup.brief === undefined ? {} : { brief: setup.brief }),
+      ...(setup.lessons === undefined ? {} : { lessons: setup.lessons }),
       ...(setup.follow === undefined ? {} : { follow: setup.follow }),
       env: { SHOP_DB_URL: WITNESS },
       ...host.ports,

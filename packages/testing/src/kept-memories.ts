@@ -32,4 +32,12 @@ export class KeptMemories implements MemoryStorePort {
     this.#memories[at] = { ...kept, text, tags, ...(source === undefined ? {} : { source }), revised };
     return Promise.resolve(true);
   }
+
+  enable(id: string, enabled: boolean): Promise<boolean> {
+    const at = this.#memories.findIndex((memory) => memory.id === id);
+    if (at === -1) return Promise.resolve(false);
+    const { disabled: _, ...kept } = this.#memories[at]!;
+    this.#memories[at] = enabled ? kept : { ...kept, disabled: true };
+    return Promise.resolve(true);
+  }
 }

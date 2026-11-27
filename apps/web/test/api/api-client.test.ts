@@ -141,6 +141,25 @@ describe("the client of the API, for the documents of the knowledge sources", ()
     );
   });
 
+  it("reads the memory of the agents, adds an instruction, and changes a line", async () => {
+    const list = { items: [], counts: { active: 0, inactive: 0 } };
+    const listed = clientOf(() => json(list));
+    assert.deepEqual(await listed.client.memory(), list);
+    assert.deepEqual(listed.calls, [["/api/memory", undefined]]);
+    const item = { id: "l1", type: "instruction", text: "x", target: "design", active: true, at: "2026-11-27T10:00:00.000Z" };
+    const added = clientOf(() => json(item));
+    assert.deepEqual(await added.client.addLesson({ text: "x", target: "design", active: true }), item);
+    const changed = clientOf(() => json(item));
+    assert.deepEqual(await changed.client.changeMemory("l 1", { active: false }), item);
+    assert.deepEqual(
+      [...added.calls, ...changed.calls].map(([path, init]) => [path, init?.method, init?.body]),
+      [
+        ["/api/memory", "POST", '{"text":"x","target":"design","active":true}'],
+        ["/api/memory/l%201", "PATCH", '{"active":false}'],
+      ],
+    );
+  });
+
   it("reads the queue of the review, and a test of it by its identifier", async () => {
     const queue = { tests: [], counts: { inReview: 0, setAside: 0 } };
     const listed = clientOf(() => json(queue));

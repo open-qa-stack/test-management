@@ -33,6 +33,7 @@ const TABLES = [
   "knowledge_documents",
   "kysely_migration",
   "kysely_migration_lock",
+  "lessons",
   "memories",
   "project",
   "session_events",
@@ -87,7 +88,7 @@ describe("the migration command", () => {
       const fresh = await engine.create();
       try {
         const first = await program(MIGRATE, { OQAS_DATABASE_URL: fresh.url });
-        assert.deepEqual(first, { code: 0, out: "Applied 19 migrations.\n", err: "" });
+        assert.deepEqual(first, { code: 0, out: "Applied 20 migrations.\n", err: "" });
         assert.deepEqual(await tables(fresh.url), TABLES);
         const second = await program(MIGRATE, { OQAS_DATABASE_URL: fresh.url });
         assert.deepEqual(second, { code: 0, out: "The database schema is up to date: no migration to apply.\n", err: "" });
@@ -102,7 +103,7 @@ describe("the migration command", () => {
     const repository = mkdtempSync(join(tmpdir(), "oqas-api-migrate-"));
     try {
       writeFileSync(join(repository, "oqas.json"), "{}");
-      assert.deepEqual(await program(MIGRATE, { OQAS_REPOSITORY: repository }), { code: 0, out: "Applied 19 migrations.\n", err: "" });
+      assert.deepEqual(await program(MIGRATE, { OQAS_REPOSITORY: repository }), { code: 0, out: "Applied 20 migrations.\n", err: "" });
       assert.deepEqual(await tables(`sqlite:${join(repository, ".oqas", "oqas.db")}`), TABLES);
     } finally {
       rmSync(repository, { recursive: true, force: true });

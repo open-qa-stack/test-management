@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } from "@open-qa-stack/domain";
 import {
+  AgentMemory,
   Campaigns,
   Configuration,
   Defects,
@@ -57,6 +58,8 @@ export interface Operations {
   readonly reviews: TestReviews;
   /** The defects reported from tests that failed. */
   readonly defects: Defects;
+  /** The memory of the agents: the lessons the people of the project gave them, and what they noted. */
+  readonly memory: AgentMemory;
   /** The campaigns of tests of the instance. */
   readonly campaigns: Campaigns;
   /** The domains the cartography found in the knowledge. */
@@ -114,6 +117,7 @@ export async function openOperations(
     configuration,
     documents: instance.documents,
     memory: instance.memory,
+    lessons: instance.lessons,
     domainSettings: instance.domainSettings,
     executions: instance.executions,
     repository: hosts ? repository : undefined,
@@ -147,8 +151,9 @@ export async function openOperations(
     readings: new TestReadings(repository, instance.configuration, instance.executions),
     code: new TestSources({ repository, configuration: instance.configuration, tests, identities: instance.tests }),
     executions: new Executions(instance.executions),
-    reviews: new TestReviews(repository, instance.configuration, instance.testDecisions, sessions),
+    reviews: new TestReviews(repository, instance.configuration, instance.testDecisions, sessions, undefined, instance.lessons),
     defects: new Defects(instance.defects, instance.executions),
+    memory: new AgentMemory(instance.lessons, instance.memory),
     close,
   };
 }

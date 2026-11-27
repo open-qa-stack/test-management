@@ -27,7 +27,8 @@
       "defects": "Defects",
       "knowledge": "Knowledge",
       "configuration": "Configuration",
-      "applications": "Applications"
+      "applications": "Applications",
+      "memory": "Memory"
     }
   },
   "console": {
@@ -52,7 +53,8 @@
       "discovery": "Discovery",
       "running": "Execution that runs",
       "review": "To review",
-      "defects": "Defects"
+      "defects": "Defects",
+      "memory": "Memory"
     },
     "opening": {
       "title": "Reading the session",
@@ -387,7 +389,9 @@
     "unknown_domain": "The knowledge no longer holds this domain.",
     "domain_refused": "The instance refuses it: a domain is excluded, or its name is empty or too long.",
     "unknown_defect": "The instance no longer keeps this defect.",
-    "defect_refused": "This defect cannot move there from where it stands: a defect closed is opened again before it is marked fixed."
+    "defect_refused": "This defect cannot move there from where it stands: a defect closed is opened again before it is marked fixed.",
+    "unknown_memory": "The instance no longer keeps this lesson.",
+    "memory_refused": "What an agent noted holds for every work and every application: only its text and whether it applies change."
   },
   "configuration": {
     "rules": {
@@ -1009,7 +1013,9 @@
       "guardrails": "The session goes on within its usual guardrails.",
       "cancel": "Cancel",
       "confirm": "Send to the designer",
-      "sending": "Sending…"
+      "sending": "Sending…",
+      "remember": "Keep as an instruction",
+      "rememberHint": "Kept in the Memory for the design of the tests of this application, which you can change later."
     }
   },
   "defects": {
@@ -1656,6 +1662,69 @@
       "enter": "Enter",
       "shift": "Shift",
       "control": "Ctrl"
+    }
+  },
+  "memory": {
+    "title": "Memory",
+    "lead": "What the agents read before each task: your instructions, and what they noted while they worked. Reword, change the scope, set aside without deleting.",
+    "reading": "Reading the memory",
+    "readingNote": "It shows as soon as the instance answered.",
+    "add": "+ Instruction",
+    "views": "Views of the memory",
+    "view": {
+      "active": "Active",
+      "inactive": "Set aside"
+    },
+    "typeFilter": "Types",
+    "allTypes": "All types",
+    "types": {
+      "instruction": "Instruction",
+      "correction": "Correction",
+      "inferred": "Inferred"
+    },
+    "typesPlural": {
+      "instruction": "Instructions",
+      "correction": "Corrections",
+      "inferred": "Inferred"
+    },
+    "targets": {
+      "design": "Design (designer, reviewers)",
+      "discovery": "Discovery (cartographer)",
+      "all": "All"
+    },
+    "kinds": {
+      "business_rule": "business rule",
+      "pitfall": "pitfall",
+      "test_data": "test data",
+      "locator": "locator",
+      "navigation": "navigation",
+      "vocabulary": "vocabulary"
+    },
+    "project": "Whole project",
+    "given": "{{where}} · {{target}} · {{date}}",
+    "noted": "Noted by an agent · {{domain}}, {{kind}} · {{date}}",
+    "adjust": "Adjust",
+    "adjustNamed": "Adjust “{{text}}”",
+    "empty": {
+      "active": "No active lesson",
+      "inactive": "No lesson set aside"
+    },
+    "emptyNote": "Lessons come from your instructions, from the corrections you ask and keep, and from what the agents note while they work.",
+    "panel": {
+      "add": "New instruction",
+      "adjust": "Adjust a lesson",
+      "text": "What the agents must keep in mind",
+      "textHint": "Write a rule, not a context: the agents read it as it is before each task.",
+      "scope": "Scope",
+      "project": "Project · every application",
+      "application": "Application · {{name}}",
+      "target": "Applies to",
+      "active": "Active",
+      "activeHint": "Set aside, the lesson is kept but never given to the agents again.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "incomplete": "Write what the agents must keep in mind, in 600 characters at most."
     }
   }
 }

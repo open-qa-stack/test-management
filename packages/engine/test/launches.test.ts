@@ -14,6 +14,7 @@ import { MemoryDocumentStore } from "./support/memory-document-store.ts";
 import { MemoryExecutionStore } from "./support/memory-execution-store.ts";
 import { MemorySessionStore } from "./support/memory-session-store.ts";
 import { RecordingLogger } from "./support/recording-logger.ts";
+import { MemoryLessonStore } from "./support/memory-lesson-store.ts";
 
 /** A file of tests of the repository, as a launch names it. */
 const SEARCH = "apps/shop/tests/search.spec.ts";
@@ -143,6 +144,7 @@ describe("tests launched as they are, with no agent", () => {
     }
     const none = new Sessions({
       memory: new KeptMemories(),
+      lessons: new MemoryLessonStore(),
       domainSettings: new MemoryDomainSettingStore(),
       store: new MemorySessionStore(),
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
@@ -172,6 +174,7 @@ describe("tests launched as they are, with no agent", () => {
     const logger = new RecordingLogger();
     const local = new Sessions({
       memory: new KeptMemories(),
+      lessons: new MemoryLessonStore(),
       domainSettings: new MemoryDomainSettingStore(),
       store: new MemorySessionStore(),
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),

@@ -10,6 +10,7 @@ import { TestReviews, type ReviewSessions } from "../src/index.ts";
 import type { Session } from "@open-qa-stack/domain/sessions";
 import { MemoryConfigurationStore } from "./support/memory-configuration-store.ts";
 import { MemoryTestDecisionStore } from "./support/memory-test-decision-store.ts";
+import { MemoryLessonStore } from "./support/memory-lesson-store.ts";
 
 /** The sessions of an instance where none runs. */
 const IDLE = { sessions: () => Promise.resolve([]) };
@@ -448,8 +449,22 @@ describe("the correction of a test to review", () => {
     sessions.list = sessions.list.map((session) => ({ ...session, state: "completed" }));
     const proposal = await reviews.proposal(LIST);
     assert.deepEqual([proposal.status, proposal.decision], ["in_review", decision]);
-    await reviews.correct(LIST, { instruction: "Again." });
+    // Kept as a lesson when asked, the instruction is given to the agents that design the tests of the application.
+    const lessons = new MemoryLessonStore();
+    const remembering = new TestReviews(
+      repository(),
+      await configured(),
+      decisions,
+      sessions,
+      () => AT,
+      lessons,
+      () => "l1",
+    );
+    await remembering.correct(LIST, { instruction: "Again.", remember: true });
     assert.equal(sessions.resumed.length, 2);
+    assert.deepEqual(await lessons.list(), [
+      { id: "l1", kind: "correction", text: "Again.", application: "shop", target: "design", active: true, at: AT.toISOString(), test: LIST },
+    ]);
   });
 
   it("is refused for a test not in review, one no session of the instance wrote, one whose session goes on, or one no design gave", async () => {

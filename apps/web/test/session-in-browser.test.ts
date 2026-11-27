@@ -58,6 +58,7 @@ describe("the shell on a narrow and on a wide screen", () => {
           "Projet",
           "Applications",
           "Connaissances",
+          "Mémoire",
           "Configuration",
         ],
       );

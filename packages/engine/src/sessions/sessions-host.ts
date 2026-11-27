@@ -3,6 +3,7 @@ import type {
   DocumentStorePort,
   DomainSettingStorePort,
   ExecutionStorePort,
+  LessonStorePort,
   MemoryStorePort,
   ResolvedConfig,
   SessionStorePort,
@@ -26,6 +27,8 @@ export interface SessionsHost {
   readonly domainSettings: DomainSettingStorePort;
   /** The store of the memories of the agents, which the runs recall and add to. */
   readonly memory: MemoryStorePort;
+  /** The store of the lessons the people of the project gave the agents, which each run reads as it starts. */
+  readonly lessons: Pick<LessonStorePort, "list">;
   /** The store of the executions of tests, which keeps the execution of the tests each session ran. */
   readonly executions: ExecutionStorePort;
   /**

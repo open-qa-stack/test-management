@@ -17,6 +17,7 @@ describe("the package", () => {
       "DomainSettingStore",
       "ExecutionStore",
       "InstanceDatabase",
+      "LessonStore",
       "MemoryStore",
       "PendingMigrationsError",
       "SchemaMigrations",

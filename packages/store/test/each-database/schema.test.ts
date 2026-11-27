@@ -135,6 +135,17 @@ const DECLARED: { readonly [Table in keyof StoreSchema]: { readonly [Column in k
     revised_role: "text, or nothing",
     revised_task: "text, or nothing",
     revised_at: "instant, or nothing",
+    disabled: "integer",
+  },
+  lessons: {
+    id: "text",
+    kind: "text",
+    text: "text",
+    application: "text, or nothing",
+    target: "text",
+    active: "integer",
+    written_at: "text",
+    test: "text, or nothing",
   },
 };
 

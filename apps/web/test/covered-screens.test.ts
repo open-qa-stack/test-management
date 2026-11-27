@@ -8,6 +8,7 @@ import { ListedInstance } from "./tests/listed-instance.ts";
 import { ReviewedInstance } from "./review/reviewed-instance.ts";
 import { POLICY } from "./review/review-fixture.ts";
 import { DEFECTS } from "./defects/defects-fixture.ts";
+import { MemorizedInstance } from "./memory/memorized-instance.ts";
 import { DETAIL as DETAIL_TEST } from "./tests/tests-fixture.ts";
 
 const app = builtConsole();
@@ -38,6 +39,57 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(screen!.uncovered, []);
   });
 
+  it("runs every line of the screen of the memory in the browser, from the menu: adds an instruction and adjusts a lesson and what an agent noted", async () => {
+    const instance = new MemorizedInstance();
+    const [screen] = await app().measure(
+      ["src/memory/memory-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/agent");
+        await page.getByRole("link", { name: "Mémoire" }).first().click();
+        await page.waitForURL(/#\/memory$/);
+        await page.getByText("Create the customers by the API, never by the screens.").waitFor();
+        // An instruction of blanks is refused by the console, one the instance refuses says why, and one taken closes the panel.
+        await page.getByRole("link", { name: "+ Consigne" }).click();
+        const panel = page.getByRole("dialog");
+        await panel.getByLabel("Ce que les agents doivent retenir").fill("   ");
+        await panel.getByRole("button", { name: "Enregistrer" }).click();
+        await panel.getByText("Écrivez ce que les agents doivent retenir, en 600 caractères au plus.").waitFor();
+        await panel.getByLabel("Ce que les agents doivent retenir").fill("Never test the risk report.");
+        await panel.getByLabel("Tout").check();
+        instance.refusal = "invalid_request";
+        await panel.getByRole("button", { name: "Enregistrer" }).click();
+        await panel.getByRole("alert").waitFor();
+        await panel.getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.getByText("Never test the risk report.").waitFor();
+        // A lesson is moved to the whole project; what an agent noted is set aside, and only that is sent.
+        await page.getByRole("link", { name: "Ajuster « Create the customers by the API, never by the screens. »" }).click();
+        await page.getByRole("dialog").getByLabel("Portée").selectOption("");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Ajuster « The quote screens bear data-testid in quote-*. »" }).click();
+        await page.getByRole("dialog").getByLabel("Active").uncheck();
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.getByRole("dialog").waitFor({ state: "detached" });
+        // From a view narrowed to a type, a lesson is kept to an application, and the panel closes on that view.
+        await page.goto("http://console.test/#/memory?type=instruction");
+        await page.getByRole("link", { name: "Ajuster « Never test the risk report. »" }).click();
+        await page.getByRole("dialog").getByLabel("Portée").selectOption("customer-management");
+        await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
+        await page.waitForURL(/#\/memory\?type=instruction$/);
+        assert.deepEqual(instance.sent, [
+          { text: "Never test the risk report.", target: "all", active: true },
+          { id: "l1", change: { text: "Create the customers by the API, never by the screens.", application: null, target: "design", active: true } },
+          { id: "m1", change: { text: "The quote screens bear data-testid in quote-*.", active: false } },
+          { id: "l4", change: { text: "Never test the risk report.", application: "customer-management", target: "all", active: true } },
+        ]);
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 0, "the module is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
   it("runs every line of the screen of the review in the browser, from the menu, and goes through its tests with J and K", async () => {
     const instance = new ReviewedInstance();
     const [screen, correct] = await app().measure(
@@ -61,7 +113,7 @@ describe("the code of the console is covered in full", () => {
         const correcting = page.getByRole("dialog");
         await correcting.getByRole("button", { name: "+ ajouter un cas limite" }).click();
         await page.keyboard.type("the quote is a day old.");
-        assert.equal(await correcting.getByLabel("Consigne").inputValue(), "Ajoute le cas limite où the quote is a day old.");
+        assert.equal(await correcting.getByLabel("Consigne", { exact: true }).inputValue(), "Ajoute le cas limite où the quote is a day old.");
         instance.refusal = "review_refused";
         await correcting.getByRole("button", { name: "Envoyer au concepteur" }).click();
         await page.locator(".review-refusal").waitFor({ state: "attached" });

@@ -17,6 +17,7 @@ import { MemoryExecutionStore } from "./support/memory-execution-store.ts";
 import { MemorySessionStore } from "./support/memory-session-store.ts";
 import { RecordingLogger } from "./support/recording-logger.ts";
 import { comparable, toldByTheEngine } from "./support/told-by-the-engine.ts";
+import { MemoryLessonStore } from "./support/memory-lesson-store.ts";
 
 const REQUEST = "Test the listing of the orders.";
 
@@ -197,6 +198,7 @@ describe("a session that is opened", () => {
     await store.release(GONE);
     const sessions = new Sessions({
       memory: new KeptMemories(),
+      lessons: new MemoryLessonStore(),
       domainSettings: new MemoryDomainSettingStore(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), hosted.root),
@@ -225,6 +227,7 @@ describe("a session that is opened", () => {
     hosted = await Hosted.create([]);
     const reading = new Sessions({
       memory: new KeptMemories(),
+      lessons: new MemoryLessonStore(),
       domainSettings: new MemoryDomainSettingStore(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),
@@ -356,6 +359,7 @@ describe("a session a person resumes once it ended", () => {
     await store.interrupt(kept.id);
     const reading = new Sessions({
       memory: new KeptMemories(),
+      lessons: new MemoryLessonStore(),
       domainSettings: new MemoryDomainSettingStore(),
       store,
       configuration: new Configuration(new MemoryConfigurationStore(), undefined),

@@ -53,11 +53,11 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the defects, the applications, the knowledge and the configuration as links, after the help of the shortcuts", () => {
+  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the defects, the applications, the knowledge, the memory and the configuration as links, after the help of the shortcuts", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration page$/,
     );
     assert.deepEqual(linksOf(html), [
       "#/agent",
@@ -72,6 +72,7 @@ describe("the shell", () => {
       "#/defects",
       "#/applications",
       "#/knowledge",
+      "#/memory",
       "#/configuration",
     ]);
   });
@@ -136,7 +137,7 @@ describe("the shell", () => {
     assert.match(panel, /<h2 id="shell-menu">Menu<\/h2><a class="side-panel-close" href="#\/agent\/sessions\/s1\?show=talk" aria-label="Fermer">/);
     assert.match(
       textOf(panel),
-      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration$/,
+      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration$/,
     );
     assert.match(panel, /<a href="#\/agent" class="on" aria-current="page">/);
     assert.match(shell("#/?nav=open"), /<a class="side-panel-close" href="#\/" aria-label="Fermer">/);

@@ -89,6 +89,7 @@ export class SessionExecution {
         configuration: this.#host.configuration,
         documents: this.#host.documents,
         memory: this.#host.memory,
+        lessons: await this.#host.lessons.list(),
         domainSettings: await this.#host.domainSettings.list(),
         ...(brief === undefined ? {} : { brief }),
         ...(branch === undefined ? {} : { branch }),

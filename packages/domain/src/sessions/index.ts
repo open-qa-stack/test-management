@@ -132,6 +132,17 @@ export {
 export { SET_ASIDE_REASONS } from "../test-review/test-review.ts";
 export { defectMovesFrom } from "../defects/defect-life.ts";
 export {
+  LESSON_KINDS,
+  LESSON_TARGETS,
+  lessonDraftOf,
+  MAX_LESSON,
+  type Lesson,
+  type LessonDraft,
+  type LessonKind,
+  type LessonTarget,
+} from "../lessons/lesson.ts";
+export { memoryChangeOf, type MemoryChange, type MemoryItem, type MemoryItemType, type MemoryList } from "../lessons/memory-item.ts";
+export {
   MAX_CORRECTION,
   MAX_SET_ASIDE_NOTE,
   reviewCorrectionOf,

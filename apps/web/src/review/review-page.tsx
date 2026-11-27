@@ -64,7 +64,8 @@ export function ReviewPage({ project, route }: { readonly project: string; reado
     restore: () => decide("restore"),
     correct: (event) => {
       event.preventDefault();
-      const correction = reviewCorrectionOf({ instruction: new FormData(event.currentTarget).get("instruction") });
+      const form = new FormData(event.currentTarget);
+      const correction = reviewCorrectionOf({ instruction: form.get("instruction"), remember: form.get("remember") === "on" });
       if (shown === undefined || typeof correction === "string") return;
       setDeciding({ pending: true });
       api.correct(shown.id, correction).then(

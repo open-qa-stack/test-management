@@ -122,7 +122,7 @@ describe("oqas reviews", () => {
     assert.deepEqual(await terminal.oqas(["reviews", "correct", "r", "x".repeat(2001)]), {
       code: 3,
       out: "",
-      err: 'A correction is { "instruction" }: what to change in the test, 1 to 2000 characters.\n',
+      err: 'A correction is { "instruction", "remember"? }: what to change in the test, 1 to 2000 characters.\n',
     });
     assert.match(
       (await terminal.oqas(["reviews", "--brief", "x"])).err,

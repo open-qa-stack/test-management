@@ -7,6 +7,8 @@ import type {
   DefectStatus,
   ExecutionOrigin,
   ExecutionOutcome,
+  LessonDraft,
+  MemoryChange,
   ReviewCorrection,
   ReviewDecision,
   TestEdit,
@@ -104,6 +106,12 @@ export type Command =
   | { readonly name: "defects"; readonly action: "report"; readonly report: DefectReport }
   /** Mark a defect fixed, close it, or open it again. */
   | { readonly name: "defects"; readonly action: "change"; readonly id: string; readonly status: DefectStatus }
+  /** List the lessons the people of the project gave the agents, and what the agents noted. */
+  | { readonly name: "memory"; readonly action: "list" }
+  /** Keep an instruction for the agents. */
+  | { readonly name: "memory"; readonly action: "add"; readonly draft: LessonDraft }
+  /** Change a line of the memory: whether it applies, or what it says. */
+  | { readonly name: "memory"; readonly action: "change"; readonly id: string; readonly change: MemoryChange }
   /** Launch tests of the test repository as they are, with no agent, in this process, and follow them to their end. */
   | { readonly name: "launch"; readonly paths: readonly string[]; readonly environment?: string }
   /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */

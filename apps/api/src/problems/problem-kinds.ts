@@ -31,6 +31,8 @@ const KINDS: Readonly<Record<ProblemCode, ProblemKind>> = {
   review_refused: { status: HttpStatus.CONFLICT, title: "Review refused" },
   unknown_defect: { status: HttpStatus.NOT_FOUND, title: "Unknown defect" },
   defect_refused: { status: HttpStatus.CONFLICT, title: "Defect refused" },
+  unknown_memory: { status: HttpStatus.NOT_FOUND, title: "Unknown memory" },
+  memory_refused: { status: HttpStatus.CONFLICT, title: "Memory refused" },
   launch_refused: { status: HttpStatus.CONFLICT, title: "Launch refused" },
   unknown_campaign: { status: HttpStatus.NOT_FOUND, title: "Unknown campaign" },
   campaign_refused: { status: HttpStatus.CONFLICT, title: "Campaign refused" },
