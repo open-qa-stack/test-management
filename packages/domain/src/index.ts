@@ -250,6 +250,9 @@ export {
   type ListedDefect,
 } from "./defects/defect.ts";
 export { UnknownDefectError } from "./defects/unknown-defect-error.ts";
+export { DefectRefusedError } from "./defects/defect-refused-error.ts";
+export { DEFECT_LIFE, defectMovesFrom, defectRefusalOf, type DefectEvent } from "./defects/defect-life.ts";
+export { REVIEW_LIFE, reviewRefusalOf, reviewStatusAfter, type ReviewEvent } from "./test-review/review-life.ts";
 export type { DefectStorePort } from "./defects/defect-store-port.ts";
 export { ReviewRefusedError } from "./test-review/review-refused-error.ts";
 export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "./test-review/review-decision.ts";

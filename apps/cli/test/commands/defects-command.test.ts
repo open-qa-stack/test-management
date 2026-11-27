@@ -20,6 +20,7 @@ describe("oqas defects", () => {
     );
     assert.match((await terminal.oqas(["defects", "fix", "D-1"])).out, /^D-1 {2}S2 {2}fixed, to run again {2}/);
     assert.match((await terminal.oqas(["defects", "close", "D-1"])).out, /^D-1 {2}S2 {2}closed {2}/);
+    assert.deepEqual(await terminal.oqas(["defects", "fix", "D-1"]), { code: 3, out: "", err: "The defect D-1 is closed: from there it can be open.\n" });
     assert.match((await terminal.oqas(["defects", "open", "D-1"])).out, /^D-1 {2}S2 {2}open {2}/);
     const list = JSON.parse((await terminal.oqas(["defects", "--output", "json"])).out) as DefectList;
     assert.deepEqual([list.items.map(({ id }) => id), list.counts], [["D-1"], { open: 1, toReplay: 0, closed: 0 }]);

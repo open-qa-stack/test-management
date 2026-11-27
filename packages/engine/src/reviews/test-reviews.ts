@@ -7,6 +7,8 @@ import {
   CONFIG_FILE_NAME,
   DEFAULT_REPOSITORY,
   ReviewRefusedError,
+  reviewRefusalOf,
+  reviewStatusAfter,
   type ConfigurationQueries,
   type DecidedTest,
   type ReviewDecision,
@@ -123,9 +125,9 @@ export class TestReviews {
   async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
     const designed = (await this.#designed()).find((candidate) => candidate.id === id);
     if (designed === undefined) throw new UnknownProposalError(id);
-    const before = (await this.#decided()).get(id);
-    if (before !== undefined)
-      throw new ReviewRefusedError(`The test ${designed.test.path} is ${before.status === "validated" ? "validated" : "set aside"} already.`);
+    const status = (await this.#decided()).get(id)?.status ?? "in_review";
+    if (reviewStatusAfter(decision.status === "validated" ? "validate" : "set_aside", status) === undefined)
+      throw new ReviewRefusedError(reviewRefusalOf(designed.test.path, status));
     const at = this.#now().toISOString();
     if (decision.status === "set_aside") {
       const kept = { id, at, ...decision };
@@ -154,13 +156,8 @@ export class TestReviews {
   async restore(id: string): Promise<void> {
     const designed = (await this.#designed()).find((candidate) => candidate.id === id);
     if (designed === undefined) throw new UnknownProposalError(id);
-    const before = (await this.#decided()).get(id);
-    if (before?.status !== "set_aside")
-      throw new ReviewRefusedError(
-        before === undefined
-          ? `The test ${designed.test.path} is in review already.`
-          : `The test ${designed.test.path} is validated: it is in the working branch.`,
-      );
+    const status = (await this.#decided()).get(id)?.status ?? "in_review";
+    if (reviewStatusAfter("restore", status) === undefined) throw new ReviewRefusedError(reviewRefusalOf(designed.test.path, status));
     await this.#decisions.drop(id);
   }
 

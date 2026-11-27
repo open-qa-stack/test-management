@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "vitest";
-import { UnknownDefectError, type ExecutionVerdict, type TestExecution } from "@open-qa-stack/domain";
+import { DefectRefusedError, UnknownDefectError, type ExecutionVerdict, type TestExecution } from "@open-qa-stack/domain";
 import { Defects } from "../src/index.ts";
 import { MemoryDefectStore } from "./support/memory-defect-store.ts";
 
@@ -49,6 +49,8 @@ describe("the defects reported from tests that failed", () => {
     const closed = await defects.change("D-1", "closed");
     assert.deepEqual([closed.fixedAt, closed.closedAt, closed.stage], ["2026-11-27T12:00:00.000Z", "2026-11-27T13:00:00.000Z", "closed"]);
     await defects.change("D-2", "closed");
+    // A defect closed is not fixed: it is opened again first.
+    await assert.rejects(defects.change("D-2", "fixed"), new DefectRefusedError("The defect D-2 is closed: from there it can be open."));
     assert.deepEqual((await defects.list()).counts, { open: 0, toReplay: 0, closed: 2 });
     const again = await defects.change("D-1", "open");
     assert.deepEqual([again.status, again.fixedAt, again.closedAt, again.stage], ["open", undefined, undefined, "open"]);

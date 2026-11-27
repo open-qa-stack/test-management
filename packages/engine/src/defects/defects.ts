@@ -1,4 +1,6 @@
 import {
+  DefectRefusedError,
+  defectRefusalOf,
   UnknownDefectError,
   type Defect,
   type DefectList,
@@ -67,10 +69,13 @@ export class Defects {
    * @param status - Where it stands now.
    * @returns The defect as it stands.
    * @throws UnknownDefectError when the instance keeps no defect of the reference.
+   * @throws DefectRefusedError when the life of a defect does not allow the move from where it stands.
    */
   async change(id: string, status: DefectStatus): Promise<ListedDefect> {
     const defect = await this.#store.get(id);
     if (defect === undefined) throw new UnknownDefectError(id);
+    const refusal = defectRefusalOf(id, defect.status, status);
+    if (refusal !== undefined) throw new DefectRefusedError(refusal);
     if (defect.status === status) return this.#listed(defect);
     const at = this.#now().toISOString();
     const { fixedAt: _fixed, closedAt: _closed, ...kept } = defect;

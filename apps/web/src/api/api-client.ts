@@ -379,7 +379,8 @@ export class ApiClient {
    *
    * @param id - Its reference, such as `D-12`.
    * @param status - Where it stands now.
-   * @returns The defect as it stands; the failure carries the code `unknown_defect` when the instance keeps none of the reference.
+   * @returns The defect as it stands; the failure carries the code `unknown_defect` when the instance keeps none of the reference,
+   * and `defect_refused` when the life of a defect does not allow the move.
    */
   public async changeDefect(id: string, status: DefectStatus): Promise<ListedDefect> {
     return this.#ask<ListedDefect>(`/defects/${encodeURIComponent(id)}`, { ...posting({ status }), method: "PATCH" });
