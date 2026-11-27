@@ -7,7 +7,8 @@ import { linesOr, print } from "./print.ts";
 
 /**
  * `oqas reviews`: lists the tests the agents wrote for a person to review and those set aside; with show, tells what a
- * person reads to decide of one; with validate, has it enter the working branch; with set-aside, leaves it out with why.
+ * person reads to decide of one; with validate, has it enter the working branch; with set-aside, leaves it out with why;
+ * with restore, puts one set aside back in review.
  */
 export async function reviewed(
   { reviews }: Pick<Operations, "reviews">,
@@ -28,6 +29,11 @@ export async function reviewed(
           ? `The test ${command.id} is validated: it entered ${decided.entered.branch}, committed there; nothing was pushed.`
           : `The test ${command.id} is validated: ${decided.entered.branch} had it already as its design wrote it.`;
     print(printing, said, decided);
+    return ExitCode.passed;
+  }
+  if (command.action === "restore") {
+    await reviews.restore(command.id);
+    print(printing, `The test ${command.id} is back in review.`, { id: command.id, status: "in_review" });
     return ExitCode.passed;
   }
   const proposal = await reviews.proposal(command.id);

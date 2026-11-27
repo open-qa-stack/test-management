@@ -93,6 +93,8 @@ export type Command =
   | { readonly name: "reviews"; readonly action: "show"; readonly id: string }
   /** Validate one of them, which enters the working branch, or set it aside with why. */
   | { readonly name: "reviews"; readonly action: "decide"; readonly id: string; readonly decision: ReviewDecision }
+  /** Put one of them that was set aside back in review, as it was. */
+  | { readonly name: "reviews"; readonly action: "restore"; readonly id: string }
   /** List the defects reported from tests that failed. */
   | { readonly name: "defects"; readonly action: "list" }
   /** Report a defect of a test. */

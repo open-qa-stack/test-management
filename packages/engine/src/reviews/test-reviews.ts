@@ -144,6 +144,26 @@ export class TestReviews {
     return { decision: kept, entered };
   }
 
+  /**
+   * Puts a test set aside back in review, as it was: the decision made of it is forgotten, and it waits for a new one.
+   *
+   * @param id - The identifier of a test the agents wrote.
+   * @throws UnknownProposalError when no design gave a test of the identifier.
+   * @throws ReviewRefusedError when the test is not set aside: in review already, or validated, which its branch keeps.
+   */
+  async restore(id: string): Promise<void> {
+    const designed = (await this.#designed()).find((candidate) => candidate.id === id);
+    if (designed === undefined) throw new UnknownProposalError(id);
+    const before = (await this.#decided()).get(id);
+    if (before?.status !== "set_aside")
+      throw new ReviewRefusedError(
+        before === undefined
+          ? `The test ${designed.test.path} is in review already.`
+          : `The test ${designed.test.path} is validated: it is in the working branch.`,
+      );
+    await this.#decisions.drop(id);
+  }
+
   /** What a person decided, by test. */
   async #decided(): Promise<Map<string, TestDecision>> {
     return new Map((await this.#decisions.list()).map((decision) => [decision.id, decision]));

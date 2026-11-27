@@ -25,8 +25,9 @@ function toldOf({ entered }: DecidedTest): string {
 
 /**
  * The screen of the review in a browser: it keeps the queue and the test shown in step with the instance, moves to the
- * next test with J and to the one before with K, as the address keeps it, validates the test shown with V, and sets it
- * aside from its panel. Once a decision is kept, the queue is read again and the next test shown.
+ * next test with J and to the one before with K, as the address keeps it, validates the test shown with V, sets it
+ * aside from its panel, and puts one set aside back in review. Once a decision is kept, the queue is read again and the
+ * next test shown.
  *
  * @param props - The name of the project, and where the console is.
  * @returns The screen.
@@ -42,12 +43,13 @@ export function ReviewPage({ project, route }: { readonly project: string; reado
   // The answer about the test shown before is not shown on the card of another; why the instance could not read this one is.
   const proposal: PolledState<TestProposal> =
     read.value !== undefined && read.value.id === shown?.id ? { value: read.value } : read.unread === undefined ? {} : { unread: read.unread };
-  const decide = (decision: ReviewDecision): void => {
+  const decide = (decision: ReviewDecision | "restore"): void => {
     if (shown === undefined) return;
     setDeciding({ pending: true });
-    api.decide(shown.id, decision).then(
-      (kept) => {
-        setDeciding({ pending: false, told: toldOf(kept) });
+    const kept = decision === "restore" ? api.restore(shown.id).then(() => t("review.told.restored")) : api.decide(shown.id, decision).then(toldOf);
+    kept.then(
+      (told) => {
+        setDeciding({ pending: false, told });
         setDecided((count) => count + 1);
         // The test leaves the view: the next one is shown, and the panel closes.
         window.location.hash = reviewHref({ view: place.view, ...(place.domain === undefined ? {} : { domain: place.domain }) });
@@ -58,6 +60,7 @@ export function ReviewPage({ project, route }: { readonly project: string; reado
   const controls: ReviewControls = {
     ...deciding,
     validate: () => decide({ status: "validated" }),
+    restore: () => decide("restore"),
     setAside: (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget);

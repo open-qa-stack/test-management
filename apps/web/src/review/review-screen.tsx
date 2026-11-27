@@ -18,6 +18,8 @@ export const SET_ASIDE_PANEL = "set-aside";
 export interface ReviewControls {
   readonly validate: () => void;
   readonly setAside: FormEventHandler<HTMLFormElement>;
+  /** Puts the test shown, set aside, back in review. */
+  readonly restore: () => void;
   /** Whether a decision is under way. */
   readonly pending: boolean;
   /** Why the instance refused the last decision, when it did. */
@@ -194,6 +196,7 @@ export function ReviewScreen({ project, route, place, queue, proposal, controls 
       ? undefined
       : {
           validate: controls.validate,
+          restore: controls.restore,
           setAside: withPanel(route, SET_ASIDE_PANEL),
           pending: controls.pending,
           ...(controls.refusal === undefined ? {} : { refusal: controls.refusal }),

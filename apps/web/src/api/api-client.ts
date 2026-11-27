@@ -347,6 +347,15 @@ export class ApiClient {
   }
 
   /**
+   * Puts a test set aside back in review, as it was.
+   *
+   * @param id - The identifier of the test.
+   */
+  public async restore(id: string): Promise<void> {
+    await this.#answer(`/reviews/${encodeURIComponent(id)}/decision`, { method: "DELETE" });
+  }
+
+  /**
    * Reads the defects reported from tests that failed.
    *
    * @returns The defects, the latest reported first, each with where it stands, and how many each view holds.

@@ -933,7 +933,9 @@
       "setAside": "Set aside",
       "correct": "Ask for a correction",
       "validate": "Validate",
-      "validating": "Validating…"
+      "validating": "Validating…",
+      "restore": "Put back in review",
+      "restoring": "Putting back…"
     },
     "reasons": {
       "covered": "Set aside: already covered",
@@ -981,7 +983,8 @@
     "told": {
       "committed": "Validated: the test entered {{branch}}, committed; nothing was pushed.",
       "unchanged": "Validated: {{branch}} had it already as its design wrote it.",
-      "setAside": "Set aside: the test stays to read among those set aside."
+      "setAside": "Set aside: the test stays to read among those set aside.",
+      "restored": "Back in review: the test waits for your decision again among the new tests."
     }
   },
   "defects": {

@@ -933,7 +933,9 @@
       "setAside": "Écarter",
       "correct": "Demander une correction",
       "validate": "Valider",
-      "validating": "Validation…"
+      "validating": "Validation…",
+      "restore": "Remettre en relecture",
+      "restoring": "Remise en relecture…"
     },
     "reasons": {
       "covered": "Écarté : déjà couvert",
@@ -981,7 +983,8 @@
     "told": {
       "committed": "Validé : le test est entré dans {{branch}}, commité ; rien n’a été poussé.",
       "unchanged": "Validé : {{branch}} l’avait déjà tel que la conception l’a écrit.",
-      "setAside": "Écarté : le test reste consultable dans « Écartés »."
+      "setAside": "Écarté : le test reste consultable dans « Écartés ».",
+      "restored": "Remis en relecture : le test attend de nouveau votre décision dans « Nouveaux tests »."
     }
   },
   "defects": {

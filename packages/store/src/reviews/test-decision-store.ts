@@ -30,6 +30,11 @@ export class TestDecisionStore implements TestDecisionStorePort {
       .onConflict((conflict) => conflict.column("id").doUpdateSet(kept))
       .execute();
   }
+
+  /** Forgets the decision made of a test, which is then to review again. */
+  async drop(id: string): Promise<void> {
+    await this.#database.deleteFrom("test_decisions").where("id", "=", id).execute();
+  }
 }
 
 function decisionOf(row: Selectable<TestDecisionsTable>): TestDecision {

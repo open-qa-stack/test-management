@@ -52,6 +52,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "TestReviews.queue": "GET /reviews",
   "TestReviews.proposal": "GET /reviews/r",
   "TestReviews.decide": "PUT /reviews/r/decision",
+  "TestReviews.restore": "DELETE /reviews/r/decision",
   "Defects.list": "GET /defects",
   "Defects.report": "POST /defects",
   "Defects.change": "PATCH /defects/d",

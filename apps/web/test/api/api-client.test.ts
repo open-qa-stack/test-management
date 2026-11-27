@@ -156,6 +156,9 @@ describe("the client of the API, for the documents of the knowledge sources", ()
       decide.calls.map(([path, init]) => [path, init?.method, init?.body]),
       [["/api/reviews/a%20b/decision", "PUT", '{"status":"validated"}']],
     );
+    const restored = clientOf(() => new Response(null, { status: 204 }));
+    await restored.client.restore("a b");
+    assert.deepEqual(restored.calls, [["/api/reviews/a%20b/decision", { method: "DELETE" }]]);
   });
 
   it("lists the tests of the test repository out of the envelope the API answers", async () => {
