@@ -61,7 +61,7 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
   return (
     <article className="card review-card" aria-labelledby="review-title">
       <header className="review-card-head">
-        <div className="row review-badges">
+        <div className="review-badges">
           <Badge tone={proposal.status === "set_aside" ? "neutral" : "warn"}>{t(`review.status.${proposal.status}`)}</Badge>
           <Badge tone="outline">{levelName(proposal.level)}</Badge>
           {proposal.kind === "visual" && <Badge tone="outline">{t("review.visual")}</Badge>}
