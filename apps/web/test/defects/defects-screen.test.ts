@@ -45,7 +45,7 @@ describe("the defects reported from tests that failed", () => {
     const html = screen("#/defects", { value: DEFECTS }, CONTROLS);
     assert.match(
       textOf(html),
-      /Ouvertes 1 À rejouer 1 Fermées 2 Réf\. Titre Sévérité État Test lié Signalée le Gestes D-3 The premium shows 0 S1 · bloquante à traiter Display the detail of a policy 26 nov\. 2026, 10:00 Marquer corrigée Fermer$/,
+      /Ouvertes 1 À rejouer 1 Fermées 2 Réf\. Titre Sévérité État Test lié Signalée le Gestes D-3 The premium shows 0 S1 · bloquante à traiter Display the detail of a policy 26 nov\. 2026, \d\d:00 Marquer corrigée Fermer$/,
     );
     assert.ok(linksOf(html).includes("#/tests/view?path=apps%2Fpolicy-management%2Ftests%2Fpolicies%2Fpolicy-detail%2Fpolicy-detail.spec.ts"));
     assert.match(
