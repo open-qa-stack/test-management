@@ -11,6 +11,7 @@ import {
   MemoryStore,
   SchemaMigrations,
   SessionStore,
+  DefectStore,
   TestDecisionStore,
   TestStore,
 } from "@open-qa-stack/store";
@@ -41,6 +42,7 @@ import { SchemaCheck } from "./schema-check.ts";
     { provide: MemoryStore, useFactory: (instance: InstanceDatabase) => instance.memory, inject: [InstanceDatabase] },
     { provide: TestStore, useFactory: (instance: InstanceDatabase) => instance.tests, inject: [InstanceDatabase] },
     { provide: TestDecisionStore, useFactory: (instance: InstanceDatabase) => instance.testDecisions, inject: [InstanceDatabase] },
+    { provide: DefectStore, useFactory: (instance: InstanceDatabase) => instance.defects, inject: [InstanceDatabase] },
     SchemaCheck,
   ],
   exports: [
@@ -57,6 +59,7 @@ import { SchemaCheck } from "./schema-check.ts";
     MemoryStore,
     TestStore,
     TestDecisionStore,
+    DefectStore,
   ],
 })
 export class DatabaseModule implements OnApplicationShutdown {

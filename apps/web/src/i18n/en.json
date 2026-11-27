@@ -53,7 +53,8 @@
       "applications": "Applications",
       "discovery": "Discovery",
       "running": "Execution that runs",
-      "review": "To review"
+      "review": "To review",
+      "defects": "Defects"
     },
     "opening": {
       "title": "Reading the session",
@@ -386,7 +387,8 @@
     "unknown_secret": "The configuration saved does not name this variable: save the configuration that names it first.",
     "secret_refused": "This value cannot be saved: it is empty, or the environment of the tool sets the variable already, and wins.",
     "unknown_domain": "The knowledge no longer holds this domain.",
-    "domain_refused": "The instance refuses it: a domain is excluded, or its name is empty or too long."
+    "domain_refused": "The instance refuses it: a domain is excluded, or its name is empty or too long.",
+    "unknown_defect": "The instance no longer keeps this defect."
   },
   "configuration": {
     "rules": {
@@ -984,6 +986,73 @@
       "setAside": "Set aside: the test stays to read among those set aside."
     }
   },
+  "defects": {
+    "title": "Defects",
+    "lead": "The defects reported from a test that failed, kept by the instance: what to deal with, what to run again.",
+    "reading": "Reading the defects",
+    "readingNote": "They show as soon as the instance answered.",
+    "views": "Views of the defects",
+    "view": {
+      "open": "Open",
+      "to_replay": "To run again",
+      "closed": "Closed"
+    },
+    "severities": {
+      "S1": "S1 · blocking",
+      "S2": "S2 · major",
+      "S3": "S3 · minor",
+      "S4": "S4 · cosmetic"
+    },
+    "stages": {
+      "open": "to deal with",
+      "to_replay": "fixed · to run again",
+      "replayed": "fixed · passed since",
+      "closed": "closed"
+    },
+    "gestures": {
+      "fixed": "Mark fixed",
+      "closed": "Close",
+      "open": "Open again"
+    },
+    "columns": {
+      "reference": "Ref.",
+      "title": "Title",
+      "severity": "Severity",
+      "stage": "State",
+      "test": "Test",
+      "opened": "Reported on",
+      "gestures": "Gestures"
+    },
+    "empty": {
+      "open": "No open defect",
+      "to_replay": "Nothing to run again",
+      "closed": "No closed defect"
+    },
+    "emptyNote": {
+      "open": "A defect is reported from the card of a test that failed.",
+      "to_replay": "A defect marked fixed waits here for its test to pass again.",
+      "closed": "The defects closed, or whose test passed since they were fixed, stay to read here."
+    },
+    "report": {
+      "title": "Report the defect",
+      "of": "From the test “{{title}}”, at its last failure.",
+      "titleField": "Title",
+      "fails": "{{title}} fails",
+      "failsAt": "{{title}} fails at step {{step}}",
+      "severity": "Proposed severity",
+      "severityHint": "To confirm at triage.",
+      "description": "Description",
+      "atStep": "Failed step: {{number}}. {{title}}",
+      "error": "Error: {{message}}",
+      "expected": "Expected: {{expected}}",
+      "received": "Received: {{received}}",
+      "execution": "Execution {{id}} of {{date}}",
+      "kept": "The defect is kept by the instance and linked to the test; marked fixed, it waits for the test to pass again.",
+      "cancel": "Cancel",
+      "confirm": "Create the defect",
+      "incomplete": "Give the defect a title."
+    }
+  },
   "test": {
     "reading": "Reading the test",
     "readingNote": "It shows as soon as the instance answered.",
@@ -1062,7 +1131,8 @@
       "note": "Read the result first: the failure may come from the application as from the test. The agent then looks for the cause, and repairs the test when it is the one at fault.",
       "ask": "Ask the agent…",
       "atStep": " at step {{number}} ({{title}})",
-      "request": "The test “{{title}}” ({{path}}) fails{{step}}. Find why. If the test is at fault, repair it; if the application is, say so and leave the test as it is."
+      "request": "The test “{{title}}” ({{path}}) fails{{step}}. Find why. If the test is at fault, repair it; if the application is, say so and leave the test as it is.",
+      "report": "Report the defect"
     }
   },
   "executions": {

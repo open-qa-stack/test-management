@@ -12,6 +12,7 @@ describe("the package", () => {
       "DatabaseStatus",
       "DatabaseUnavailableError",
       "DatabaseUrl",
+      "DefectStore",
       "DocumentStore",
       "DomainSettingStore",
       "ExecutionStore",

@@ -13,6 +13,7 @@ import "./knowledge/knowledge.css";
 import "./discovery/discovery.css";
 import "./tests/tests.css";
 import "./review/review.css";
+import "./defects/defects.css";
 import "./executions/executions.css";
 import "./campaigns/campaigns.css";
 

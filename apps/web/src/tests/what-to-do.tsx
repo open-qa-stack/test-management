@@ -12,13 +12,13 @@ function requestFor(path: string, { result: { title, failure } }: TestExecution)
 }
 
 /**
- * What to do with a test whose last run failed: where it failed, and the agent to ask, whose request
- * is written for the person to send.
+ * What to do with a test whose last run failed: where it failed, the agent to ask, whose request is written for the
+ * person to send, and the defect to report.
  *
- * @param props - The path of the test, and its latest execution.
+ * @param props - The path of the test, its latest execution, and the link to the panel that reports a defect of it.
  * @returns The card; nothing for a test that did not fail.
  */
-export function WhatToDo({ path, latest }: { readonly path: string; readonly latest: TestExecution | undefined }): ReactNode {
+export function WhatToDo({ path, latest, report }: { readonly path: string; readonly latest: TestExecution | undefined; readonly report?: string }): ReactNode {
   if (latest?.result.verdict !== "failed") return null;
   return (
     <Card title={t("test.todo.title")}>
@@ -30,6 +30,11 @@ export function WhatToDo({ path, latest }: { readonly path: string; readonly lat
         <a className="btn" href={agentHref(requestFor(path, latest))}>
           {t("test.todo.ask")}
         </a>
+        {report !== undefined && (
+          <a className="btn ghost" href={report}>
+            {t("test.todo.report")}
+          </a>
+        )}
       </div>
     </Card>
   );

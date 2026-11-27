@@ -53,7 +53,8 @@
       "applications": "Applications",
       "discovery": "Découverte",
       "running": "Exécution en cours",
-      "review": "À relire"
+      "review": "À relire",
+      "defects": "Anomalies"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -386,7 +387,8 @@
     "unknown_secret": "La configuration enregistrée ne nomme pas cette variable : enregistrez d’abord la configuration qui la nomme.",
     "secret_refused": "Cette valeur ne peut pas être enregistrée : elle est vide, ou l’environnement de l’outil définit déjà la variable, et l’emporte.",
     "unknown_domain": "Les connaissances ne contiennent plus ce domaine.",
-    "domain_refused": "L’instance refuse : un domaine est exclu, ou son nom est vide ou trop long."
+    "domain_refused": "L’instance refuse : un domaine est exclu, ou son nom est vide ou trop long.",
+    "unknown_defect": "L’instance ne garde plus cette anomalie."
   },
   "configuration": {
     "rules": {
@@ -984,6 +986,73 @@
       "setAside": "Écarté : le test reste consultable dans « Écartés »."
     }
   },
+  "defects": {
+    "title": "Anomalies",
+    "lead": "Les anomalies signalées depuis un test en échec, gardées par l’instance : ce qu’il faut traiter, ce qu’il faut rejouer.",
+    "reading": "Lecture des anomalies",
+    "readingNote": "Elles apparaissent dès que l’instance a répondu.",
+    "views": "Vues des anomalies",
+    "view": {
+      "open": "Ouvertes",
+      "to_replay": "À rejouer",
+      "closed": "Fermées"
+    },
+    "severities": {
+      "S1": "S1 · bloquante",
+      "S2": "S2 · majeure",
+      "S3": "S3 · mineure",
+      "S4": "S4 · cosmétique"
+    },
+    "stages": {
+      "open": "à traiter",
+      "to_replay": "corrigée · à rejouer",
+      "replayed": "corrigée · rejouée au vert",
+      "closed": "fermée"
+    },
+    "gestures": {
+      "fixed": "Marquer corrigée",
+      "closed": "Fermer",
+      "open": "Rouvrir"
+    },
+    "columns": {
+      "reference": "Réf.",
+      "title": "Titre",
+      "severity": "Sévérité",
+      "stage": "État",
+      "test": "Test lié",
+      "opened": "Signalée le",
+      "gestures": "Gestes"
+    },
+    "empty": {
+      "open": "Aucune anomalie ouverte",
+      "to_replay": "Rien à rejouer",
+      "closed": "Aucune anomalie fermée"
+    },
+    "emptyNote": {
+      "open": "Une anomalie se signale depuis la fiche d’un test en échec.",
+      "to_replay": "Une anomalie marquée corrigée attend ici que son test repasse.",
+      "closed": "Les anomalies fermées, ou dont le test est repassé depuis leur correction, restent consultables ici."
+    },
+    "report": {
+      "title": "Signaler l’anomalie",
+      "of": "Depuis le test « {{title}} », à son dernier échec.",
+      "titleField": "Titre",
+      "fails": "{{title}} échoue",
+      "failsAt": "{{title}} échoue à l’étape {{step}}",
+      "severity": "Sévérité proposée",
+      "severityHint": "À confirmer lors du tri.",
+      "description": "Description",
+      "atStep": "Étape en échec : {{number}}. {{title}}",
+      "error": "Erreur : {{message}}",
+      "expected": "Attendu : {{expected}}",
+      "received": "Obtenu : {{received}}",
+      "execution": "Exécution {{id}} du {{date}}",
+      "kept": "L’anomalie est gardée par l’instance et liée au test ; marquée corrigée, elle attend que le test repasse.",
+      "cancel": "Annuler",
+      "confirm": "Créer l’anomalie",
+      "incomplete": "Donnez un titre à l’anomalie."
+    }
+  },
   "test": {
     "reading": "Lecture du test",
     "readingNote": "Il apparaît dès que l’instance a répondu.",
@@ -1062,7 +1131,8 @@
       "note": "Lisez d’abord le résultat : l’échec peut venir de l’application comme du test. L’agent cherche ensuite la cause, et répare le test quand c’est lui qui est en tort.",
       "ask": "Demander à l’agent…",
       "atStep": " à l’étape {{number}} ({{title}})",
-      "request": "Le test « {{title}} » ({{path}}) échoue{{step}}. Cherche pourquoi. Si le test est en tort, répare-le ; si c’est l’application, dis-le et laisse le test tel quel."
+      "request": "Le test « {{title}} » ({{path}}) échoue{{step}}. Cherche pourquoi. Si le test est en tort, répare-le ; si c’est l’application, dis-le et laisse le test tel quel.",
+      "report": "Signaler l’anomalie"
     }
   },
   "executions": {

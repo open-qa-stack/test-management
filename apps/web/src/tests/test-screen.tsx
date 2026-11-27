@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { FormEventHandler, ReactNode } from "react";
 import type { LaunchRequest, RepositoryTest, TestEdit, TestExecution, LastVerdict, TestVersion } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { resultHref } from "../executions/executions-paths.ts";
@@ -18,6 +18,7 @@ import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 import { TestCode } from "./test-code.tsx";
 import { TestTree } from "./test-tree.tsx";
 import { WhatToDo } from "./what-to-do.tsx";
+import { DefectReportPanel, type DefectReporting } from "../defects/defect-report-panel.tsx";
 import { TestSteps } from "./test-steps.tsx";
 import { TestEditPanel } from "./test-edit-panel.tsx";
 import type { TextSaving } from "./test-text-panel.tsx";
@@ -51,7 +52,14 @@ export interface TestScreenProps {
   readonly relaunch?: RelaunchState;
   /** Runs it again, against the environment chosen, if any. */
   readonly onRelaunch?: (where: Pick<LaunchRequest, "environment">) => void;
+  /** Where the reporting of a defect of it stands. */
+  readonly reporting?: DefectReporting;
+  /** Reports a defect of it, from the form of its panel. */
+  readonly onReport?: FormEventHandler<HTMLFormElement>;
 }
+
+/** The panel of the card of a test that reports a defect of it, as the address names it. */
+export const REPORT_PANEL = "report";
 
 /** What the tags of the test say of it: its level, its domain and functionality, its applications. */
 function Tags({ test }: { readonly test: RepositoryTest }): ReactNode {
@@ -180,6 +188,8 @@ export function TestScreen({
   onChange,
   relaunch,
   onRelaunch,
+  reporting = { pending: false },
+  onReport,
 }: TestScreenProps): ReactNode {
   const test = tests.value?.find((candidate) => candidate.path === path);
   const title = test?.title ?? path;
@@ -205,7 +215,7 @@ export function TestScreen({
       ) : (
         <>
           <Summary path={path} executions={ran} />
-          <WhatToDo path={path} latest={ran[0]} />
+          <WhatToDo path={path} latest={ran[0]} {...(test === undefined ? {} : { report: withPanel(route, REPORT_PANEL) })} />
           {test === undefined && <EmptyState title={t("test.unknown")}>{t("test.unknownNote")}</EmptyState>}
           <div className="test-reading">
             <div className="test-column">
@@ -219,6 +229,15 @@ export function TestScreen({
             </div>
           </div>
           {test !== undefined && <TestEditPanel test={test} route={route} tests={tests.value} saving={saving} onChange={onChange} />}
+          {test !== undefined && route.query["panel"] === REPORT_PANEL && ran[0]?.result.verdict === "failed" && (
+            <DefectReportPanel
+              title={test.title}
+              latest={ran[0]}
+              close={withPanel(route)}
+              reporting={reporting}
+              {...(onReport === undefined ? {} : { onSubmit: onReport })}
+            />
+          )}
         </>
       )}
       <TechnicalDetails>

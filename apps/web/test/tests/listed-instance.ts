@@ -2,7 +2,10 @@ import { campaignCounts } from "@open-qa-stack/domain/sessions";
 import type {
   Campaign,
   CampaignProgress,
+  DefectReport,
+  DefectStatus,
   Execution,
+  ListedDefect,
   LaunchState,
   RepositoryTest,
   TestChange,
@@ -55,6 +58,38 @@ export class ListedInstance {
 
   /** The code the instance refuses the next change of a test with, once; none to take it. */
   public changeRefusal: string | undefined;
+
+  /** The defects reported from its tests, the latest first. */
+  public defects: ListedDefect[] = [];
+
+  /** The code the instance refuses the next report or move of a defect with, once; none to take it. */
+  public defectRefusal: string | undefined;
+
+  /** Answers what is asked of the defects; `undefined` for any other path. */
+  #defectsApi(path: string, method: string, body: string | undefined): { status: number; body: string } | undefined {
+    if (path === "/api/defects" && method === "GET") {
+      const count = (...stages: string[]) => this.defects.filter(({ stage }) => stages.includes(stage)).length;
+      return {
+        status: 200,
+        body: JSON.stringify({ items: this.defects, counts: { open: count("open"), toReplay: count("to_replay"), closed: count("closed", "replayed") } }),
+      };
+    }
+    const id = /^\/api\/defects(?:\/([^/]+))?$/.exec(path)?.[1];
+    if (!path.startsWith("/api/defects")) return undefined;
+    const refusal = this.defectRefusal;
+    this.defectRefusal = undefined;
+    if (refusal !== undefined) return { status: 404, body: JSON.stringify({ code: refusal, detail: "No." }) };
+    if (id === undefined) {
+      const report = JSON.parse(body!) as DefectReport;
+      const defect: ListedDefect = { ...report, id: `D-${this.defects.length + 1}`, status: "open", openedAt: "2026-11-27T10:00:00.000Z", stage: "open" };
+      this.defects = [defect, ...this.defects];
+      return { status: 201, body: JSON.stringify(defect) };
+    }
+    const { status } = JSON.parse(body!) as { status: DefectStatus };
+    const stage = status === "fixed" ? "to_replay" : status;
+    this.defects = this.defects.map((defect) => (defect.id === decodeURIComponent(id) ? { ...defect, status, stage } : defect));
+    return { status: 200, body: JSON.stringify(this.defects.find((defect) => defect.id === decodeURIComponent(id))) };
+  }
 
   /** Answers a change of a test: refused once when the test asks it, otherwise the test as its file would tell it. */
   #changed(body: string): { status: number; body: string } {
@@ -151,6 +186,8 @@ export class ListedInstance {
   public readonly api: Api = (request) => {
     const campaigns = this.#campaignsApi(request.path, request.method, request.body);
     if (campaigns !== undefined) return campaigns;
+    const defects = this.#defectsApi(request.path, request.method, request.body);
+    if (defects !== undefined) return defects;
     if (request.path === "/api/configuration" && this.unconfigured) return { status: 503, body: JSON.stringify({ code: "unavailable" }) };
     if (request.path === "/api/tests" && request.method === "PATCH") return this.#changed(request.body!);
     if (request.path === "/api/tests") return { status: 200, body: JSON.stringify({ items: this.tests }) };

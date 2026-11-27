@@ -20,6 +20,7 @@ export type PrintingCommand =
           | "stop"
           | "tests"
           | "reviews"
+          | "defects"
           | "executions"
           | "launch"
           | "campaigns"
@@ -43,6 +44,7 @@ const PRINTING: Readonly<Record<PrintingCommand["name"], true>> = {
   model: true,
   tests: true,
   reviews: true,
+  defects: true,
   executions: true,
   launch: true,
   campaigns: true,

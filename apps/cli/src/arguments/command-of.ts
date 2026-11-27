@@ -1,3 +1,4 @@
+import { defectsOf } from "./defects-arguments.ts";
 import { reviewsOf } from "./reviews-arguments.ts";
 import { agentsOf } from "./agents-arguments.ts";
 import { applicationsOf } from "./applications-arguments.ts";
@@ -47,6 +48,7 @@ export function commandOf(
   if (name === "secrets") return secretsOf(rest, opens || follow);
   if (name === "tests") return testsOf(rest, opens || follow);
   if (name === "reviews") return reviewsOf(rest, opens || follow);
+  if (name === "defects") return defectsOf(rest, opens || follow);
   if (name === "executions") return executionsOf(rest, opens || follow);
   if (name === "campaigns") return campaignsOf(rest, { environment, brief, follow });
   if (name === "repository" || name === "project")

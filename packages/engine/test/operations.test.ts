@@ -21,6 +21,7 @@ import {
   Sessions,
   TestReadings,
   TestReviews,
+  Defects,
   TestSources,
   type EngineClasses,
 } from "../src/index.ts";
@@ -40,6 +41,7 @@ const CLASSES: { readonly [C in keyof EngineClasses]: { readonly prototype: obje
   KnowledgeSources,
   RepositoryTests,
   TestReviews,
+  Defects,
   TestReadings,
   TestSources,
   Executions,

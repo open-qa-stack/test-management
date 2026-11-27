@@ -1,0 +1,68 @@
+/* The screen of the defects: the views, then a table that reads as cards on a phone. */
+.defects-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.defects-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.defects-table thead {
+  display: none;
+}
+
+.defects-table tr {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--hairline) solid var(--line);
+}
+
+.defects-table td {
+  overflow-wrap: anywhere;
+}
+
+.defects-gestures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.defects-gestures .btn {
+  min-height: 44px;
+}
+
+.defects-unread {
+  color: var(--ko);
+}
+
+/* A wide screen shows the table as one: a line a defect, its gestures at its end. */
+@media (min-width: 960px) {
+  .defects-table thead {
+    display: table-header-group;
+  }
+
+  .defects-table tr {
+    display: table-row;
+  }
+
+  .defects-table th,
+  .defects-table td {
+    padding: var(--space-2) var(--space-3);
+    border-top: var(--hairline) solid var(--line);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .defects-gestures {
+    justify-content: flex-end;
+  }
+
+  .defects-gestures .btn {
+    min-height: 0;
+  }
+}

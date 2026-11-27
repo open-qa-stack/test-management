@@ -1,5 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
-import type { RepositoryTest, TestEdit } from "@open-qa-stack/domain/sessions";
+import { useEffect, useState, type FormEventHandler, type ReactNode } from "react";
+import { defectReportOf, type RepositoryTest, type TestEdit } from "@open-qa-stack/domain/sessions";
+import { defectsHref } from "../defects/defects-paths.ts";
+import { t } from "../i18n/i18n.ts";
 import type { ApiError } from "../api/api-error.ts";
 import { api } from "../api/instance-api.ts";
 import { usePolled } from "../api/use-polled.ts";
@@ -17,6 +19,7 @@ export function TestPage({ project, path, route }: { readonly project: string; r
   const ended = relaunch.endedAt;
   const [changes, setChanges] = useState(0);
   const [saving, setSaving] = useState<{ readonly pending: boolean; readonly refusal?: string }>({ pending: false });
+  const [reporting, setReporting] = useState<{ readonly pending: boolean; readonly refusal?: string }>({ pending: false });
   const tests = usePolled(() => api.tests(), `tests:${changes}`);
   const source = usePolled(() => api.testSource(path), `${path} source:${changes}`);
   // The executions are read again as each launch ends, which brings the one of a relaunch.
@@ -36,6 +39,28 @@ export function TestPage({ project, path, route }: { readonly project: string; r
       (error: ApiError) => setSaving({ pending: false, refusal: error.message }),
     );
   };
+  // A defect reported is kept by the instance, which lists it with the others.
+  const onReport: FormEventHandler<HTMLFormElement> = (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const test = tests.value?.find((candidate) => candidate.path === path);
+    const report = defectReportOf({
+      title: form.get("title"),
+      severity: form.get("severity"),
+      description: form.get("description"),
+      execution: form.get("execution"),
+      test: { path, title: test?.title },
+    });
+    if (typeof report === "string") return setReporting({ pending: false, refusal: t("defects.report.incomplete") });
+    setReporting({ pending: true });
+    api.reportDefect(report).then(
+      () => {
+        setReporting({ pending: false });
+        window.location.hash = defectsHref();
+      },
+      (error: ApiError) => setReporting({ pending: false, refusal: error.message }),
+    );
+  };
   return (
     <TestScreen
       project={project}
@@ -50,6 +75,8 @@ export function TestPage({ project, path, route }: { readonly project: string; r
       onChange={onChange}
       relaunch={relaunch.state}
       onRelaunch={relaunch.onLaunch}
+      reporting={reporting}
+      onReport={onReport}
     />
   );
 }

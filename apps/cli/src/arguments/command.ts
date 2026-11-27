@@ -3,6 +3,8 @@ import type {
   DomainChange,
   CampaignDetails,
   CampaignLaunchScope,
+  DefectReport,
+  DefectStatus,
   ExecutionOrigin,
   ExecutionOutcome,
   ReviewDecision,
@@ -91,6 +93,12 @@ export type Command =
   | { readonly name: "reviews"; readonly action: "show"; readonly id: string }
   /** Validate one of them, which enters the working branch, or set it aside with why. */
   | { readonly name: "reviews"; readonly action: "decide"; readonly id: string; readonly decision: ReviewDecision }
+  /** List the defects reported from tests that failed. */
+  | { readonly name: "defects"; readonly action: "list" }
+  /** Report a defect of a test. */
+  | { readonly name: "defects"; readonly action: "report"; readonly report: DefectReport }
+  /** Mark a defect fixed, close it, or open it again. */
+  | { readonly name: "defects"; readonly action: "change"; readonly id: string; readonly status: DefectStatus }
   /** Launch tests of the test repository as they are, with no agent, in this process, and follow them to their end. */
   | { readonly name: "launch"; readonly paths: readonly string[]; readonly environment?: string }
   /** List the campaigns, the latest planned first, with how many of their tests came to each verdict. */

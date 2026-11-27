@@ -7,11 +7,37 @@ import { builtConsole, overflowOf, settled, tooSmallOf } from "./in-browser.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
 import { ReviewedInstance } from "./review/reviewed-instance.ts";
 import { POLICY } from "./review/review-fixture.ts";
+import { DEFECTS } from "./defects/defects-fixture.ts";
 import { DETAIL as DETAIL_TEST } from "./tests/tests-fixture.ts";
 
 const app = builtConsole();
 
 describe("the code of the console is covered in full", () => {
+  it("runs every line of the screen of the defects in the browser, from the menu, and moves a defect as the person asks", async () => {
+    const instance = new ListedInstance();
+    instance.defects = [...DEFECTS.items];
+    const [screen] = await app().measure(
+      ["src/defects/defects-page.tsx"],
+      async (page) => {
+        await page.goto("http://console.test/#/agent");
+        await page.getByRole("link", { name: "Anomalies" }).first().click();
+        await page.waitForURL(/#\/defects$/);
+        await page.getByText("The premium shows 0").waitFor();
+        await page.getByRole("button", { name: "Marquer corrigée" }).click();
+        await page.getByText("Aucune anomalie ouverte").waitFor();
+        assert.deepEqual(instance.defects.find(({ id }) => id === "D-3")?.status, "fixed");
+        // A move the instance refuses says why, and leaves the defect where it is.
+        await page.getByRole("link", { name: /À rejouer/ }).click();
+        instance.defectRefusal = "unknown_defect";
+        await page.getByRole("button", { name: "Rouvrir" }).first().click();
+        await page.getByText("L’instance ne garde plus cette anomalie.").waitFor();
+      },
+      instance.api,
+    );
+    assert.ok(screen!.lines.length > 0, "the module is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
   it("runs every line of the screen of the review in the browser, from the menu, and goes through its tests with J and K", async () => {
     const instance = new ReviewedInstance();
     const [screen] = await app().measure(
@@ -143,6 +169,29 @@ describe("the code of the console is covered in full", () => {
         await page.goBack();
         await page.getByRole("button", { name: "Relancer ce test" }).waitFor();
         instance.unconfigured = false;
+        // A test whose last run failed reports a defect, written from its failure; the defects then list it.
+        const executions = instance.executions;
+        const [latest] = executions;
+        instance.executions = [{ ...latest!, results: [{ ...latest!.results[1]!, title: DETAIL_TEST.title }] }, ...executions.slice(1)];
+        // The card reads the executions again at its pace, and shows the failure.
+        await page.getByRole("link", { name: "Signaler l’anomalie" }).click();
+        const dialog = page.getByRole("dialog");
+        await dialog.getByLabel("Titre", { exact: true }).fill(" ");
+        await dialog.getByRole("button", { name: "Créer l’anomalie" }).click();
+        await dialog.getByText("Donnez un titre à l’anomalie.").waitFor();
+        await dialog.getByLabel("Titre", { exact: true }).fill("The policy is refused");
+        instance.defectRefusal = "invalid_request";
+        await dialog.getByRole("button", { name: "Créer l’anomalie" }).click();
+        await dialog.getByRole("alert").waitFor();
+        await dialog.getByRole("button", { name: "Créer l’anomalie" }).click();
+        await page.waitForURL(/#\/defects$/);
+        assert.deepEqual(
+          instance.defects.map(({ title, severity, test, execution }) => [title, severity, test.title, execution]),
+          // The test was renamed earlier in this run.
+          [["The policy is refused", "S2", "Show the detail of a policy", latest!.id]],
+        );
+        instance.executions = executions;
+        await page.goBack();
         await page.getByRole("link", { name: /Voir le dernier résultat/ }).click();
         await page.waitForURL(/#\/executions\/result\?id=/);
       },

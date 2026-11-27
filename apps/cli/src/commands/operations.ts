@@ -4,6 +4,7 @@ import { CONFIG_FILE_NAME, DATABASE_FILE_NAME, DEFAULT_REPOSITORY, type Model } 
 import {
   Campaigns,
   Configuration,
+  Defects,
   EnvironmentAddresses,
   Executions,
   FileSecretStore,
@@ -54,6 +55,8 @@ export interface Operations {
   readonly executions: Executions;
   /** The tests the agents wrote, for a person to review. */
   readonly reviews: TestReviews;
+  /** The defects reported from tests that failed. */
+  readonly defects: Defects;
   /** The campaigns of tests of the instance. */
   readonly campaigns: Campaigns;
   /** The domains the cartography found in the knowledge. */
@@ -145,6 +148,7 @@ export async function openOperations(
     code: new TestSources({ repository, configuration: instance.configuration, tests, identities: instance.tests }),
     executions: new Executions(instance.executions),
     reviews: new TestReviews(repository, instance.configuration, instance.testDecisions, instance.sessions),
+    defects: new Defects(instance.defects, instance.executions),
     close,
   };
 }

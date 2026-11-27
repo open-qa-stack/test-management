@@ -16,6 +16,7 @@ interface RunningCommand {
     | "secrets"
     | "tests"
     | "reviews"
+    | "defects"
     | "launch"
     | "campaigns"
     | "executions"
@@ -42,6 +43,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   { name: "applications", runs: ["applications"] },
   { name: "tests", runs: ["tests"] },
   { name: "reviews", runs: ["reviews"] },
+  { name: "defects", runs: ["defects"] },
   { name: "launch", runs: ["launch"] },
   { name: "campaigns", runs: ["campaigns"] },
   { name: "executions", runs: ["executions"] },

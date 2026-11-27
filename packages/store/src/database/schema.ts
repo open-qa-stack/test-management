@@ -235,6 +235,21 @@ export interface TestDecisionsTable {
   note: string | null;
 }
 
+/** The defects a person reported from a test that failed, each under its number. */
+export interface DefectsTable {
+  number: number;
+  title: string;
+  severity: string;
+  description: string;
+  test_path: string;
+  test_title: string;
+  execution: string | null;
+  status: string;
+  opened_at: string;
+  fixed_at: string | null;
+  closed_at: string | null;
+}
+
 /**
  * The schema of the database of an instance, on every database the store supports: the tables the migrations
  * create, and what the statements of the store are checked against.
@@ -254,5 +269,6 @@ export interface StoreSchema {
   tests: TestsTable;
   domain_settings: DomainSettingsTable;
   test_decisions: TestDecisionsTable;
+  defects: DefectsTable;
   memories: MemoriesTable;
 }
