@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="t d" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" width="1200" height="760" role="img" aria-labelledby="t d" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
 <title id="t">How Open QA Stack works</title>
-<desc id="d">What you know of your applications and your request feed a loop of agents — plan, write, run, review — that turns once for each level of the test pyramid. A harness at the centre of the loop accepts or refuses what the agents submit. The loop gives a Playwright project you own: tests, page objects and a verdict per test.</desc>
+<desc id="d">What you know of your applications, your request and the memory of the agents go in. Agents map each source once: a source cartographer, an application explorer and a domain writer. Then, level by level — smoke, functional, business, cross-application, end-to-end, visual — a planner explores the application and proposes scenarios, a plan reviewer sets aside what is already tested, a writer writes and runs each Playwright test, and two reviewers check it against its plan and its code quality, all inside a harness that accepts on evidence and refuses with a reason. The result is a Playwright project in your repository, on a branch. People decide: they review each test, report defects and run campaigns; a correction goes back to the writer and can become an instruction in the memory.</desc>
 <defs>
-<clipPath id="c"><rect width="1200" height="600" rx="28"/></clipPath>
+<clipPath id="c"><rect width="1200" height="760" rx="28"/></clipPath>
 <radialGradient id="g0" cx="10%" cy="8%" r="70%"><stop offset="0" stop-color="#2458d6"/><stop offset="1" stop-color="#2458d6" stop-opacity="0"/></radialGradient>
 <radialGradient id="g1" cx="96%" cy="6%" r="60%"><stop offset="0" stop-color="#7c5cf2"/><stop offset="1" stop-color="#7c5cf2" stop-opacity="0"/></radialGradient>
 <radialGradient id="g2" cx="4%" cy="98%" r="60%"><stop offset="0" stop-color="#1fc7b6"/><stop offset="1" stop-color="#1fc7b6" stop-opacity="0"/></radialGradient>
@@ -11,66 +11,178 @@
 <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
 <style>
 text{fill:#fff}
-.h{font-size:21px;font-weight:650}
-.s{font-size:16px;opacity:.82}
-.n{font-size:19px;font-weight:650;text-anchor:middle;dominant-baseline:central}
+.t{font-size:24px;font-weight:700;text-anchor:middle}
+.st{font-size:16px;text-anchor:middle;opacity:.85}
+.h{font-size:20px;font-weight:650}
+.s{font-size:15px;opacity:.82}
+.a{font-size:15px;font-weight:650}
+.d{font-size:13px;opacity:.8}
+.c{font-size:13px;font-weight:600;text-anchor:middle;dominant-baseline:central}
+.hn{font-size:12px;font-weight:700;letter-spacing:.12em;text-anchor:middle}
+.hpill{fill:#1d3f93;stroke:#fff;stroke-opacity:.7;stroke-width:1.5}
+.nt{font-size:14px;font-weight:700;text-anchor:middle;dominant-baseline:central;fill:#16357f}
+.num{fill:#fff}
 .card{fill:#fff;fill-opacity:.1;stroke:#fff;stroke-opacity:.42;stroke-width:1.5}
+.pill{fill:#0d2460;fill-opacity:.45;stroke:#fff;stroke-opacity:.35;stroke-width:1.2}
+.chip{fill:#fff;fill-opacity:.08;stroke:#fff;stroke-opacity:.35;stroke-width:1.2}
+.harness{fill:none;stroke:#fff;stroke-opacity:.7;stroke-width:2;stroke-dasharray:7 6}
+.hlit{fill:none;stroke:#7ff0e0;stroke-width:3;stroke-opacity:0;animation:guard 20s ease-in-out infinite}
+.bot{fill:#fff;fill-opacity:.16;stroke:#fff;stroke-opacity:.7;stroke-width:1.4}
+.eye{fill:#fff;opacity:.35;animation:eye 20s ease-in-out infinite}
+.tick{fill:#fff;fill-opacity:.14;stroke:#fff;stroke-opacity:.6;stroke-width:1.5}
+.lit{fill:#fff;fill-opacity:0}
 .flow{fill:none;stroke:#fff;stroke-opacity:.78;stroke-width:2.5;stroke-linecap:round;stroke-dasharray:2 10;animation:flow 1.6s linear infinite}
-.ring{fill:none;stroke:#fff;stroke-opacity:.3;stroke-width:3}
-.node{fill:#16357f;fill-opacity:.55;stroke:#fff;stroke-width:2.5}
-.lit{fill:#fff;fill-opacity:0;animation:lit 4s ease-in-out infinite}
-.chip{fill:#fff;fill-opacity:.08;stroke:#fff;stroke-opacity:.35;stroke-width:1.5}
-.on{fill:#fff;fill-opacity:0;animation:level 20s ease-in-out infinite}
-.chk{fill:none;stroke:#fff;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
-.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 4s cubic-bezier(.65,0,.35,1) infinite}
-.bg1{transform-origin:600px 300px;animation:drift 12s ease-in-out infinite alternate}
-.bg2{transform-origin:600px 300px;animation:drift 16s ease-in-out infinite alternate-reverse}
+.chk{fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 20s cubic-bezier(.65,0,.35,1) infinite}
+.bg1{transform-origin:600px 380px;animation:drift 12s ease-in-out infinite alternate}
+.bg2{transform-origin:600px 380px;animation:drift 16s ease-in-out infinite alternate-reverse}
+@keyframes p1{0%{fill-opacity:0}0.8%,4.0%{fill-opacity:.2}5.0%,100%{fill-opacity:0}}.l1{animation:p1 20s ease-in-out infinite}@keyframes p2{0%{fill-opacity:0}1.5%,8.0%{fill-opacity:.2}10.0%,100%{fill-opacity:0}}.l2{animation:p2 20s ease-in-out infinite}@keyframes p3{0%{fill-opacity:0}2.3%,12.0%{fill-opacity:.2}15.0%,100%{fill-opacity:0}}.l3{animation:p3 20s ease-in-out infinite}@keyframes p8{0%{fill-opacity:0}6.0%,32.0%{fill-opacity:.2}40.0%,100%{fill-opacity:0}}.l8{animation:p8 20s ease-in-out infinite}
+@keyframes eye{0%,100%{opacity:.35}2%,8%{opacity:1}10%{opacity:.35}}
+@keyframes guard{0%,29%{stroke-opacity:0}33%,66%{stroke-opacity:.55}70%,100%{stroke-opacity:0}}
 @keyframes flow{to{stroke-dashoffset:-24}}
-@keyframes lit{0%,100%{fill-opacity:0}6%,19%{fill-opacity:.3}25%{fill-opacity:0}}
-@keyframes level{0%,100%{fill-opacity:0}2%,18%{fill-opacity:.26}20%{fill-opacity:0}}
-@keyframes draw{0%{stroke-dashoffset:1}18%,100%{stroke-dashoffset:0}}
+@keyframes draw{0%{stroke-dashoffset:1}6%,100%{stroke-dashoffset:0}}
 @keyframes drift{from{transform:rotate(-6deg) scale(1.1)}to{transform:rotate(7deg) scale(1.22)}}
-@media (prefers-reduced-motion:reduce){.flow,.lit,.on,.draw,.bg1,.bg2{animation:none}.draw{stroke-dashoffset:0}.dot{display:none}}
+@media (prefers-reduced-motion:reduce){.flow,.lit,.hlit,.eye,.draw,.bg1,.bg2{animation:none}.draw{stroke-dashoffset:0}.dot{display:none}}
 </style>
 </defs>
-<g clip-path="url(#c)"><rect width="1200" height="600" fill="#16357f"/><rect width="1200" height="600" fill="url(#g0)"/><rect class="bg1" width="1200" height="600" fill="url(#g1)" opacity=".75"/><rect class="bg2" width="1200" height="600" fill="url(#g2)" opacity=".7"/><rect class="bg1" width="1200" height="600" fill="url(#g3)" opacity=".5"/></g>
-<text x="640" y="58" text-anchor="middle" class="h" style="font-size:22px">One loop of agents per level of your test pyramid</text>
-<rect class="card" x="40" y="136" width="262" height="96" rx="18"/>
-<text x="62" y="176" class="h">What you know</text>
-<text x="62" y="204" class="s">Specs · APIs · databases · code</text>
-<rect class="card" x="40" y="352" width="262" height="96" rx="18"/>
-<text x="62" y="392" class="h">Your request</text>
-<text x="62" y="420" class="s">In plain words</text>
-<path class="flow" marker-end="url(#arrow)" d="M302 184 C372 184 380 270 438 282"/>
-<path class="flow" marker-end="url(#arrow)" d="M302 400 C372 400 380 314 438 302"/>
-<circle class="ring" cx="640" cy="292" r="150"/>
-<g class="dot"><circle r="16" fill="url(#glow)" opacity=".55"><animateMotion dur="4s" repeatCount="indefinite" path="M490 292A150 150 0 1 1 790 292A150 150 0 1 1 490 292"/></circle><circle r="6" fill="#fff"><animateMotion dur="4s" repeatCount="indefinite" path="M490 292A150 150 0 1 1 790 292A150 150 0 1 1 490 292"/></circle></g>
-<g transform="translate(640 258)"><path class="chk" style="stroke-width:3.4" d="M26.1 -7A27 27 0 1 1 7 -26.1"/><path class="chk draw" pathLength="1" d="M-11 0L-2 9L27 -24"/></g>
-<text x="640" y="318" text-anchor="middle" class="h" style="letter-spacing:.14em;font-size:18px">HARNESS</text>
-<text x="640" y="342" text-anchor="middle" class="s" style="font-size:15px">accepts on evidence,</text>
-<text x="640" y="362" text-anchor="middle" class="s" style="font-size:15px">refuses the rest</text>
-<circle class="node" cx="490" cy="292" r="46"/><circle class="lit" style="animation-delay:0s" cx="490" cy="292" r="46"/><text class="n" x="490" y="292">Plan</text>
-<circle class="node" cx="640" cy="142" r="46"/><circle class="lit" style="animation-delay:1s" cx="640" cy="142" r="46"/><text class="n" x="640" y="142">Write</text>
-<circle class="node" cx="790" cy="292" r="46"/><circle class="lit" style="animation-delay:2s" cx="790" cy="292" r="46"/><text class="n" x="790" y="292">Run</text>
-<circle class="node" cx="640" cy="442" r="46"/><circle class="lit" style="animation-delay:3s" cx="640" cy="442" r="46"/><text class="n" x="640" y="442">Review</text>
-<path class="flow" marker-end="url(#arrow)" d="M836 292 L914 292"/>
-<rect class="card" x="922" y="160" width="240" height="264" rx="18"/>
-<text x="944" y="202" class="h">A Playwright project</text>
-<text x="944" y="228" class="h">you own</text>
-<circle cx="958" cy="278" r="13" fill="#fff" fill-opacity=".14" stroke="#fff" stroke-opacity=".6" stroke-width="1.5"/><path class="chk draw" pathLength="1" style="stroke-width:2.6;animation-delay:0.5s" d="M952 278l4.5 4.5l8 -9"/>
-<text x="984" y="278" class="s" style="font-size:17px;opacity:.95" dominant-baseline="central">Tests</text>
-<circle cx="958" cy="324" r="13" fill="#fff" fill-opacity=".14" stroke="#fff" stroke-opacity=".6" stroke-width="1.5"/><path class="chk draw" pathLength="1" style="stroke-width:2.6;animation-delay:0.85s" d="M952 324l4.5 4.5l8 -9"/>
-<text x="984" y="324" class="s" style="font-size:17px;opacity:.95" dominant-baseline="central">Page objects</text>
-<circle cx="958" cy="370" r="13" fill="#fff" fill-opacity=".14" stroke="#fff" stroke-opacity=".6" stroke-width="1.5"/><path class="chk draw" pathLength="1" style="stroke-width:2.6;animation-delay:1.2s" d="M952 370l4.5 4.5l8 -9"/>
-<text x="984" y="370" class="s" style="font-size:17px;opacity:.95" dominant-baseline="central">A verdict per test</text>
-<rect class="chip" x="242" y="508" width="148" height="40" rx="20"/><rect class="on" style="animation-delay:0s" x="242" y="508" width="148" height="40" rx="20"/><text x="316" y="528" text-anchor="middle" dominant-baseline="central" style="font-size:16px;font-weight:600">smoke</text>
-<path d="M392 528h10" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
-<rect class="chip" x="404" y="508" width="148" height="40" rx="20"/><rect class="on" style="animation-delay:4s" x="404" y="508" width="148" height="40" rx="20"/><text x="478" y="528" text-anchor="middle" dominant-baseline="central" style="font-size:16px;font-weight:600">functional</text>
-<path d="M554 528h10" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
-<rect class="chip" x="566" y="508" width="148" height="40" rx="20"/><rect class="on" style="animation-delay:8s" x="566" y="508" width="148" height="40" rx="20"/><text x="640" y="528" text-anchor="middle" dominant-baseline="central" style="font-size:16px;font-weight:600">business</text>
-<path d="M716 528h10" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
-<rect class="chip" x="728" y="508" width="148" height="40" rx="20"/><rect class="on" style="animation-delay:12s" x="728" y="508" width="148" height="40" rx="20"/><text x="802" y="528" text-anchor="middle" dominant-baseline="central" style="font-size:16px;font-weight:600">cross-app</text>
-<path d="M878 528h10" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
-<rect class="chip" x="890" y="508" width="148" height="40" rx="20"/><rect class="on" style="animation-delay:16s" x="890" y="508" width="148" height="40" rx="20"/><text x="964" y="528" text-anchor="middle" dominant-baseline="central" style="font-size:16px;font-weight:600">visual</text>
-<text x="640" y="578" text-anchor="middle" class="s" style="font-size:15px">Each level builds on the tests of the one before</text>
+<g clip-path="url(#c)"><rect width="1200" height="760" fill="#16357f"/><rect width="1200" height="760" fill="url(#g0)"/><rect class="bg1" width="1200" height="760" fill="url(#g1)" opacity=".75"/><rect class="bg2" width="1200" height="760" fill="url(#g2)" opacity=".7"/><rect class="bg1" width="1200" height="760" fill="url(#g3)" opacity=".5"/></g>
+<text x="600" y="52" class="t">From what you know to tests your team decides on</text>
+<text x="600" y="80" class="st">Each agent does one thing. A harness holds every one of them to what was really seen.</text>
+<rect class="card" x="40" y="118" width="230" height="92" rx="18"/>
+<rect class="lit l3" style="animation-delay:0s" x="40" y="118" width="230" height="92" rx="18"/>
+<text x="60" y="152" class="h">What you know</text>
+<text x="60" y="178" class="s">Specs · APIs · databases</text>
+<text x="60" y="198" class="s">· code · your applications</text>
+<rect class="card" x="40" y="228" width="230" height="92" rx="18"/>
+<rect class="lit l3" style="animation-delay:0s" x="40" y="228" width="230" height="92" rx="18"/>
+<text x="60" y="262" class="h">Your request</text>
+<text x="60" y="288" class="s">In plain words, from the</text>
+<text x="60" y="308" class="s">terminal or the console</text>
+<rect class="card" x="40" y="338" width="230" height="112" rx="18"/>
+<rect class="lit l3" style="animation-delay:17s" x="40" y="338" width="230" height="112" rx="18"/>
+<text x="60" y="372" class="h">Memory</text>
+<text x="60" y="398" class="s">Your instructions and what</text>
+<text x="60" y="418" class="s">the agents noted — read</text>
+<text x="60" y="438" class="s">before every task</text>
+<rect class="card" x="300" y="118" width="250" height="332" rx="18"/>
+<rect class="lit l3" style="animation-delay:3s" x="300" y="118" width="250" height="332" rx="18"/>
+<circle cx="326" cy="146" r="15" class="num"/>
+<text x="326" y="147" class="nt">1</text>
+<text x="350" y="152" class="h">Map</text>
+<text x="320" y="178" class="s">once per source, kept until</text>
+<text x="320" y="198" class="s">the source changes</text>
+<rect class="pill" x="316" y="216" width="218" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:3.2s" x="316" y="216" width="218" height="52" rx="14"/>
+<circle cx="338" cy="242" r="9" class="bot"/><circle class="eye" cx="338" cy="242" r="3.2" style="animation-delay:3.2s"/>
+<text x="358" y="238" class="a">Source cartographer</text>
+<text x="358" y="257" class="d">reads an API, a schema</text>
+<rect class="pill" x="316" y="276" width="218" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:4s" x="316" y="276" width="218" height="52" rx="14"/>
+<circle cx="338" cy="302" r="9" class="bot"/><circle class="eye" cx="338" cy="302" r="3.2" style="animation-delay:4s"/>
+<text x="358" y="298" class="a">Application explorer</text>
+<text x="358" y="317" class="d">opens every screen</text>
+<rect class="pill" x="316" y="336" width="218" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:4.8s" x="316" y="336" width="218" height="52" rx="14"/>
+<circle cx="338" cy="362" r="9" class="bot"/><circle class="eye" cx="338" cy="362" r="3.2" style="animation-delay:4.8s"/>
+<text x="358" y="358" class="a">Domain writer</text>
+<text x="358" y="377" class="d">groups by business domain</text>
+<text x="320" y="424" class="s" style="font-size:14px">→ domains · screens · endpoints</text>
+<rect class="harness" x="580" y="106" width="340" height="356" rx="22"/>
+<rect class="hlit" x="580" y="106" width="340" height="356" rx="22"/>
+<rect class="hpill" x="630" y="94" width="240" height="24" rx="12"/>
+<text x="750" y="107" class="hn" dominant-baseline="central">HARNESS · ACCEPTS ON EVIDENCE</text>
+<rect class="card" x="594" y="136" width="312" height="314" rx="18"/>
+<rect class="lit l8" style="animation-delay:6s" x="594" y="136" width="312" height="314" rx="18"/>
+<circle cx="620" cy="164" r="15" class="num"/>
+<text x="620" y="165" class="nt">2</text>
+<text x="644" y="170" class="h">Design, level by level</text>
+<rect class="pill" x="610" y="190" width="280" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:6.2s" x="610" y="190" width="280" height="52" rx="14"/>
+<circle cx="632" cy="216" r="9" class="bot"/><circle class="eye" cx="632" cy="216" r="3.2" style="animation-delay:6.2s"/>
+<text x="652" y="212" class="a">Planner</text>
+<text x="652" y="231" class="d">explores the app, proposes scenarios</text>
+<rect class="pill" x="610" y="252" width="280" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:8.2s" x="610" y="252" width="280" height="52" rx="14"/>
+<circle cx="632" cy="278" r="9" class="bot"/><circle class="eye" cx="632" cy="278" r="3.2" style="animation-delay:8.2s"/>
+<text x="652" y="274" class="a">Plan reviewer</text>
+<text x="652" y="293" class="d">sets aside what is already tested</text>
+<rect class="pill" x="610" y="314" width="280" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:10.2s" x="610" y="314" width="280" height="52" rx="14"/>
+<circle cx="632" cy="340" r="9" class="bot"/><circle class="eye" cx="632" cy="340" r="3.2" style="animation-delay:10.2s"/>
+<text x="652" y="336" class="a">Writer</text>
+<text x="652" y="355" class="d">writes the Playwright test, runs it</text>
+<rect class="pill" x="610" y="376" width="280" height="52" rx="14"/>
+<rect class="lit l2" style="animation-delay:12.2s" x="610" y="376" width="280" height="52" rx="14"/>
+<circle cx="632" cy="402" r="9" class="bot"/><circle class="eye" cx="632" cy="402" r="3.2" style="animation-delay:12.2s"/>
+<text x="652" y="398" class="a">Coherence &amp; code reviewers</text>
+<text x="652" y="417" class="d">test ↔ plan · code quality</text>
+<rect class="chip" x="578" y="476" width="54" height="28" rx="14"/>
+<rect class="lit l1" style="animation-delay:6.00s" x="578" y="476" width="54" height="28" rx="14"/>
+<text x="605" y="491" class="c">smoke</text>
+<rect class="chip" x="636" y="476" width="76" height="28" rx="14"/>
+<rect class="lit l1" style="animation-delay:7.33s" x="636" y="476" width="76" height="28" rx="14"/>
+<text x="674" y="491" class="c">functional</text>
+<rect class="chip" x="716" y="476" width="68" height="28" rx="14"/>
+<rect class="lit l1" style="animation-delay:8.67s" x="716" y="476" width="68" height="28" rx="14"/>
+<text x="750" y="491" class="c">business</text>
+<rect class="chip" x="788" y="476" width="70" height="28" rx="14"/>
+<rect class="lit l1" style="animation-delay:10.00s" x="788" y="476" width="70" height="28" rx="14"/>
+<text x="823" y="491" class="c">cross-app</text>
+<rect class="chip" x="862" y="476" width="82" height="28" rx="14"/>
+<rect class="lit l1" style="animation-delay:11.33s" x="862" y="476" width="82" height="28" rx="14"/>
+<text x="903" y="491" class="c">end-to-end</text>
+<rect class="chip" x="948" y="476" width="54" height="28" rx="14"/>
+<rect class="lit l1" style="animation-delay:12.67s" x="948" y="476" width="54" height="28" rx="14"/>
+<text x="975" y="491" class="c">visual</text>
+<text x="750" y="524" class="s" text-anchor="middle" style="font-size:14px">each level builds on the tests of the one before</text>
+<rect class="card" x="950" y="118" width="210" height="332" rx="18"/>
+<rect class="lit l3" style="animation-delay:14s" x="950" y="118" width="210" height="332" rx="18"/>
+<circle cx="976" cy="146" r="15" class="num"/>
+<text x="976" y="147" class="nt">3</text>
+<text x="1000" y="152" class="h">Your project</text>
+<text x="970" y="178" class="s">Playwright, in your git</text>
+<text x="970" y="198" class="s">repository, on a branch</text>
+<circle cx="984" cy="238" r="13" class="tick"/><path class="chk draw" pathLength="1" style="animation-delay:14.0s" d="M978 238l4.5 4.5l8 -9"/>
+<text x="1006" y="238" class="s" dominant-baseline="central" style="opacity:.95">Tests</text>
+<circle cx="984" cy="286" r="13" class="tick"/><path class="chk draw" pathLength="1" style="animation-delay:14.4s" d="M978 286l4.5 4.5l8 -9"/>
+<text x="1006" y="286" class="s" dominant-baseline="central" style="opacity:.95">Page objects</text>
+<circle cx="984" cy="334" r="13" class="tick"/><path class="chk draw" pathLength="1" style="animation-delay:14.8s" d="M978 334l4.5 4.5l8 -9"/>
+<text x="1006" y="334" class="s" dominant-baseline="central" style="opacity:.95">Fixtures, tags</text>
+<circle cx="984" cy="382" r="13" class="tick"/><path class="chk draw" pathLength="1" style="animation-delay:15.2s" d="M978 382l4.5 4.5l8 -9"/>
+<text x="1006" y="382" class="s" dominant-baseline="central" style="opacity:.95">A verdict per test</text>
+<text x="970" y="430" class="s" style="font-size:14px">runs without Open QA Stack</text>
+<rect class="card" x="300" y="560" width="860" height="150" rx="18"/>
+<rect class="lit l3" style="animation-delay:17s" x="300" y="560" width="860" height="150" rx="18"/>
+<circle cx="326" cy="590" r="15" class="num"/>
+<text x="326" y="591" class="nt">4</text>
+<text x="350" y="596" class="h">People decide</text>
+<text x="500" y="596" class="s">nothing enters the suite without you</text>
+<rect class="pill" x="320" y="616" width="260" height="76" rx="14"/>
+<rect class="lit l1" style="animation-delay:17.2s" x="320" y="616" width="260" height="76" rx="14"/>
+<text x="338" y="642" class="a">Review</text>
+<text x="338" y="662" class="d">validate · set aside</text>
+<text x="338" y="680" class="d">· ask a correction</text>
+<rect class="pill" x="600" y="616" width="260" height="76" rx="14"/>
+<rect class="lit l1" style="animation-delay:18s" x="600" y="616" width="260" height="76" rx="14"/>
+<text x="618" y="642" class="a">Defects</text>
+<text x="618" y="662" class="d">reported from a test</text>
+<text x="618" y="680" class="d">that fails</text>
+<rect class="pill" x="880" y="616" width="260" height="76" rx="14"/>
+<rect class="lit l1" style="animation-delay:18.8s" x="880" y="616" width="260" height="76" rx="14"/>
+<text x="898" y="642" class="a">Campaigns</text>
+<text x="898" y="662" class="d">run the suite against</text>
+<text x="898" y="680" class="d">an environment</text>
+<path class="flow" marker-end="url(#arrow)" d="M270 164 C285 164 288 200 300 210"/>
+<path class="flow" marker-end="url(#arrow)" d="M270 300 C292 300 292 466 330 466 L556 466 C576 466 588 456 600 444" style="animation-delay:-.4s"/>
+<path class="flow" marker-end="url(#arrow)" d="M550 284 L590 284"/>
+<path class="flow" marker-end="url(#arrow)" d="M906 284 L946 284"/>
+<path class="flow" marker-end="url(#arrow)" d="M1055 450 L1055 554"/>
+<path class="flow" marker-end="url(#arrow)" d="M450 616 C450 560 565 570 565 500 L565 362 C565 346 584 340 604 340" style="stroke-dasharray:2 8"/>
+<text x="340" y="520" class="s" style="font-size:13px">a correction: the writer</text>
+<text x="340" y="536" class="s" style="font-size:13px">repairs the test</text>
+<path class="flow" marker-end="url(#arrow)" d="M300 660 C200 660 155 560 155 456"/>
+<text x="48" y="520" class="s" style="font-size:13px">a correction can become</text>
+<text x="48" y="536" class="s" style="font-size:13px">an instruction</text>
+<path class="flow" marker-end="url(#arrow)" d="M270 420 C290 420 296 410 300 404" style="stroke-dasharray:2 8"/>
+<g class="dot"><circle r="16" fill="url(#glow)" opacity=".55"><animateMotion dur="20s" repeatCount="indefinite" keyPoints="0;0.08;0.2;0.2;0.36;0.42;0.55;0.62;0.62;0.86;1" keyTimes="0;0.12;0.25;0.3;0.45;0.6;0.7;0.75;0.85;0.97;1" calcMode="linear" path="M155 164 L285 190 L430 260 L560 284 L750 284 L940 284 L1055 300 L1055 600 L735 640 L300 660 L155 560 L155 470"/></circle><circle r="6" fill="#fff"><animateMotion dur="20s" repeatCount="indefinite" keyPoints="0;0.08;0.2;0.2;0.36;0.42;0.55;0.62;0.62;0.86;1" keyTimes="0;0.12;0.25;0.3;0.45;0.6;0.7;0.75;0.85;0.97;1" calcMode="linear" path="M155 164 L285 190 L430 260 L560 284 L750 284 L940 284 L1055 300 L1055 600 L735 640 L300 660 L155 560 L155 470"/></circle></g>
 </svg>
