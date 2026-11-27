@@ -48,6 +48,8 @@ First, agents map what you know: each source once, kept until it changes, groupe
 
 Then your team decides. Each test waits for review: validate it, set it aside, or ask for a correction, which the writer makes. A correction can be kept as an instruction the agents read before every task.
 
+Every step, every agent and every rule of the harness: [Inside a session](docs/how-it-works.md).
+
 ## Watch the agents work
 
 <p align="center">
