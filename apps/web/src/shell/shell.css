@@ -1,7 +1,7 @@
 /*
  * The frame of every screen. On a phone it is one bar — the mark, the name of the screen and the button that opens
- * the navigation over it — over the page. From 720 px the bar holds the brand and the navigation, which keeps to the
- * screens that exist. From 1100 px the navigation stands at the left of the page, with the project and what is coming.
+ * the navigation over it — over the page. From 720 px the bar holds the brand and the navigation, and from
+ * 1100 px the navigation stands at the left of the page, with the project.
  */
 .shell {
   display: grid;
@@ -134,8 +134,7 @@
   padding: var(--space-2);
 }
 
-.nav a,
-.nav-soon {
+.nav a {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -219,20 +218,6 @@
   text-transform: uppercase;
 }
 
-.nav-soon {
-  color: var(--text-3);
-  cursor: default;
-}
-
-.soon {
-  margin-left: auto;
-  padding: 0 var(--space-2);
-  border: var(--hairline) dashed var(--field-line);
-  border-radius: var(--radius-pill);
-  font-size: var(--type-caption);
-  line-height: var(--leading-caption);
-}
-
 .shell-page {
   grid-area: 3 / 1 / auto / -1;
   min-width: 0;
@@ -285,7 +270,7 @@
 }
 
 /*
- * On a tablet the entries stand side by side in the bar, the project, the headings and what is coming left out;
+ * On a tablet the entries stand side by side in the bar, the project and the headings left out;
  * the bar scrolls when they outgrow it, and cannot widen the page.
  */
 @media (min-width: 720px) and (max-width: 1099.98px) {
@@ -311,7 +296,7 @@
     box-shadow: none;
   }
 
-  .shell-sidebar :is(.proj, .grp, .nav-soon) {
+  .shell-sidebar :is(.proj, .grp) {
     display: none;
   }
 }
@@ -366,7 +351,7 @@
     clip-path: inset(50%);
   }
 
-  .folded .shell-sidebar :is(.proj, .grp, .nav-soon) {
+  .folded .shell-sidebar :is(.proj, .grp) {
     display: none;
   }
 

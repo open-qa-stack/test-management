@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { NAVIGATION } from "../src/shell/navigation.ts";
 import { Shell, type ShellMenu } from "../src/shell/shell.tsx";
 import { at, linksOf, render, textOf } from "./render.ts";
 import { speaking } from "./i18n/in-language.ts";
@@ -54,11 +53,11 @@ describe("the shell", () => {
     assert.match(html, /<a class="brand" href="#\/agent">/);
   });
 
-  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the applications, the knowledge and the configuration as links, and what is coming as a name without one", () => {
+  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the applications, the defects, the applications, the knowledge and the configuration as links", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration page$/,
     );
     assert.deepEqual(linksOf(html), [
       "#/agent",
@@ -74,9 +73,6 @@ describe("the shell", () => {
       "#/knowledge",
       "#/configuration",
     ]);
-    const coming = NAVIGATION.flatMap((group) => group.entries).filter((entry) => entry.path === undefined);
-    assert.equal((html.match(/<span class="nav-soon">/g) ?? []).length, coming.length);
-    assert.equal(coming.length, 1);
   });
 
   it("marks the agent at the home, at its entry and under it, the tests, the executions, the campaigns and the configuration at their own, and nowhere else", () => {
@@ -88,8 +84,7 @@ describe("the shell", () => {
     assert.deepEqual(marked("#/tests"), ["#/tests"]);
     assert.deepEqual(marked("#/executions"), ["#/executions"]);
     assert.deepEqual(marked("#/campaigns/view?id=c1"), ["#/campaigns"]);
-    assert.deepEqual(marked("#/coverage"), []);
-    assert.match(shell("#/coverage"), /<a href="#\/agent"><svg /);
+    assert.deepEqual(marked("#/nowhere"), []);
   });
 
   it("has a button that folds the menu to its icons and unfolds it, when it is given one, and none otherwise", () => {
@@ -110,7 +105,6 @@ describe("the shell", () => {
     assert.equal(named("#/agent/sessions/oqas-2026-11-15T14-44-06-348Z"), "Agent");
     assert.equal(named("#/tests/view?id=t1"), "Tests");
     assert.equal(named("#/knowledge/manuals"), "Connaissances");
-    assert.equal(named("#/coverage"), "Open QA Stack");
     assert.equal(named("#/nowhere"), "Open QA Stack");
   });
 
@@ -123,7 +117,7 @@ describe("the shell", () => {
     assert.match(panel, /<h2 id="shell-menu">Menu<\/h2><a class="side-panel-close" href="#\/agent\/sessions\/s1\?show=talk" aria-label="Fermer">/);
     assert.match(
       textOf(panel),
-      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration$/,
+      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration$/,
     );
     assert.match(panel, /<a href="#\/agent" class="on" aria-current="page">/);
     assert.match(shell("#/?nav=open"), /<a class="side-panel-close" href="#\/" aria-label="Fermer">/);
@@ -159,6 +153,6 @@ describe("the shell", () => {
     await inEnglish();
     const text = textOf(shell("#/", { project: projectWith(1), unreachable: true }));
     assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back ✓ Open QA Stack Agent Menu/);
-    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery To review Tests Coverage soon/);
+    assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery To review Tests Execution/);
   });
 });
