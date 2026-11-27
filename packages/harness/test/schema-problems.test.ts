@@ -7,7 +7,7 @@ import { schemaProblems } from "../src/tools/schema-problems.ts";
 function problems(schema: object, value: unknown): string[] {
   const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   assert.equal(validate(value), false);
-  return schemaProblems(validate.errors!);
+  return schemaProblems(validate.errors!, schema);
 }
 
 const text = { type: "string", minLength: 1 };
@@ -55,6 +55,36 @@ describe("what is wrong with the arguments of a call, as a model can act on it",
     assert.deepEqual(problems(schema, { body: "b", elements: [{}, {}] }), [
       "arguments/elements/0 needs the property role",
       "arguments/elements/1 needs the property role",
+    ]);
+  });
+
+  it("tells a property written beside the one that takes it to move inside it, and a value that can only be one with that value", () => {
+    const within = { type: "object", properties: { role: text }, required: ["role"], additionalProperties: false };
+    const target = {
+      oneOf: [
+        { type: "object", properties: { role: text, exact: { const: true }, within }, required: ["role"], additionalProperties: false },
+        { type: "object", properties: { text, within }, required: ["text"], additionalProperties: false },
+      ],
+    };
+    const schema = { type: "object", properties: { target, confirm: { type: "boolean" } }, required: ["target"], additionalProperties: false };
+    assert.deepEqual(problems(schema, { target: { role: "button" }, within: { role: "row" }, checked: true }), [
+      "arguments holds within, which goes inside target: move it there",
+      "arguments holds checked, which its tool does not take: leave it out",
+    ]);
+    // A tool without arguments has no property to move one into.
+    assert.deepEqual(problems({ type: "object", additionalProperties: false }, { within: {} }), [
+      "arguments holds within, which its tool does not take: leave it out",
+    ]);
+    // Deeper in the arguments as well.
+    const nested = { type: "object", properties: { step: schema } };
+    assert.deepEqual(problems(nested, { step: { target: { text: "Save" }, within: { role: "row" } } }), [
+      "arguments/step holds within, which goes inside target: move it there",
+    ]);
+    assert.deepEqual(problems(schema, { target: { role: "button", exact: false } }), [
+      "arguments/target has none of the shapes its tool takes: exact can only be true",
+    ]);
+    assert.deepEqual(problems({ type: "object", properties: { exact: { const: true } } }, { exact: false }), [
+      "arguments/exact can only be true: give that, or leave it out",
     ]);
   });
 

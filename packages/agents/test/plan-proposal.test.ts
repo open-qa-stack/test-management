@@ -1234,7 +1234,13 @@ describe("the actions a plan cites", () => {
       description:
         'The numbers of the actions that did this step when you explored, in the order a test does them, as the results of the browser tools gave them in "action", such as [3, 4] for a step done by the actions 3 and 4. The first action of a scenario opens an address; scenarios may cite the same actions, such as those that sign in. Empty for an application without screens.',
     });
-    assert.match(description, /A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects;/);
+    // The bounds of the schema are told, so that a plan is not refused for one the agent did not read.
+    assert.match(description, /every value the test enters, 12 at most,/);
+    assert.match(description, /then its steps as a user does them, 8 at most: cut a longer journey in several scenarios\./);
+    assert.match(
+      description,
+      /A step has one action, in actions the numbers of the browser actions that did it when you explored, 12 at most, and 0 to 4 expects;/,
+    );
     assert.match(
       description,
       /the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator\./,

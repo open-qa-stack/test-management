@@ -97,7 +97,7 @@ export function applicationTools(application: Application, environment: Environm
     },
     {
       name: name("click"),
-      description: `Clicks an element of the page ${where}. An element whose name says it removes data, such as Delete, is clicked only with confirm. Returns where the page is, and the line of code that does the same in a test.`,
+      description: `Clicks an element of the page ${where}. An element whose name says it removes data, such as Delete, is clicked only with confirm. To check a checkbox or a radio button, use ${name("check")}. Returns where the page is, and the line of code that does the same in a test.`,
       parameters: {
         type: "object",
         properties: {

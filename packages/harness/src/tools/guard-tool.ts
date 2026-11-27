@@ -29,7 +29,7 @@ export function guardTool(tool: ToolDefinition, emit: (event: AgentEvent) => voi
 
   return async (args, callId) => {
     if (!matchesSchema(args)) {
-      const details = schemaProblems(matchesSchema.errors!).join("; ");
+      const details = schemaProblems(matchesSchema.errors!, tool.parameters).join("; ");
       return error(callId, "invalid-arguments", `The arguments do not match the schema of ${tool.name}: ${details}.`);
     }
     try {
