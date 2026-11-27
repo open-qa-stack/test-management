@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DefectList, DefectStage, DefectStatus, ListedDefect } from "@open-qa-stack/domain/sessions";
+import { defectMovesFrom, type DefectList, type DefectStage, type DefectStatus, type ListedDefect } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
@@ -37,14 +37,6 @@ export interface DefectsScreenProps {
   readonly controls?: DefectsControls;
 }
 
-/** The gestures of a defect, by where it stands: fix one open, close one fixed or open, open again one closed or fixed. */
-const GESTURES: Readonly<Record<DefectStage, readonly DefectStatus[]>> = {
-  open: ["fixed", "closed"],
-  to_replay: ["closed", "open"],
-  replayed: ["closed", "open"],
-  closed: ["open"],
-};
-
 /** A defect of the table: its reference, its title, its severity, where it stands, its test, when it was reported, and what can be done of it. */
 function Row({ defect, controls }: { readonly defect: ListedDefect; readonly controls: DefectsControls | undefined }): ReactNode {
   return (
@@ -62,7 +54,7 @@ function Row({ defect, controls }: { readonly defect: ListedDefect; readonly con
       </td>
       <td className="small muted">{dateText(defect.openedAt)}</td>
       <td className="defects-gestures">
-        {GESTURES[defect.stage].map((status) => (
+        {defectMovesFrom(defect.status).map((status) => (
           <button
             key={status}
             type="button"

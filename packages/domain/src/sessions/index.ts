@@ -130,6 +130,7 @@ export {
   type ListedDefect,
 } from "../defects/defect.ts";
 export { SET_ASIDE_REASONS } from "../test-review/test-review.ts";
+export { defectMovesFrom } from "../defects/defect-life.ts";
 export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "../test-review/review-decision.ts";
 export type {
   ProposedFile,

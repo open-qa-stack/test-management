@@ -18,3 +18,4 @@ The shapes of the bodies are the types of `@open-qa-stack/domain/sessions`. Ever
 |---|---|---|
 | `invalid_request` | `400` | The body of a report has no title, a title over 200 characters, a severity that is none of `S1` to `S4`, a description over 10,000 characters, or no test; the body of a move names no status of the three. |
 | `unknown_defect` | `404` | The instance keeps no defect of the reference. The detail says to list them with `GET /defects`. |
+| `defect_refused` | `409` | The defect cannot be moved there from where it stands: a defect closed is opened again before it is marked fixed. The detail says where it can go. |

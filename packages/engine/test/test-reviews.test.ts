@@ -319,7 +319,10 @@ describe("the decisions of the review", () => {
     assert.deepEqual(await decisions.list(), [{ id: OPEN, status: "validated", at: AT.toISOString() }]);
     assert.equal((await reviews.proposal(LIST)).status, "in_review");
     await assert.rejects(reviews.restore(LIST), new ReviewRefusedError(`The test ${FOLDER}/list-orders.spec.ts is in review already.`));
-    await assert.rejects(reviews.restore(OPEN), new ReviewRefusedError(`The test ${FOLDER}/open-order.spec.ts is validated: it is in the working branch.`));
+    await assert.rejects(
+      reviews.restore(OPEN),
+      new ReviewRefusedError(`The test ${FOLDER}/open-order.spec.ts is validated already: it is in the working branch.`),
+    );
     await assert.rejects(reviews.restore("44444444-4444-4444-8444-444444444444"), UnknownProposalError);
   });
 
@@ -342,7 +345,7 @@ describe("the decisions of the review", () => {
       (await reviews.queue()).tests.map(({ id }) => id),
       [LIST],
     );
-    await assert.rejects(reviews.decide(OPEN, { status: "validated" }), /is validated already\.$/);
+    await assert.rejects(reviews.decide(OPEN, { status: "validated" }), /is validated already: it is in the working branch\.$/);
     // A test whose files the branch has already as its design wrote them enters it without a commit.
     git(root, "checkout", "oqas/design-20261127T090000Z", "--", `${FOLDER}/list-orders.spec.ts`);
     git(root, "commit", "-q", "-m", "test: take the listing by hand");

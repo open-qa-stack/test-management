@@ -375,7 +375,7 @@
     "test_change_refused": "Ce changement ne peut pas être écrit : le texte est vide ou trop long, un autre test du fichier porte déjà ce titre, ou le dépôt empêche de committer le fichier seul (fichier déjà modifié, pas de branche, fusion en cours…). Réglez cela dans le dépôt, puis réessayez.",
     "unknown_execution": "L’instance ne garde plus cette exécution.",
     "unknown_proposal": "Aucun test écrit par les agents ne porte plus cet identifiant.",
-    "review_refused": "Ce test ne peut pas entrer dans le dépôt maintenant : une session tourne, des fichiers suivis sont modifiés, aucune de vos branches ne se distingue pour le recevoir, ou git refuse le commit. Réglez cela dans le dépôt, puis réessayez.",
+    "review_refused": "Ce test ne peut pas recevoir cette décision : il a déjà été décidé, ou il n’est pas écarté. S’il doit entrer dans le dépôt, il se peut aussi qu’une session tourne, que des fichiers suivis soient modifiés, qu’aucune de vos branches ne se distingue pour le recevoir, ou que git refuse le commit. Réglez cela, puis réessayez.",
     "launch_refused": "Les tests ne peuvent pas être lancés maintenant : une session ou un autre lancement tourne, ou l’environnement demandé n’est pas déclaré.",
     "unknown_campaign": "L’instance ne garde pas cette campagne.",
     "campaign_refused": "La campagne refuse ce changement : son état ne le permet pas, un test qu’elle nomme n’est pas dans le dépôt, ou aucun test n’est encore choisi.",
@@ -386,7 +386,8 @@
     "secret_refused": "Cette valeur ne peut pas être enregistrée : elle est vide, ou l’environnement de l’outil définit déjà la variable, et l’emporte.",
     "unknown_domain": "Les connaissances ne contiennent plus ce domaine.",
     "domain_refused": "L’instance refuse : un domaine est exclu, ou son nom est vide ou trop long.",
-    "unknown_defect": "L’instance ne garde plus cette anomalie."
+    "unknown_defect": "L’instance ne garde plus cette anomalie.",
+    "defect_refused": "Cette anomalie ne peut pas passer là depuis son état : une anomalie fermée se rouvre avant d’être marquée corrigée."
   },
   "configuration": {
     "rules": {

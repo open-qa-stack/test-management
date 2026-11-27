@@ -83,7 +83,7 @@ describe("the code of the console is covered in full", () => {
         // A decision the instance refuses says why, and leaves the test where it is.
         instance.refusal = "review_refused";
         await page.getByRole("button", { name: "Valider" }).click();
-        await page.getByText("Ce test ne peut pas entrer dans le dépôt maintenant").waitFor();
+        await page.getByText("Ce test ne peut pas recevoir cette décision").waitFor();
         // Set aside asks why in its panel: covered names the test that covers it.
         await page.getByRole("link", { name: "Écarter" }).click();
         await page.getByRole("dialog").getByLabel("Déjà couvert par un autre test").check();
