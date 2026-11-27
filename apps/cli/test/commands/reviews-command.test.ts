@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { afterEach, describe, it } from "vitest";
 import type { ReviewQueue, TestProposal } from "@open-qa-stack/domain";
 import { chain, Terminal } from "../support/terminal.ts";
@@ -39,19 +40,66 @@ describe("oqas reviews", () => {
     });
   });
 
+  it("validates a test, which enters the working branch, sets another aside with why, and refuses what cannot be decided", async () => {
+    terminal = await Terminal.open(chain());
+    await terminal.oqas(BRIEF);
+    const queue = JSON.parse((await terminal.oqas(["reviews", "--output", "json"])).out) as ReviewQueue;
+    const [first, second, third] = queue.tests;
+    const validated = await terminal.oqas(["reviews", "validate", first!.id]);
+    assert.deepEqual(validated, { code: 0, out: `The test ${first!.id} is validated: it entered main, committed there; nothing was pushed.\n`, err: "" });
+    assert.deepEqual(await terminal.oqas(["reviews", "set-aside", second!.id, "out-of-scope", "Not this time."]), {
+      code: 0,
+      out: `The test ${second!.id} is set aside.\n`,
+      err: "",
+    });
+    const covered = await terminal.oqas(["reviews", "set-aside", third!.id, "covered", first!.path, "--output", "json"]);
+    assert.equal((JSON.parse(covered.out) as { decision: { coveredBy: string } }).decision.coveredBy, first!.path);
+    assert.deepEqual(await terminal.oqas(["reviews", "validate", second!.id]), { code: 3, out: "", err: `The test ${second!.path} is set aside already.\n` });
+    const after = JSON.parse((await terminal.oqas(["reviews", "--output", "json"])).out) as ReviewQueue;
+    assert.deepEqual(after.counts, { inReview: 0, setAside: 2 });
+  });
+
+  it("says when the working branch had the test already as its design wrote it", async () => {
+    terminal = await Terminal.open(chain());
+    await terminal.oqas(BRIEF);
+    const [first] = (JSON.parse((await terminal.oqas(["reviews", "--output", "json"])).out) as ReviewQueue).tests;
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: terminal.root, encoding: "utf8" });
+    // The person took the files of the design into main by hand.
+    const design = git("branch", "--show-current").trim();
+    git("switch", "-q", "main");
+    git("checkout", design, "--", ".");
+    git("commit", "-q", "-m", "test: take the design by hand");
+    assert.deepEqual(await terminal.oqas(["reviews", "validate", first!.id]), {
+      code: 0,
+      out: `The test ${first!.id} is validated: main had it already as its design wrote it.\n`,
+      err: "",
+    });
+  });
+
   it("is refused with what it takes", async () => {
     terminal = await Terminal.open([]);
+    const usage = /^oqas reviews takes nothing; show or validate then the identifier of a test; or set-aside then/;
     for (const args of [
       ["reviews", "open"],
       ["reviews", "show"],
-      ["reviews", "--brief", "x"],
+      ["reviews", "set-aside", "r"],
+      ["reviews", "set-aside", "r", "covered", "a", "b", "c"],
+      ["reviews", "set-aside", "r", "out-of-scope", "a", "b"],
     ]) {
       const refused = await terminal.oqas(args);
-      assert.equal(refused.code, 3, args.join(" "));
-      assert.match(
-        refused.err,
-        /oqas reviews (takes nothing, or show then the identifier of a test|reads the tests the agents wrote: it takes no --brief, --environment nor --follow)\./,
-      );
+      assert.deepEqual([refused.code, usage.test(refused.err)], [3, true], `${args.join(" ")}: ${refused.err}`);
     }
+    assert.match(
+      (await terminal.oqas(["reviews", "--brief", "x"])).err,
+      /oqas reviews reads the tests the agents wrote: it takes no --brief, --environment nor --follow\./,
+    );
+    assert.match(
+      (await terminal.oqas(["reviews", "set-aside", "r", "boring"])).err,
+      /The reason a test is set aside is one of covered, out_of_scope, wrong_oracle, wrong_level\./,
+    );
+    assert.match(
+      (await terminal.oqas(["reviews", "set-aside", "r", "covered"])).err,
+      /A test set aside as covered names the test that covers it, in coveredBy\./,
+    );
   });
 });

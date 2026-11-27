@@ -234,6 +234,8 @@ export type {
 } from "./test-review/test-review.ts";
 export type { TestDecisionStorePort } from "./test-review/test-decision-store-port.ts";
 export { UnknownProposalError } from "./test-review/unknown-proposal-error.ts";
+export { ReviewRefusedError } from "./test-review/review-refused-error.ts";
+export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "./test-review/review-decision.ts";
 export { DomainRefusedError } from "./knowledge-base/domain-refused-error.ts";
 export { UnknownDomainError } from "./knowledge-base/unknown-domain-error.ts";
 export type { KnowledgeDomain, KnowledgeDomainList, KnowledgeDomainSource } from "./knowledge-base/knowledge-domain.ts";

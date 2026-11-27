@@ -1,25 +1,44 @@
-import type { ReactNode } from "react";
+import type { FormEventHandler, ReactNode } from "react";
 import type { ReviewedTest, ReviewQueue, TestProposal } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { applicationName } from "../applications/application-names.ts";
 import { t } from "../i18n/i18n.ts";
 import { levelName } from "../i18n/vocabulary.ts";
-import { hrefTo } from "../routing/route.ts";
+import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { ReviewCard } from "./review-card.tsx";
+import { ReviewCard, type ReviewGestures } from "./review-card.tsx";
+import { ReviewSetAside } from "./review-set-aside.tsx";
 import { REVIEW_VIEWS, reviewHref, type ReviewPlace, type ReviewView } from "./review-paths.ts";
+
+/** The panel of the review that sets the test shown aside, as the address names it. */
+export const SET_ASIDE_PANEL = "set-aside";
+
+/** What the person does of the test shown, which a static rendering of the screen has none of. */
+export interface ReviewControls {
+  readonly validate: () => void;
+  readonly setAside: FormEventHandler<HTMLFormElement>;
+  /** Whether a decision is under way. */
+  readonly pending: boolean;
+  /** Why the instance refused the last decision, when it did. */
+  readonly refusal?: string;
+  /** What came of the last decision, once it was kept. */
+  readonly told?: string;
+}
 
 /** What the screen of the review is drawn from. */
 export interface ReviewScreenProps {
   /** The name of the project. */
   readonly project: string;
+  /** Where the console is, which names the panel open over the review. */
+  readonly route: Route;
   /** Where the review stands, as the address keeps it. */
   readonly place: ReviewPlace;
   /** What the instance told of the queue of the review. */
   readonly queue: PolledState<ReviewQueue>;
   /** What it told of the test shown, once one is. */
   readonly proposal?: PolledState<TestProposal>;
+  readonly controls?: ReviewControls;
 }
 
 /** The tests of a view, in the order of the queue. */
@@ -122,8 +141,8 @@ function Steps({ tests, shown, place }: { readonly tests: readonly ReviewedTest[
 }
 
 /** The card of the test shown, once the instance told it, or why it cannot be read. */
-function Shown({ proposal }: { readonly proposal: PolledState<TestProposal> | undefined }): ReactNode {
-  if (proposal?.value !== undefined) return <ReviewCard proposal={proposal.value} />;
+function Shown({ proposal, gestures }: { readonly proposal: PolledState<TestProposal> | undefined; readonly gestures?: ReviewGestures }): ReactNode {
+  if (proposal?.value !== undefined) return <ReviewCard proposal={proposal.value} {...(gestures === undefined ? {} : { gestures })} />;
   return (
     <p className="card review-card small muted" role="status">
       {proposal?.unread ?? t("review.reading")}
@@ -156,7 +175,7 @@ function Nothing({ place }: { readonly place: ReviewPlace }): ReactNode {
  * @param props - The name of the project, where the review stands, and what the instance told.
  * @returns The screen.
  */
-export function ReviewScreen({ project, place, queue, proposal }: ReviewScreenProps): ReactNode {
+export function ReviewScreen({ project, route, place, queue, proposal, controls }: ReviewScreenProps): ReactNode {
   const title = t("review.title");
   const crumbs = [{ label: project }, { label: title }];
   if (queue.value === undefined)
@@ -169,11 +188,27 @@ export function ReviewScreen({ project, place, queue, proposal }: ReviewScreenPr
     );
   const tests = listedTests(queue.value, place);
   const shown = shownTest(tests, place);
+  const close = withPanel(route);
+  const gestures: ReviewGestures | undefined =
+    controls === undefined
+      ? undefined
+      : {
+          validate: controls.validate,
+          setAside: withPanel(route, SET_ASIDE_PANEL),
+          pending: controls.pending,
+          ...(controls.refusal === undefined ? {} : { refusal: controls.refusal }),
+        };
+  const panel = route.query["panel"] === SET_ASIDE_PANEL && proposal?.value?.status === "in_review" ? proposal.value : undefined;
   return (
     <Page crumbs={crumbs} title={title} hint={t("review.lead")}>
       {queue.unread !== undefined && (
         <p className="review-unread small" role="alert">
           {queue.unread}
+        </p>
+      )}
+      {controls?.told !== undefined && (
+        <p className="review-told small" role="status">
+          {controls.told}
         </p>
       )}
       <Views queue={queue.value} place={place} />
@@ -192,9 +227,17 @@ export function ReviewScreen({ project, place, queue, proposal }: ReviewScreenPr
           </div>
           <div className="review-shown">
             <Steps tests={tests} shown={shown} place={place} />
-            <Shown proposal={proposal} />
+            <Shown proposal={proposal} {...(gestures === undefined ? {} : { gestures })} />
           </div>
         </div>
+      )}
+      {panel !== undefined && (
+        <ReviewSetAside
+          proposal={panel}
+          close={close}
+          pending={controls?.pending ?? false}
+          {...(controls === undefined ? {} : { onSubmit: controls.setAside })}
+        />
       )}
     </Page>
   );

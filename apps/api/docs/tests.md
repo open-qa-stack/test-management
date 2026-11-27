@@ -228,6 +228,7 @@ The tests the agents wrote wait for a person to decide of them. The queue of the
 |---|---|
 | `GET /api/reviews` | The tests to review and those set aside, the oldest design first, and how many of each: the type `ReviewQueue`. |
 | `GET /api/reviews/<id>` | What a person reads to decide of a test: the brief of its design, why it was written, its sources, its steps and what each expects, why it stands as it does, the remarks of the agents that reviewed its coherence and its code, the files its design wrote for it — its own, then those it relies on, such as page objects, with the lines each added — and the decision made of it: the type `TestProposal`. |
+| `PUT /api/reviews/<id>/decision` | Keeps what a person decides of a test to review — `{ "status": "validated" }`, or `{ "status": "set_aside", "reason", "coveredBy"?, "note"? }` with a reason among `covered`, `out_of_scope`, `wrong_oracle` and `wrong_level`, `coveredBy` the path of the test that covers one `covered`, and a note of 500 characters at most —, and answers the type `DecidedTest`: the decision kept, and for a test validated the working branch it entered and whether a commit took it there. A test validated is committed on the working branch, in the checkout of the repository, which is left on it; nothing is pushed. |
 
 `<id>` is the identifier of a test, the UUID of its tag. Both answers are given with `cache-control: no-store`.
 
@@ -235,11 +236,12 @@ The tests the agents wrote wait for a person to decide of them. The queue of the
 
 | `code` | Status | When |
 |---|---|---|
-| `invalid_request` | `400` | `path` is missing or empty, `step` is not a number from 1, `execution` is empty, or the body of a change is not `{ path, title, change }` with `change` one of its two shapes. |
+| `invalid_request` | `400` | The body of a decision is none, `path` is missing or empty, `step` is not a number from 1, `execution` is empty, or the body of a change is not `{ path, title, change }` with `change` one of its two shapes. |
 | `unknown_test` | `404` | The repository lists no file of tests of the path, or the file declares no test of the title. |
 | `test_change_refused` | `422` | The change cannot be written: the text is empty, of several lines or too long, another test of the file has the title, the test has no step of the number, its tags are not written as a text or a list of texts, the file holds a syntax error, or it cannot be committed alone. The detail says which, and what to do. |
 | `unknown_execution` | `404` | The query names an execution the instance does not keep. |
 | `unknown_capture` | `404` | The run of the test that was read attached no capture for the step that can be read: no run ran the test, it attached none for the step, or its file is gone or outside the repository. The detail says to read the test again, whose steps say which have a capture. |
 | `unknown_trace` | `404` | The run of the test that was read kept no trace of it that can be read: no run ran the test, it kept none, or its file is gone or outside the repository. |
 | `unknown_proposal` | `404` | No design of the test repository gives a test of the identifier for a person to review. The detail says to list them with `GET /reviews`. |
+| `review_refused` | `409` | The decision cannot be taken now: the test was decided of already, a session runs or waits, a tracked file of the repository is changed, no branch of the person can be told to take the test, or git refuses the commit. The detail says which, and what to do. |
 

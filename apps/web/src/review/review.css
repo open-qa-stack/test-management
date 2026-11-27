@@ -147,3 +147,18 @@
     justify-content: flex-end;
   }
 }
+
+.review-told {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-inner);
+  background: var(--ok-soft);
+}
+
+.review-refusal {
+  color: var(--ko);
+}
+
+.review-set-aside {
+  display: grid;
+  gap: var(--space-4);
+}

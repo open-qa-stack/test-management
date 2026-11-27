@@ -27,7 +27,8 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests step <test> <title> <step> <text> [--output text|json]
        oqas [--repository <folder>] tests trace <test> <file>
        oqas [--repository <folder>] tests capture <test> <step> <file>
-       oqas [--repository <folder>] reviews [show <id>] [--output text|json]
+       oqas [--repository <folder>] reviews [show <id>|validate <id>] [--output text|json]
+       oqas [--repository <folder>] reviews set-aside <id> covered <test> [<note>]|out-of-scope|wrong-oracle|wrong-level [<note>] [--output text|json]
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
        oqas [--repository <folder>] campaigns [--output text|json]
        oqas [--repository <folder>] campaigns plan <name> --environment <name> [--objective <text>] [--target <version>] [--from <day>] [--until <day>] [--owner <text>]
@@ -122,6 +123,11 @@ Commands:
                          design first.
   reviews show <id>      Tell what you read to decide of one of them: why it was written, its steps, the remarks
                          of the agents that reviewed it, and the files its design wrote.
+  reviews validate <id>  Take the test into the working branch: its file and those its design wrote are committed
+                         there, in this checkout, which is left on that branch. Nothing is pushed.
+  reviews set-aside <id> <reason> [<note>]
+                         Leave the test out, with why: covered then the test that covers it, out-of-scope,
+                         wrong-oracle or wrong-level. It stays listed, set aside.
   launch [<test>...]     Launch tests of the test repository as they are, with no agent, in this process, against
                          --environment, and follow them to their end: every test, or those of the files named.
                          It exits with 0 when each passed, 1 when one failed, 2 when one was skipped.

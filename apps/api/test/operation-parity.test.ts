@@ -51,6 +51,7 @@ const ROUTES: Readonly<Record<OperationId, Offer>> = {
   "RepositoryTests.listed": "GET /tests",
   "TestReviews.queue": "GET /reviews",
   "TestReviews.proposal": "GET /reviews/r",
+  "TestReviews.decide": "PUT /reviews/r/decision",
   "TestReadings.read": "GET /tests/reading",
   "TestReadings.trace": "GET /tests/trace",
   "TestReadings.capture": "GET /tests/capture",

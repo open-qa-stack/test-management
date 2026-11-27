@@ -115,6 +115,7 @@ export { OPERATIONS, operationIds, type OperationId } from "../operations/operat
 export type { SourceCheck } from "../knowledge-check/source-check.ts";
 export type { CartographyState, MappedSource, MappingState } from "../knowledge-check/knowledge-mapping.ts";
 export { SET_ASIDE_REASONS } from "../test-review/test-review.ts";
+export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "../test-review/review-decision.ts";
 export type {
   ProposedFile,
   ReviewedTest,

@@ -4,6 +4,7 @@ import type {
   CampaignList,
   CampaignPlan,
   CampaignProgress,
+  DecidedTest,
   CampaignTest,
   ConfigError,
   ConfigurationCheck,
@@ -27,6 +28,7 @@ import type {
   RepositoryState,
   RepositoryTest,
   RepositoryTestList,
+  ReviewDecision,
   ReviewQueue,
   TestExecution,
   TestExecutionList,
@@ -325,6 +327,19 @@ export class ApiClient {
    */
   public async proposal(id: string): Promise<TestProposal> {
     return this.#ask<TestProposal>(`/reviews/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * Keeps what a person decides of a test the agents wrote: to validate it, which has it enter the working branch of the
+   * test repository, or to set it aside, with why.
+   *
+   * @param id - The identifier of its tag `@oqas-id-…`.
+   * @param decision - The decision.
+   * @returns The decision kept, and for a test validated the branch it entered; the failure carries the code
+   * `review_refused` when the repository or the instance cannot take it now.
+   */
+  public async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
+    return this.#ask<DecidedTest>(`/reviews/${encodeURIComponent(id)}/decision`, { ...posting(decision), method: "PUT" });
   }
 
   /**
