@@ -7,4 +7,7 @@ export interface TestDecisionStorePort {
 
   /** Keeps a decision, in place of the one before for the same test. */
   set(decision: TestDecision): Promise<void>;
+
+  /** Forgets the decision made of a test, which is then to review again. */
+  drop(id: string): Promise<void>;
 }

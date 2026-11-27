@@ -1,10 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Header, Param, Put } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Put } from "@nestjs/common";
 import { reviewDecisionOf } from "@open-qa-stack/domain";
 import { TestReviews } from "@open-qa-stack/engine";
 import type { DecidedTest, ReviewQueue, TestProposal } from "@open-qa-stack/domain/sessions";
 
 /**
- * `GET /reviews`, `GET /reviews/:id` and `PUT /reviews/:id/decision`: the operations of the review of the tests the
+ * `GET /reviews`, `GET /reviews/:id`, `PUT /reviews/:id/decision` and `DELETE /reviews/:id/decision`: the operations of the review of the tests the
  * agents wrote, said in HTTP. A test is named by the identifier of its tag `@oqas-id-…`.
  */
 @Controller("reviews")
@@ -36,5 +36,12 @@ export class ReviewsController {
     const decision = reviewDecisionOf(body);
     if (typeof decision === "string") throw new BadRequestException(decision);
     return this.#reviews.decide(id, decision);
+  }
+
+  /** Puts a test set aside back in review, answered with `204`; `review_refused` for a test that is not set aside. */
+  @Delete(":id/decision")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  restore(@Param("id") id: string): Promise<void> {
+    return this.#reviews.restore(id);
   }
 }

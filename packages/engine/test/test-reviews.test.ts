@@ -310,6 +310,19 @@ describe("the decisions of the review", () => {
     await assert.rejects(reviews.decide("44444444-4444-4444-8444-444444444444", { status: "validated" }), UnknownProposalError);
   });
 
+  it("put a test set aside back in review as it was, and refuse to for a test in review, validated, or no design gave", async () => {
+    const decisions = new MemoryTestDecisionStore();
+    const reviews = new TestReviews(repository(), await configured(), decisions, IDLE, () => AT);
+    await reviews.decide(LIST, { status: "set_aside", reason: "wrong_level" });
+    await decisions.set({ id: OPEN, status: "validated", at: AT.toISOString() });
+    await reviews.restore(LIST);
+    assert.deepEqual(await decisions.list(), [{ id: OPEN, status: "validated", at: AT.toISOString() }]);
+    assert.equal((await reviews.proposal(LIST)).status, "in_review");
+    await assert.rejects(reviews.restore(LIST), new ReviewRefusedError(`The test ${FOLDER}/list-orders.spec.ts is in review already.`));
+    await assert.rejects(reviews.restore(OPEN), new ReviewRefusedError(`The test ${FOLDER}/open-order.spec.ts is validated: it is in the working branch.`));
+    await assert.rejects(reviews.restore("44444444-4444-4444-8444-444444444444"), UnknownProposalError);
+  });
+
   it("validates a test: its file and those its design wrote enter the working branch, committed there, nothing pushed", async () => {
     const root = repository();
     const decisions = new MemoryTestDecisionStore();

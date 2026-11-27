@@ -57,6 +57,12 @@ describe("oqas reviews", () => {
     assert.deepEqual(await terminal.oqas(["reviews", "validate", second!.id]), { code: 3, out: "", err: `The test ${second!.path} is set aside already.\n` });
     const after = JSON.parse((await terminal.oqas(["reviews", "--output", "json"])).out) as ReviewQueue;
     assert.deepEqual(after.counts, { inReview: 0, setAside: 2 });
+    // A test set aside goes back in review; one in review, or validated, is refused.
+    assert.deepEqual(await terminal.oqas(["reviews", "restore", second!.id]), { code: 0, out: `The test ${second!.id} is back in review.\n`, err: "" });
+    assert.deepEqual(JSON.parse((await terminal.oqas(["reviews", "restore", third!.id, "--output", "json"])).out), { id: third!.id, status: "in_review" });
+    assert.deepEqual(await terminal.oqas(["reviews", "restore", second!.id]), { code: 3, out: "", err: `The test ${second!.path} is in review already.\n` });
+    const restored = JSON.parse((await terminal.oqas(["reviews", "--output", "json"])).out) as ReviewQueue;
+    assert.deepEqual(restored.counts, { inReview: 2, setAside: 0 });
   });
 
   it("says when the working branch had the test already as its design wrote it", async () => {
@@ -78,10 +84,11 @@ describe("oqas reviews", () => {
 
   it("is refused with what it takes", async () => {
     terminal = await Terminal.open([]);
-    const usage = /^oqas reviews takes nothing; show or validate then the identifier of a test; or set-aside then/;
+    const usage = /^oqas reviews takes nothing; show, validate or restore then the identifier of a test; or set-aside then/;
     for (const args of [
       ["reviews", "open"],
       ["reviews", "show"],
+      ["reviews", "restore"],
       ["reviews", "set-aside", "r"],
       ["reviews", "set-aside", "r", "covered", "a", "b", "c"],
       ["reviews", "set-aside", "r", "out-of-scope", "a", "b"],

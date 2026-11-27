@@ -24,7 +24,12 @@ const screen = (hash: string, queue: PolledState<ReviewQueue> = { value: QUEUE }
   );
 
 /** What the person does on the screen, which a static rendering never calls. */
-const CONTROLS: ReviewControls = { validate: () => assert.fail("nothing is validated"), setAside: () => assert.fail("nothing is set aside"), pending: false };
+const CONTROLS: ReviewControls = {
+  validate: () => assert.fail("nothing is validated"),
+  setAside: () => assert.fail("nothing is set aside"),
+  restore: () => assert.fail("nothing is put back in review"),
+  pending: false,
+};
 
 describe("the place of the review in the address", () => {
   it("is the view of the new tests, every domain and the first test by default, and is written back the same", () => {
@@ -117,6 +122,13 @@ describe("the review of the tests the agents wrote", () => {
     );
     const bare = { ...aside, decision: { id: ASIDE.id, status: "set_aside", at: "2026-11-27T10:00:00.000Z", reason: "wrong_level" } } as const;
     assert.match(textOf(screen("#/review?view=set_aside", { value: QUEUE }, { value: bare })), / Écarté : pas au bon niveau Pourquoi/);
+    // A test set aside is put back in review, and is neither validated nor set aside again.
+    const gestures = screen("#/review?view=set_aside", { value: QUEUE }, { value: aside }, CONTROLS);
+    assert.match(gestures, /<div class="review-actions"><button type="button" class="btn">Remettre en relecture<\/button><\/div><\/footer>/);
+    assert.doesNotMatch(gestures, /Valider/);
+    assert.match(screen("#/review?view=set_aside", { value: QUEUE }, { value: aside }), /<button type="button" class="btn" disabled="">Remettre en relecture</);
+    const pending = screen("#/review?view=set_aside", { value: QUEUE }, { value: aside }, { ...CONTROLS, pending: true, refusal: "No." });
+    assert.match(textOf(pending), /No\. Remise en relecture…$/);
     const none = { tests: [QUOTE], counts: { inReview: 1, setAside: 0 } };
     assert.match(textOf(screen("#/review?view=set_aside", { value: none })), /Aucun test écarté Les tests que vous écartez restent consultables ici\.$/);
   });

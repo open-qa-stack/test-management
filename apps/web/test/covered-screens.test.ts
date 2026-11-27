@@ -104,6 +104,13 @@ describe("the code of the console is covered in full", () => {
         await page.getByText("Écarté : déjà couvert — apps/policy-management/tests/x.spec.ts · Same steps.").waitFor();
         await page.keyboard.press("v");
         assert.equal(instance.decisions.length, 3);
+        // A test set aside goes back in review, once the instance takes it; a refusal says why.
+        instance.refusal = "review_refused";
+        await page.getByRole("button", { name: "Remettre en relecture" }).click();
+        await page.locator(".review-refusal").waitFor();
+        await page.getByRole("button", { name: "Remettre en relecture" }).click();
+        await page.getByText("Remis en relecture : le test attend de nouveau votre décision dans « Nouveaux tests ».").waitFor();
+        assert.deepEqual(instance.restored, [POLICY.id]);
         // A queue the instance no longer gives stays shown, with why.
         instance.unread = true;
         await page.getByRole("alert").waitFor();

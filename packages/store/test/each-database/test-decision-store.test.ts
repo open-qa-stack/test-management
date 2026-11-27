@@ -34,4 +34,12 @@ describe("the decisions of the review the store keeps", () => {
     await store.set({ id: "a", status: "validated", at: "2026-11-27T11:00:00.000Z" });
     assert.deepEqual((await store.list())[0], { id: "a", status: "validated", at: "2026-11-27T11:00:00.000Z" });
   });
+
+  it("forget the decision of a test, and leave the others", async () => {
+    await store.set({ id: "a", status: "set_aside", at: "2026-11-27T10:01:00.000Z", reason: "wrong_level" });
+    await store.set({ id: "b", status: "validated", at: "2026-11-27T10:00:00.000Z" });
+    await store.drop("a");
+    await store.drop("z");
+    assert.deepEqual(await store.list(), [{ id: "b", status: "validated", at: "2026-11-27T10:00:00.000Z" }]);
+  });
 });

@@ -73,6 +73,8 @@ export function testsApiSuite(engine: DatabaseEngine): void {
       assert.deepEqual([invalid.status, ((await invalid.json()) as Problem).code], [400, "invalid_request"]);
       const unknown = await decide({ status: "validated" });
       assert.deepEqual([unknown.status, ((await unknown.json()) as Problem).code], [404, "unknown_proposal"]);
+      const restored = await fetch(`${api.url}/reviews/11111111-1111-4111-8111-111111111111/decision`, { method: "DELETE" });
+      assert.deepEqual([restored.status, ((await restored.json()) as Problem).code], [404, "unknown_proposal"]);
     });
 
     it("waiting for a review are none without a design, and a test no design gave is not found", async () => {

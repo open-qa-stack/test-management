@@ -6,9 +6,10 @@ import { levelName } from "../i18n/vocabulary.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Code } from "../ui/code.tsx";
 
-/** What a person does of the test on the card: validate it, or open the panel that sets it aside, while no decision is under way. */
+/** What a person does of the test on the card: validate it, open the panel that sets it aside, or put it back in review once set aside, while no decision is under way. */
 export interface ReviewGestures {
   readonly validate: () => void;
+  readonly restore: () => void;
   /** The link to the panel that sets it aside. */
   readonly setAside: string;
   /** Whether a decision is under way, which leaves the gestures inactive. */
@@ -17,16 +18,38 @@ export interface ReviewGestures {
   readonly refusal?: string;
 }
 
+/** Why the instance refused the last decision, when it did. */
+function Refusal({ gestures }: { readonly gestures: ReviewGestures | undefined }): ReactNode {
+  return (
+    gestures?.refusal !== undefined && (
+      <p className="review-refusal small" role="alert">
+        {gestures.refusal}
+      </p>
+    )
+  );
+}
+
+/** The gesture of a test set aside: put it back in review, as it was. */
+function Restore({ gestures }: { readonly gestures: ReviewGestures | undefined }): ReactNode {
+  const idle = gestures !== undefined && !gestures.pending;
+  return (
+    <>
+      <Refusal gestures={gestures} />
+      <div className="review-actions">
+        <button type="button" className="btn" disabled={!idle} onClick={gestures?.restore}>
+          {t(gestures?.pending === true ? "review.gestures.restoring" : "review.gestures.restore")}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** The gestures of a test to review: set aside, ask for a correction — which stays inactive —, and validate. */
 function Gestures({ gestures }: { readonly gestures: ReviewGestures | undefined }): ReactNode {
   const idle = gestures !== undefined && !gestures.pending;
   return (
     <>
-      {gestures?.refusal !== undefined && (
-        <p className="review-refusal small" role="alert">
-          {gestures.refusal}
-        </p>
-      )}
+      <Refusal gestures={gestures} />
       <div className="review-actions">
         {idle ? (
           <a className="btn ghost" href={gestures.setAside}>
@@ -136,6 +159,7 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
           {t("review.runs", { count: proposal.runs })} · {proposal.reason}
         </p>
         {proposal.status === "in_review" && <Gestures gestures={gestures} />}
+        {proposal.status === "set_aside" && <Restore gestures={gestures} />}
       </footer>
     </article>
   );

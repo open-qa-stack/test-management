@@ -12,4 +12,9 @@ export class MemoryTestDecisionStore implements TestDecisionStorePort {
     this.#decisions.set(decision.id, decision);
     return Promise.resolve();
   }
+
+  drop(id: string): Promise<void> {
+    this.#decisions.delete(id);
+    return Promise.resolve();
+  }
 }
