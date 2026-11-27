@@ -45,6 +45,7 @@ export class SessionDatabase {
   async clear(): Promise<void> {
     await this.database.kysely.deleteFrom("domain_settings").execute();
     await this.database.kysely.deleteFrom("test_decisions").execute();
+    await this.database.kysely.deleteFrom("defects").execute();
     await this.database.kysely.deleteFrom("memories").execute();
     await this.database.kysely.deleteFrom("execution_results").execute();
     await this.database.kysely.deleteFrom("test_versions").execute();

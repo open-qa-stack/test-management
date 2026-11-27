@@ -28,6 +28,7 @@ export const USAGE = `Usage: oqas [--repository <folder>] [--environment <name>]
        oqas [--repository <folder>] tests trace <test> <file>
        oqas [--repository <folder>] tests capture <test> <step> <file>
        oqas [--repository <folder>] reviews [show <id>|validate <id>] [--output text|json]
+       oqas [--repository <folder>] defects [report <test> <title of the test> <severity> <title> [<description>]|fix|close|open <id>] [--output text|json]
        oqas [--repository <folder>] reviews set-aside <id> covered <test> [<note>]|out-of-scope|wrong-oracle|wrong-level [<note>] [--output text|json]
        oqas [--repository <folder>] launch [<test>...] [--environment <name>] [--output text|json]
        oqas [--repository <folder>] campaigns [--output text|json]
@@ -123,6 +124,11 @@ Commands:
                          design first.
   reviews show <id>      Tell what you read to decide of one of them: why it was written, its steps, the remarks
                          of the agents that reviewed it, and the files its design wrote.
+  defects                List the defects reported from tests that failed, the latest first.
+  defects report <test> <title of the test> <severity> <title> [<description>]
+                         Report a defect of a test of the file, from S1 (blocking) to S4 (cosmetic).
+  defects fix|close|open <id>
+                         Mark a defect fixed, close it, or open it again. Fixed, its test is to run again until it passes.
   reviews validate <id>  Take the test into the working branch: its file and those its design wrote are committed
                          there, in this checkout, which is left on that branch. Nothing is pushed.
   reviews set-aside <id> <reason> [<note>]

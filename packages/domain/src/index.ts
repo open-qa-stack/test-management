@@ -234,6 +234,23 @@ export type {
 } from "./test-review/test-review.ts";
 export type { TestDecisionStorePort } from "./test-review/test-decision-store-port.ts";
 export { UnknownProposalError } from "./test-review/unknown-proposal-error.ts";
+export {
+  DEFECT_SEVERITIES,
+  defectReportOf,
+  defectStatusOf,
+  MAX_DEFECT_DESCRIPTION,
+  MAX_DEFECT_TITLE,
+  type Defect,
+  type DefectList,
+  type DefectReport,
+  type DefectSeverity,
+  type DefectStage,
+  type DefectStatus,
+  type DefectTest,
+  type ListedDefect,
+} from "./defects/defect.ts";
+export { UnknownDefectError } from "./defects/unknown-defect-error.ts";
+export type { DefectStorePort } from "./defects/defect-store-port.ts";
 export { ReviewRefusedError } from "./test-review/review-refused-error.ts";
 export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "./test-review/review-decision.ts";
 export { DomainRefusedError } from "./knowledge-base/domain-refused-error.ts";

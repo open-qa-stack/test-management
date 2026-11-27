@@ -5,6 +5,9 @@ import type {
   CampaignPlan,
   CampaignProgress,
   DecidedTest,
+  DefectList,
+  DefectReport,
+  DefectStatus,
   CampaignTest,
   ConfigError,
   ConfigurationCheck,
@@ -18,6 +21,7 @@ import type {
   KnowledgeDomainList,
   LaunchRequest,
   LaunchState,
+  ListedDefect,
   MessageReceipt,
   Model,
   ModelConnectionCheck,
@@ -340,6 +344,36 @@ export class ApiClient {
    */
   public async decide(id: string, decision: ReviewDecision): Promise<DecidedTest> {
     return this.#ask<DecidedTest>(`/reviews/${encodeURIComponent(id)}/decision`, { ...posting(decision), method: "PUT" });
+  }
+
+  /**
+   * Reads the defects reported from tests that failed.
+   *
+   * @returns The defects, the latest reported first, each with where it stands, and how many each view holds.
+   */
+  public async defects(): Promise<DefectList> {
+    return this.#ask<DefectList>("/defects");
+  }
+
+  /**
+   * Reports a defect of a test that failed, which the instance keeps.
+   *
+   * @param report - Its title, its severity, its description, the test and the execution it comes from.
+   * @returns The defect kept, open, under its reference.
+   */
+  public async reportDefect(report: DefectReport): Promise<ListedDefect> {
+    return this.#ask<ListedDefect>("/defects", posting(report));
+  }
+
+  /**
+   * Moves a defect: fixed, closed, or open again.
+   *
+   * @param id - Its reference, such as `D-12`.
+   * @param status - Where it stands now.
+   * @returns The defect as it stands; the failure carries the code `unknown_defect` when the instance keeps none of the reference.
+   */
+  public async changeDefect(id: string, status: DefectStatus): Promise<ListedDefect> {
+    return this.#ask<ListedDefect>(`/defects/${encodeURIComponent(id)}`, { ...posting({ status }), method: "PATCH" });
   }
 
   /**

@@ -58,7 +58,7 @@ describe("the shell", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration page$/,
+      /Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration page$/,
     );
     assert.deepEqual(linksOf(html), [
       "#/agent",
@@ -69,13 +69,14 @@ describe("the shell", () => {
       "#/tests",
       "#/executions",
       "#/campaigns",
+      "#/defects",
       "#/applications",
       "#/knowledge",
       "#/configuration",
     ]);
     const coming = NAVIGATION.flatMap((group) => group.entries).filter((entry) => entry.path === undefined);
     assert.equal((html.match(/<span class="nav-soon">/g) ?? []).length, coming.length);
-    assert.equal(coming.length, 2);
+    assert.equal(coming.length, 1);
   });
 
   it("marks the agent at the home, at its entry and under it, the tests, the executions, the campaigns and the configuration at their own, and nowhere else", () => {
@@ -122,7 +123,7 @@ describe("the shell", () => {
     assert.match(panel, /<h2 id="shell-menu">Menu<\/h2><a class="side-panel-close" href="#\/agent\/sessions\/s1\?show=talk" aria-label="Fermer">/);
     assert.match(
       textOf(panel),
-      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies bientôt Projet Applications Connaissances Configuration$/,
+      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Couverture bientôt Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Configuration$/,
     );
     assert.match(panel, /<a href="#\/agent" class="on" aria-current="page">/);
     assert.match(shell("#/?nav=open"), /<a class="side-panel-close" href="#\/" aria-label="Fermer">/);

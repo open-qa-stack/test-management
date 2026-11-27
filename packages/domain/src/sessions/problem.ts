@@ -33,6 +33,7 @@ export type ProblemCode =
   | "unknown_execution"
   | "unknown_proposal"
   | "review_refused"
+  | "unknown_defect"
   | "launch_refused"
   | "unknown_campaign"
   | "campaign_refused"

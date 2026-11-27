@@ -125,6 +125,7 @@ describe("the card of a test", () => {
       "#/tests",
       panel("title"),
       result("e3"),
+      panel("report"),
       panel("step:1"),
       panel("step:2"),
       result("e3"),
@@ -133,6 +134,53 @@ describe("the card of a test", () => {
       ...tree,
     ]);
     assert.doesNotMatch(textOf(screen({ value: EXECUTIONS.slice(0, 1) })), /sur la dernière exécution/, "one execution says no rate");
+  });
+
+  it("reports a defect of a test that failed in a panel, written from its failure, and says where the reporting stands", () => {
+    const failed: TestExecution = {
+      ...EXECUTIONS[0]!,
+      result: {
+        ...EXECUTIONS[0]!.result,
+        failure: { step: { number: 2, title: "Open the policy" }, message: "Expected Paid", expected: "Paid", received: "Due" },
+      },
+    };
+    const hash = "#/tests/view?panel=report";
+    const html = screen({ value: [failed] }, { value: TESTS }, DETAIL.path, {}, { hash });
+    assert.match(
+      textOf(html),
+      / Signaler l’anomalie Depuis le test « Display the detail of a policy », à son dernier échec\. Titre Sévérité proposée S1 · bloquante S2 · majeure S3 · mineure S4 · cosmétique À confirmer lors du tri\. Description /,
+    );
+    assert.match(
+      html,
+      /<input id="defect-title" type="text" required="" maxLength="200" name="title" value="Display the detail of a policy échoue à l’étape 2"\/>/,
+    );
+    assert.match(
+      html,
+      /<textarea id="defect-description" name="description" rows="8" maxLength="10000">Étape en échec : 2\. Open the policy\nErreur : Expected Paid\nAttendu : Paid\nObtenu : Due\nExécution e3 du [^<]+<\/textarea>/,
+    );
+    assert.match(html, /<input type="hidden" name="execution" value="e3"\/>/);
+    // Without what submits it, or while it is under way, the panel waits; a refusal says why.
+    assert.match(html, /<button type="submit" form="defect-report" class="btn primary" disabled="">/);
+    const refused = render(
+      createElement(TestScreen, {
+        project: "lakeside-tests",
+        path: DETAIL.path,
+        route: at(hash),
+        tests: { value: TESTS },
+        executions: { value: EXECUTIONS },
+        versions: {},
+        source: {},
+        saving: { pending: false },
+        onChange: () => undefined,
+        reporting: { pending: false, refusal: "Donnez un titre à l’anomalie." },
+        onReport: () => undefined,
+      }),
+    );
+    assert.match(textOf(refused), / Donnez un titre à l’anomalie\. L’anomalie est gardée par l’instance/);
+    assert.match(refused, /value="Display the detail of a policy échoue"/, "a failure at no step names none");
+    assert.match(refused, /<button type="submit" form="defect-report" class="btn primary">/);
+    // A test that did not fail last has no defect to report.
+    assert.doesNotMatch(textOf(screen({ value: EXECUTIONS.slice(1) }, { value: TESTS }, DETAIL.path, {}, { hash })), /Signaler l’anomalie/);
   });
 
   it(`counts no more than the latest ${HISTORY_SIZE} executions`, () => {

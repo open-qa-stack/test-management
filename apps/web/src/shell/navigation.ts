@@ -44,7 +44,7 @@ export const NAVIGATION: readonly NavigationGroup[] = [
     entries: [
       { icon: "play", key: "executions", path: "/executions" },
       { icon: "campaign", key: "campaigns", path: "/campaigns" },
-      { icon: "warning", key: "defects" },
+      { icon: "warning", key: "defects", path: "/defects" },
     ],
   },
   {

@@ -4,6 +4,7 @@ import type { Arguments } from "../arguments/arguments.ts";
 import { RepositoryInit } from "../project/repository-init.ts";
 import { instructed } from "./agents-command.ts";
 import { reviewed } from "./reviews-command.ts";
+import { defected } from "./defects-command.ts";
 import { addressesChecked } from "./applications-command.ts";
 import { campaigned } from "./campaigns-command.ts";
 import type { CommandIo } from "./command-io.ts";
@@ -84,6 +85,8 @@ export async function runPrinting(
       // The designs are read in the state folder the configuration of oqas.json names.
       await configuration.inForce();
       return await reviewed(operations, command, { options, io });
+    case "defects":
+      return await defected(operations, command, { options, io });
     case "executions":
       return await executed(operations, command, { options, io });
     case "launch":

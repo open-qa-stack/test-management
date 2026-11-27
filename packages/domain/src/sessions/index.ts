@@ -114,6 +114,21 @@ export type { SecretKind, SecretList, SecretSource, SecretState } from "../secre
 export { OPERATIONS, operationIds, type OperationId } from "../operations/operations.ts";
 export type { SourceCheck } from "../knowledge-check/source-check.ts";
 export type { CartographyState, MappedSource, MappingState } from "../knowledge-check/knowledge-mapping.ts";
+export {
+  DEFECT_SEVERITIES,
+  defectReportOf,
+  defectStatusOf,
+  MAX_DEFECT_DESCRIPTION,
+  MAX_DEFECT_TITLE,
+  type Defect,
+  type DefectList,
+  type DefectReport,
+  type DefectSeverity,
+  type DefectStage,
+  type DefectStatus,
+  type DefectTest,
+  type ListedDefect,
+} from "../defects/defect.ts";
 export { SET_ASIDE_REASONS } from "../test-review/test-review.ts";
 export { MAX_SET_ASIDE_NOTE, reviewDecisionOf, type DecidedTest, type ReviewDecision } from "../test-review/review-decision.ts";
 export type {

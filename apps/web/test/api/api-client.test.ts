@@ -121,6 +121,26 @@ describe("the client of the API, for the configuration", () => {
 describe("the client of the API, for the documents of the knowledge sources", () => {
   const SUMMARY = { name: "quotes é.md", bytes: 9, uploadedAt: "2026-11-18T09:00:00.000Z" };
 
+  it("reads the defects, reports one and moves one by its reference", async () => {
+    const list = { items: [], counts: { open: 0, toReplay: 0, closed: 0 } };
+    const listed = clientOf(() => json(list));
+    assert.deepEqual(await listed.client.defects(), list);
+    assert.deepEqual(listed.calls, [["/api/defects", undefined]]);
+    const report = { title: "Total", severity: "S2", description: "", test: { path: "a.spec.ts", title: "A" } } as const;
+    const reported = clientOf(() => json({ id: "D-1" }));
+    assert.deepEqual(await reported.client.reportDefect(report), { id: "D-1" });
+    assert.deepEqual(
+      reported.calls.map(([path, init]) => [path, init?.method, init?.body]),
+      [["/api/defects", "POST", JSON.stringify(report)]],
+    );
+    const moved = clientOf(() => json({ id: "D 1" }));
+    assert.deepEqual(await moved.client.changeDefect("D 1", "fixed"), { id: "D 1" });
+    assert.deepEqual(
+      moved.calls.map(([path, init]) => [path, init?.method, init?.body]),
+      [["/api/defects/D%201", "PATCH", '{"status":"fixed"}']],
+    );
+  });
+
   it("reads the queue of the review, and a test of it by its identifier", async () => {
     const queue = { tests: [], counts: { inReview: 0, setAside: 0 } };
     const listed = clientOf(() => json(queue));

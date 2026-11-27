@@ -124,6 +124,7 @@ export default defineConfig({
         "**/src/tests/use-relaunch.ts",
         "**/src/tests/test-text-panel.tsx",
         "**/src/review/review-page.tsx",
+        "**/src/defects/defects-page.tsx",
         "**/src/executions/executions-page.tsx",
         "**/src/executions/execution-page.tsx",
         "**/src/executions/launch-page.tsx",
