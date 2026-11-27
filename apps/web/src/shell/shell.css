@@ -154,6 +154,7 @@
 
 /* The button that folds the menu, beside the mark: the menu it folds exists only from a tablet. */
 .menu-toggle {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -187,9 +188,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: var(--bar);
-  padding: 0 var(--space-2) 0 var(--space-4);
+  padding: 0 var(--space-1) 0 var(--space-3);
+}
+
+/* The name of the console gives way before the button that folds the menu, which a finger still presses whole. */
+.side-head .brand {
+  min-width: 0;
+}
+
+.side-head .brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .side-foot {
