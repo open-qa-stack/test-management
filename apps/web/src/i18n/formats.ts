@@ -29,23 +29,23 @@ export function elapsedText(milliseconds: number): string {
 }
 
 /**
- * Writes a moment to the second, in universal time, as the thread of a session tells it.
+ * Writes a moment to the second, in the time zone of the browser, as the thread of a session tells it.
  *
  * @param iso - The moment, in ISO 8601.
- * @returns Its day and its time, with the name of the time zone.
+ * @returns Its day and its time, such as `15 nov. 2026, 14:44:06`.
  */
 export function momentText(iso: string): string {
-  return new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "long", timeZone: "UTC" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "medium" }).format(new Date(iso));
 }
 
 /**
- * Writes the day of a moment, short, in universal time, as the thread of a session tells its times.
+ * Writes the day of a moment, short, in the time zone of the browser, as the thread of a session tells its times.
  *
  * @param iso - The moment, in ISO 8601.
  * @returns Its day and its month abbreviated, such as `19 nov.`.
  */
 export function dayText(iso: string): string {
-  return new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short" }).format(new Date(iso));
 }
 
 /**

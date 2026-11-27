@@ -55,7 +55,7 @@ describe("the components of the console", () => {
         children: "content",
       }),
     );
-    assert.equal(textOf(html), "Projet / Tests / Un test Un test valider content");
+    assert.equal(textOf(html), "Tests Projet / Tests / Un test Un test valider content");
     assert.match(html, /<span>Projet<\/span>.*<a href="#\/tests">Tests<\/a>.*<b>Un test<\/b>/);
     assert.match(html, /<h1 tabindex="-1">Un test<\/h1>/);
     const entity = render(createElement(Page, { crumbs: [{ label: "Tests" }], entity: "entity", children: "content" }));

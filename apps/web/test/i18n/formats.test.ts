@@ -38,17 +38,35 @@ describe("the time an action took", () => {
   });
 });
 
+/**
+ * Runs a check in a time zone, as the browser of a person in it would, then gives the tests back their own.
+ *
+ * @param zone - The time zone, such as `Europe/Paris`.
+ * @param check - The check.
+ */
+async function inZone(zone: string, check: () => void | Promise<void>): Promise<void> {
+  const before = process.env["TZ"];
+  process.env["TZ"] = zone;
+  try {
+    await check();
+  } finally {
+    process.env["TZ"] = before;
+  }
+}
+
 describe("a moment of a session", () => {
-  it("is written as its day and its time, in universal time, as each language writes them", async () => {
-    assert.equal(momentText("2026-11-15T14:44:06.348Z"), "15 nov. 2026, 14:44:06 UTC");
+  it("is written as its day and its time, in the time zone of the browser, as each language writes them", async () => {
+    assert.equal(momentText("2026-11-15T14:44:06.348Z"), "15 nov. 2026, 14:44:06");
+    await inZone("Europe/Paris", () => assert.equal(momentText("2026-11-15T14:44:06.348Z"), "15 nov. 2026, 15:44:06"));
     await inEnglish();
-    assert.equal(folded(momentText("2026-11-15T14:44:06.348Z")), "Nov 15, 2026, 2:44:06 PM UTC");
+    assert.equal(folded(momentText("2026-11-15T14:44:06.348Z")), "Nov 15, 2026, 2:44:06 PM");
   });
 });
 
 describe("the day of a session", () => {
-  it("is written short, its month abbreviated, in universal time", async () => {
+  it("is written short, its month abbreviated, in the time zone of the browser", async () => {
     assert.equal(dayText("2026-11-19T23:30:00.000Z"), "19 nov.");
+    await inZone("Europe/Paris", () => assert.equal(dayText("2026-11-19T23:30:00.000Z"), "20 nov."));
     await inEnglish();
     assert.equal(dayText("2026-11-19T23:30:00.000Z"), "Nov 19");
   });

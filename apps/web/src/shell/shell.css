@@ -1,12 +1,11 @@
 /*
- * The frame of every screen. On a phone it is one bar — the mark, the name of the screen and the button that opens
- * the navigation over it — over the page. From 720 px the bar holds the brand and the navigation, and from
- * 1100 px the navigation stands at the left of the page, with the project.
+ * The frame of every screen. On a phone a bar names the project over the page, and tabs stay at the bottom of the
+ * screen. From 720 px the navigation is a menu at the left of the page, which the person folds to its icons.
  */
 .shell {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr auto;
   min-height: 100dvh;
 }
 
@@ -37,18 +36,19 @@
 }
 
 .top,
-.shell-sidebar {
-  border-bottom: var(--hairline) solid var(--line);
+.shell-sidebar,
+.tabs {
   background: var(--surface);
 }
 
 .top {
-  grid-area: 2 / 1 / auto / -1;
+  grid-area: 2 / 1;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: var(--bar);
   padding: 0 var(--gutter);
+  border-bottom: var(--hairline) solid var(--line);
 }
 
 .brand,
@@ -81,8 +81,24 @@
   font-style: normal;
 }
 
-/* On a phone the bar names the screen, at the size of a heading, and cuts a name too long for it. */
-.top-screen {
+/* In the bar of a phone the mark alone stands for the console, which its name names to a screen reader: the bar keeps the room. */
+.top .brand {
+  position: relative;
+  justify-content: center;
+  min-width: var(--tap);
+}
+
+.top .brand span {
+  position: absolute;
+  width: var(--hairline);
+  height: var(--hairline);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* On a phone the bar names the project, at the size of a heading, and cuts a name too long for it. */
+.top-project {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -91,27 +107,6 @@
   line-height: var(--leading-heading);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.top-menu {
-  flex: none;
-}
-
-/* The button that opens the help of the shortcuts: a phone has no keyboard to press them on. */
-.top-help {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: var(--control);
-  height: var(--control);
-  margin-left: auto;
-  border-radius: var(--radius-control);
-  color: var(--text-2);
-}
-
-.top-help:hover {
-  background: var(--neutral-soft);
-  color: var(--text);
 }
 
 /* The help lists the keys of each shortcut beside what it does, under the part of the console it is for. */
@@ -157,9 +152,9 @@
   text-align: center;
 }
 
-/* The button that folds the menu: the sidebar it folds exists only on a wide screen. */
+/* The button that folds the menu, beside the mark: the menu it folds exists only from a tablet. */
 .menu-toggle {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: var(--control);
@@ -181,11 +176,26 @@
   transform: scaleX(-1);
 }
 
-/* On a phone the navigation waits for its button, in a panel over the screen. */
+/* The menu waits for a tablet: a phone has its tabs. */
 .shell-sidebar {
-  grid-area: 2 / 2;
   display: none;
   min-width: 0;
+}
+
+/* The mark heads the menu, beside the button that folds it; the help of the shortcuts stands at its foot. */
+.side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--bar);
+  padding: 0 var(--space-2) 0 var(--space-4);
+}
+
+.side-foot {
+  margin-top: auto;
+  padding: var(--space-2);
+  border-top: var(--hairline) solid var(--line);
 }
 
 /* The navigation lists its entries under the heading of their group, each named in full, the project over them. */
@@ -194,7 +204,8 @@
   padding: var(--space-2);
 }
 
-.nav a {
+.nav a,
+.side-help {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -205,12 +216,14 @@
   white-space: nowrap;
 }
 
-.nav a {
+.nav a,
+.side-help {
   color: var(--text-2);
   text-decoration: none;
 }
 
-.nav a:hover {
+.nav a:hover,
+.side-help:hover {
   background: var(--neutral-soft);
 }
 
@@ -278,125 +291,133 @@
   text-transform: uppercase;
 }
 
+/* The tabs of a phone: the screens a person goes back to all day, each an icon over its name, in reach of a thumb. */
+.tabs {
+  grid-area: 4 / 1;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) calc(var(--space-1) + env(safe-area-inset-bottom));
+  border-top: var(--hairline) solid var(--line);
+}
+
+.tabs a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--bar);
+  border-radius: var(--radius-control);
+  color: var(--text-2);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-caption);
+  text-decoration: none;
+}
+
+.tabs a span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabs a.on {
+  background: var(--primary-soft);
+  color: var(--brand-navy);
+  font-weight: var(--weight-strong);
+}
+
 .shell-page {
-  grid-area: 3 / 1 / auto / -1;
+  grid-area: 3 / 1;
   min-width: 0;
   padding-bottom: var(--space-6);
 }
 
-/* On a phone the mark alone stands for the console, which its name names to a screen reader: the bar keeps the room. */
-.brand {
-  position: relative;
-  justify-content: center;
-  min-width: var(--tap);
+/* The screen of the other entries: a list of rows under the heading of each group, as a phone lists its settings. */
+.more-group .grp {
+  margin: 0;
 }
 
-.brand span {
-  position: absolute;
-  width: var(--hairline);
-  height: var(--hairline);
+.more-list {
+  display: grid;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
   overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
-/* In a panel the navigation takes its width, which its body pads already. */
-.side-panel .nav {
-  padding: 0;
+.more-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--bar);
+  padding: 0 var(--space-4);
+  color: var(--text);
+  font-weight: var(--weight-strong);
+  text-decoration: none;
+}
+
+.more-link + .more-link {
+  border-top: var(--hairline) solid var(--line);
+}
+
+.more-link:hover {
+  background: var(--neutral-soft);
+}
+
+.more-link span {
+  flex: 1;
+}
+
+.more-link svg {
+  color: var(--brand-navy);
+}
+
+/* Its last icon points to where the row leads. */
+.more-link svg:last-child {
+  color: var(--text-3);
+  transform: rotate(-90deg);
 }
 
 @media (min-width: 720px) {
-  .top {
-    grid-area: 2 / 1;
-    padding-right: var(--space-1);
-  }
-
-  .top-screen,
-  .top-menu {
-    display: none;
-  }
-
-  .top-help {
-    display: inline-flex;
-  }
-
-  .shell-sidebar {
-    display: flex;
-  }
-
-  .brand span {
-    position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    clip-path: none;
-  }
-}
-
-/*
- * On a tablet the entries stand side by side in the bar, the project and the headings left out;
- * the bar scrolls when they outgrow it, and cannot widen the page.
- */
-@media (min-width: 720px) and (max-width: 1099.98px) {
-  .shell-sidebar .nav {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    padding: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .shell-sidebar .nav-group {
-    display: contents;
-  }
-
-  .shell-sidebar .nav a {
-    flex: none;
-    padding: 0 var(--space-3);
-  }
-
-  .shell-sidebar .nav a.on {
-    box-shadow: none;
-  }
-
-  .shell-sidebar :is(.proj, .grp) {
-    display: none;
-  }
-}
-
-@media (min-width: 1100px) {
   .shell {
     grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
   }
 
-  .top {
-    grid-column: 1 / -1;
-    padding: 0 var(--space-4);
+  .env {
+    grid-area: 1 / 1 / auto / -1;
   }
 
+  .top,
+  .tabs {
+    display: none;
+  }
+
+  /* The menu stays in sight while a long page scrolls. */
   .shell-sidebar {
-    grid-area: 3 / 1;
-    display: block;
-    border-right: var(--hairline) solid var(--line);
-    border-bottom: 0;
-  }
-
-  /* The navigation stays in sight while a long page scrolls; its pictures and its icons stand under the mark of the console. */
-  .shell-sidebar .nav {
+    grid-area: 2 / 1;
     position: sticky;
     top: 0;
-    max-height: 100dvh;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    border-right: var(--hairline) solid var(--line);
+  }
+
+  .shell-sidebar .nav {
+    flex: 1;
     overflow-y: auto;
   }
 
   .shell-page {
-    grid-area: 3 / 2;
-  }
-
-  .menu-toggle {
-    display: inline-flex;
-    margin-left: calc(var(--space-2) * -1);
+    grid-area: 2 / 2;
   }
 
   /*
@@ -415,11 +436,17 @@
     clip-path: inset(50%);
   }
 
-  .folded .shell-sidebar :is(.proj, .grp) {
+  .folded .shell-sidebar :is(.proj, .grp, .brand span) {
     display: none;
   }
 
-  .folded .shell-sidebar .nav a {
+  .folded .side-head {
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--space-2) 0;
+  }
+
+  .folded .shell-sidebar :is(.nav a, .side-help) {
     position: relative;
     justify-content: center;
     padding: 0;

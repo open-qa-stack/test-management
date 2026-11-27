@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { t } from "../i18n/i18n.ts";
+import { Icon } from "./icon.tsx";
 
 /** A step of the breadcrumb of a page. */
 export interface Crumb {
@@ -26,16 +28,26 @@ export interface PageProps {
 
 /**
  * A page of the console: a breadcrumb, a title or the header of an entity, its actions, what it is for in a line, then
- * its content. Its
- * title takes the focus when the console arrives on the page, without being a stop of the keyboard.
+ * its content. On a phone the breadcrumb gives way to a link back to the screen it leads to last, which a screen
+ * the tabs open has none of. Its title takes the focus when the console arrives on the page, without being a stop of
+ * the keyboard.
  *
  * @param props - The header and the content of the page.
  * @returns The page.
  */
 export function Page({ crumbs, title, actions, hint, entity, children }: PageProps): ReactNode {
+  const parent = crumbs.slice(0, -1).findLast((crumb) => crumb.href !== undefined);
   return (
     <>
       <div className="ph">
+        {parent?.href !== undefined && (
+          <div className="crumb-back">
+            <a href={parent.href} aria-label={t("page.back", { screen: parent.label })}>
+              <Icon name="collapse" />
+              {parent.label}
+            </a>
+          </div>
+        )}
         <div className="crumb">
           {crumbs.map((crumb, index) => (
             <span key={crumb.label} className="crumb-step">

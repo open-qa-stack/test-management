@@ -32,7 +32,8 @@ function consoleAt(hash: string, told: Omit<ConsoleProps, "route"> = {}): string
  * @returns The text of its main area.
  */
 function pageOf(html: string): string {
-  return textOf(html.slice(html.indexOf('<main class="shell-page">')));
+  const start = html.indexOf('<main class="shell-page">');
+  return textOf(html.slice(start, html.indexOf("</main>", start)));
 }
 
 describe("the session a route opens", () => {
@@ -96,7 +97,7 @@ describe("the console", () => {
 
   it("gives the entry of the agent the project and the sessions the API told", () => {
     const html = consoleAt("#/agent", { project: PROJECT, sessions: [COMPLETED] });
-    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu LA lakeside-tests 1 application · projet/);
+    assert.match(textOf(html), /^✓ Open QA Stack lakeside-tests ✓ Open QA Stack LA lakeside-tests 1 application · projet/);
     assert.match(pageOf(html), /^lakeside-tests \/ Agent Qu’est-ce qu’on teste \?/);
     assert.ok(linksOf(html).includes(SESSION));
     assert.match(pageOf(consoleAt("#/", { sessions: [] })), /Aucune session pour l’instant/);
@@ -122,10 +123,10 @@ describe("the console", () => {
         project: { name: "lakeside-tests", applications: [] },
         ...(sessions === undefined ? {} : { sessions }),
       });
-      assert.match(pageOf(html), /^lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. En direct/);
+      assert.match(pageOf(html), /^Agent lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. En direct/);
       assert.match(html, /<section class="thread" aria-label="Fil de la session">/);
     }
-    assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Projet \/ Agent \/ Session du 15 nov\. /);
+    assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Agent Projet \/ Agent \/ Session du 15 nov\. /);
   });
 
   it("names the project by a word of its own while the instance has none", () => {
@@ -134,18 +135,18 @@ describe("the console", () => {
 
   it("says it opens a session until the API told it, whatever the project lists", () => {
     const opening = new RegExp(
-      `^Projet / Agent / ${SESSION_ID} Ouverture de la session… Lecture de la session Son fil apparaît dès que l’instance a répondu\\. Revenir aux sessions$`,
+      `^Agent Projet / Agent / ${SESSION_ID} Ouverture de la session… Lecture de la session Son fil apparaît dès que l’instance a répondu\\. Revenir aux sessions$`,
     );
     assert.match(pageOf(consoleAt(SESSION)), opening);
     assert.match(pageOf(consoleAt(SESSION, { sessions: [RUNNING] })), opening);
     assert.match(pageOf(consoleAt(SESSION, { sessions: [], missing: false })), opening);
-    assert.deepEqual(linksOf(consoleAt(SESSION)).slice(-2), ["#/agent", "#/agent"]);
+    assert.deepEqual(linksOf(consoleAt(SESSION).split("</main>")[0]!).slice(-2), ["#/agent", "#/agent"]);
   });
 
   it("does not show another session than the one the address opens", () => {
     for (const told of [{ live: liveOf() }, { live: liveOf(), sessions: [RUNNING, { ...RUNNING, id: OTHER }] }]) {
       const html = consoleAt(`#/agent/sessions/${OTHER}`, told);
-      assert.match(pageOf(html), new RegExp(`^Projet / Agent / ${OTHER} Ouverture de la session…`));
+      assert.match(pageOf(html), new RegExp(`^Agent Projet / Agent / ${OTHER} Ouverture de la session…`));
       assert.doesNotMatch(html, /class="thread"/);
     }
   });
@@ -164,7 +165,7 @@ describe("the console", () => {
     );
     assert.match(
       pageOf(consoleAt("#/knowledge/manuals", { project: PROJECT })),
-      /^lakeside-tests \/ Connaissances \/ manuals manuals Lecture des connaissances/,
+      /^Connaissances lakeside-tests \/ Connaissances \/ manuals manuals Lecture des connaissances/,
     );
     assert.equal(documentTitleOf({ route: at("#/knowledge/manuals") }), "Connaissances · Open QA Stack");
     assert.match(pageOf(consoleAt("#/knowledge/manuals/more")), /Page introuvable/);
@@ -180,7 +181,7 @@ describe("the console", () => {
     // A test is opened by its path; without one, the address leads nowhere.
     assert.match(
       pageOf(consoleAt("#/tests/view?path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
-      /^lakeside-tests \/ Tests \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
+      /^Tests lakeside-tests \/ Tests \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/tests/view?path=apps%2Fshop%2Forders.spec.ts") }), "Test · Open QA Stack");
     for (const hash of ["#/tests/view", "#/tests/view?path="]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/);
@@ -237,7 +238,7 @@ describe("the console", () => {
     assert.equal(documentTitleOf({ route: at("#/campaigns") }), "Campagnes · Open QA Stack");
     assert.equal(
       pageOf(consoleAt("#/campaigns/view?id=c1", { project: PROJECT })),
-      "lakeside-tests / Campagnes / c1 c1 Lecture de la campagne Elle apparaît dès que l’instance a répondu.",
+      "Campagnes lakeside-tests / Campagnes / c1 c1 Lecture de la campagne Elle apparaît dès que l’instance a répondu.",
     );
     assert.equal(documentTitleOf({ route: at("#/campaigns/view?id=c1") }), "Campagne · Open QA Stack");
     for (const hash of ["#/campaigns/view", "#/campaigns/view?id=", "#/campaigns/c1", "#/campaigns/view/c1"])
@@ -247,7 +248,7 @@ describe("the console", () => {
   it("shows an execution, and what came of a test in it, at their addresses", () => {
     assert.equal(
       pageOf(consoleAt("#/executions/view?id=e1", { project: PROJECT })),
-      "lakeside-tests / Exécutions / e1 e1 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.",
+      "Exécutions lakeside-tests / Exécutions / e1 e1 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.",
     );
     for (const view of ["fixed", "other"])
       assert.match(pageOf(consoleAt(`#/executions/view?id=e1&view=${view}`, { project: PROJECT })), /Lecture de l’exécution/);
@@ -255,13 +256,13 @@ describe("the console", () => {
     assert.equal(documentTitleOf({ route: at("#/executions/view?id=e1") }), "Exécution · Open QA Stack");
     assert.match(
       pageOf(consoleAt("#/executions/result?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
-      /^lakeside-tests \/ Exécutions \/ e1 \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
+      /^e1 lakeside-tests \/ Exécutions \/ e1 \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/executions/result?id=e1&path=a.spec.ts") }), "Résultat d’un test · Open QA Stack");
     // The trace of a test in an execution has its own screen; an address that does not name both leads nowhere.
     assert.match(
       pageOf(consoleAt("#/executions/trace?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
-      /^lakeside-tests \/ Exécutions \/ e1 \/ Trace Trace ← apps\/shop\/orders\.spec\.ts Lecture du test/,
+      /^e1 lakeside-tests \/ Exécutions \/ e1 \/ Trace Trace ← apps\/shop\/orders\.spec\.ts Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/executions/trace?id=e1&path=a.spec.ts") }), "Trace d’un test · Open QA Stack");
     for (const hash of ["#/executions/trace?id=e1", "#/executions/trace?path=a.spec.ts"]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
@@ -291,11 +292,17 @@ describe("the console", () => {
     assert.equal(documentTitleOf({ route: at("#/applications/shop") }), "Applications · Open QA Stack");
     assert.match(
       pageOf(consoleAt("#/applications/shop", { project: PROJECT, onConfigured: () => undefined })),
-      /^lakeside-tests \/ Applications \/ shop shop Lecture/,
+      /^Applications lakeside-tests \/ Applications \/ shop shop Lecture/,
     );
     assert.match(pageOf(consoleAt("#/applications/shop/more")), /Page introuvable/);
     // Told what reads the project again once a change is saved, the screen shows the same until one is.
     assert.equal(pageOf(consoleAt("#/configuration", { project: PROJECT, onConfigured: () => undefined })), pageOf(html));
+  });
+
+  it("shows the other entries at their address, which the tabs of a phone lead to", () => {
+    assert.match(pageOf(consoleAt("#/more", { project: PROJECT })), /^lakeside-tests \/ Plus Plus Référentiel Découverte /);
+    assert.equal(documentTitleOf({ route: at("#/more") }), "Plus · Open QA Stack");
+    assert.match(pageOf(consoleAt("#/more/nowhere")), /Page introuvable/);
   });
 
   it("says an address leads nowhere, and how to come back", () => {
@@ -306,7 +313,7 @@ describe("the console", () => {
         "Projet / Page introuvable Page introuvable Cette adresse ne mène à aucun écran Le lien est peut-être ancien, ou l’écran n’existe pas encore. Revenir aux sessions",
         hash,
       );
-      assert.equal(linksOf(html).at(-1), "#/agent", hash);
+      assert.equal(linksOf(html.split("</main>")[0]!).at(-1), "#/agent", hash);
       assert.match(html, /^<div class="shell">/, hash);
     }
   });

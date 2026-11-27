@@ -70,7 +70,7 @@ describe("the card of a test", () => {
   it("says it reads the test until the instance told both the tests and its executions, and why it could not", () => {
     assert.equal(
       textOf(screen({}, {})),
-      `lakeside-tests / Tests / ${DETAIL.path} ${DETAIL.path} Lecture du test Il apparaît dès que l’instance a répondu. Détails techniques ${DETAIL.path}`,
+      `Tests lakeside-tests / Tests / ${DETAIL.path} ${DETAIL.path} Lecture du test Il apparaît dès que l’instance a répondu. Détails techniques ${DETAIL.path}`,
     );
     assert.match(textOf(screen({}, { unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\. Détails techniques /);
     assert.match(textOf(screen({ unread: "Down." })), /Lecture du test Down\. Détails techniques /);
@@ -82,7 +82,7 @@ describe("the card of a test", () => {
     nameApplications([]);
     assert.match(
       text,
-      /^lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy Modifier le titre Fonctionnel policies › policy-detail Policy Management /,
+      /^Tests lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy Modifier le titre Fonctionnel policies › policy-detail Policy Management /,
     );
     assert.match(
       text,
@@ -112,7 +112,7 @@ describe("the card of a test", () => {
     const result = (id: string) => `#/executions/result?id=${id}&path=${encodeURIComponent(DETAIL.path)}`;
     const panel = (name: string) => `#/tests/view?panel=${encodeURIComponent(name)}`;
     const links = linksOf(html);
-    assert.match(links[3]!, /^#\/agent\?request=/, "a test that failed leads to the agent");
+    assert.match(links[4]!, /^#\/agent\?request=/, "a test that failed leads to the agent");
     const tree = [
       testHref(DETAIL.path),
       testHref(DETAIL.path, "failing"),
@@ -121,7 +121,8 @@ describe("the card of a test", () => {
       testHref(SMOKE.path),
       testHref(HANDMADE.path),
     ];
-    assert.deepEqual(links.toSpliced(3, 1), [
+    assert.deepEqual(links.toSpliced(4, 1), [
+      "#/tests",
       "#/tests",
       panel("title"),
       result("e3"),

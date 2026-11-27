@@ -1214,7 +1214,7 @@ describe("the stop of a session", () => {
         html,
         /<span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><button type="button" class="btn ghost sm">/,
       );
-      assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 UTC · 2 actions arrêt demandé… Rejouer/);
+      assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 · 2 actions arrêt demandé… Rejouer/);
       assert.doesNotMatch(html, /class="session-stop"|Arrêter/);
     }
     assert.doesNotMatch(stoppedWith({ state: "asked" }, "", INTERRUPTED), /arrêt demandé|session-stop/);
@@ -1247,23 +1247,23 @@ describe("the screen of a session", () => {
 
   it("is headed by its day, what was asked left to its bubble, and leads back to the sessions of the project", () => {
     const html = screen();
-    assert.match(textOf(html), /^lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. /);
+    assert.match(textOf(html), /^Agent lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. /);
     assert.equal(countOf(html, /tester la recherche d&#x27;un client/g), 1);
     assert.equal(linksOf(html)[0], "#/agent");
   });
 
   it("says in its facts what the session is kept to", () => {
     const html = screen("", liveOf({ ...RUNNING, scope: { domains: ["quotes"], levels: ["business"] } }));
-    assert.match(html, /<span class="session-facts">15 nov. 2026, 14:44:06 UTC · limitée à quotes, Parcours métier · 2 actions<\/span>/);
+    assert.match(html, /<span class="session-facts">15 nov. 2026, 14:44:06 · limitée à quotes, Parcours métier · 2 actions<\/span>/);
   });
 
   it("follows a session whose agents work: its state, its facts in a line, and the offer to replay it", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="session-bar"><span class="badge info">En direct<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
+      /<div class="session-bar"><span class="badge info">En direct<\/span><span class="session-facts">15 nov. 2026, 14:44:06 · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
     );
-    assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 UTC · 2 actions Arrêter Rejouer ✓ Configuration/);
+    assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 · 2 actions Arrêter Rejouer ✓ Configuration/);
     assert.match(html, /<div class="content"><div class="session"><div class="session-bar">/);
     assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay/);
     assert.deepEqual(pressed(), ["restart"]);
@@ -1274,7 +1274,7 @@ describe("the screen of a session", () => {
       const html = screen("", { ...liveOf(session), stream: "reconnecting" });
       assert.match(html, /<span class="session-facts">connexion au flux interrompue, nouvelle tentative…<\/span>/);
       assert.match(textOf(html), /connexion au flux interrompue, nouvelle tentative… (Arrêter )?Rejouer/);
-      assert.doesNotMatch(html, /14:44:06 UTC/);
+      assert.doesNotMatch(html, /14:44:06/);
     }
     assert.doesNotMatch(screen("", { ...liveOf(), stream: "connecting" }), /connexion au flux interrompue/);
   });
@@ -1282,25 +1282,25 @@ describe("the screen of a session", () => {
   it("adds what an ended session knows: its duration, its model requests and its branch", () => {
     assert.match(
       textOf(screen("", liveOf(COMPLETED))),
-      /Réussi 15 nov. 2026, 14:44:06 UTC · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
+      /Réussi 15 nov. 2026, 14:44:06 · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
     );
-    assert.match(textOf(screen("", liveOf(STOPPED))), /Arrêté 15 nov. 2026, 14:44:06 UTC · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
+    assert.match(textOf(screen("", liveOf(STOPPED))), /Arrêté 15 nov. 2026, 14:44:06 · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
   });
 
   it("tells only the opening and the actions of a session that has no result", () => {
     const interrupted = screen("", liveOf(INTERRUPTED));
-    assert.match(textOf(interrupted), /Interrompue 15 nov. 2026, 14:44:06 UTC · 3 actions Rejouer/);
+    assert.match(textOf(interrupted), /Interrompue 15 nov. 2026, 14:44:06 · 3 actions Rejouer/);
     assert.match(interrupted, /<div class="session-bar"><span class="badge warn">Interrompue<\/span>/);
     const untold = screen("", liveOf({ ...RUNNING, state: "completed" }));
     assert.match(
       untold,
-      /<div class="session-bar"><span class="badge neutral">Terminée<\/span><span class="session-facts">15 nov. 2026, 14:44:06 UTC · 3 actions<\/span>/,
+      /<div class="session-bar"><span class="badge neutral">Terminée<\/span><span class="session-facts">15 nov. 2026, 14:44:06 · 3 actions<\/span>/,
     );
   });
 
   it("counts the knowledge sources the agents read, each once, among the facts of a session that read some", () => {
     const written = liveWith([{ kind: "say", from: "cartographer", at: "09:00:00", text: "Je lis les sources." }], INTERRUPTED, ["specification", "tickets"]);
-    assert.match(textOf(screen("", written)), /Interrompue 15 nov. 2026, 14:44:06 UTC · 2 sources de connaissance lues · 0 action Rejouer/);
+    assert.match(textOf(screen("", written)), /Interrompue 15 nov. 2026, 14:44:06 · 2 sources de connaissance lues · 0 action Rejouer/);
     const events = numbered([
       { type: "phase_started", phase: "survey" },
       { type: "phase_started", phase: "card", source: "orders-db" },
@@ -1308,7 +1308,7 @@ describe("the screen of a session", () => {
       { type: "phase_started", phase: "card", source: "orders-db" },
       { type: "agent_message", agent: "cartographer", text: "I read the sources.", reasoning: false },
     ]);
-    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /UTC · 2 sources de connaissance lues · 0 action Arrêter Rejouer/);
+    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /:06 · 2 sources de connaissance lues · 0 action Arrêter Rejouer/);
     assert.doesNotMatch(screen(), /de connaissance lue/);
   });
 
@@ -1340,7 +1340,7 @@ describe("the screen of a session", () => {
   it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
     const html = screen("", liveOf(QUEUED, {}, ASKED));
     assert.match(html, /<span class="badge outline">En file<\/span>/);
-    assert.match(textOf(html), /En file 15 nov. 2026, 14:44:06 UTC · en attente d’un agent · 0 action Arrêter Rejouer /);
+    assert.match(textOf(html), /En file 15 nov. 2026, 14:44:06 · en attente d’un agent · 0 action Arrêter Rejouer /);
     assert.doesNotMatch(html, /class="working"|travaille/);
     assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
   });

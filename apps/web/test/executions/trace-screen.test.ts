@@ -20,14 +20,14 @@ describe("the screen of the trace of a test", () => {
     const html = screen({ value: TRACED });
     assert.match(
       textOf(html),
-      /^lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Trace Trace Ouvrir dans un onglet ↗ ← Display the detail of a policy$/,
+      /^\d+ nov\. 2026, \d\d:\d\d lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Trace Trace Ouvrir dans un onglet ↗ ← Display the detail of a policy$/,
     );
     const src = traceViewerSrc("e1", DETAIL.path);
     assert.equal(src, `/trace-viewer/index.html?trace=${encodeURIComponent(`/api/tests/trace?path=${encodeURIComponent(DETAIL.path)}&execution=e1`)}`);
     const escaped = src.replaceAll("&", "&amp;");
     assert.ok(html.includes(`<iframe class="trace-frame" src="${escaped}" title="Trace de « Display the detail of a policy »"></iframe>`));
     assert.ok(html.includes(`<a class="btn" href="${escaped}" target="_blank" rel="noopener">`));
-    assert.deepEqual(linksOf(html).slice(0, 2), ["#/executions", "#/executions/view?id=e1"]);
+    assert.deepEqual(linksOf(html).slice(0, 3), ["#/executions/view?id=e1", "#/executions", "#/executions/view?id=e1"]);
     assert.match(linksOf(html).at(-1)!, /^#\/executions\/result\?id=e1&path=apps%2Fpolicy-management%2F/);
   });
 

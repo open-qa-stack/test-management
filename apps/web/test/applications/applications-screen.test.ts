@@ -56,7 +56,7 @@ describe("the applications of the project", () => {
   });
 
   it("shows the page of an application, and the application the person adds", () => {
-    assert.match(textOf(screen("#/applications/shop")), /^shop-tests \/ Applications \/ Shop Shop Retirer l’application/);
-    assert.match(textOf(screen("#/applications?add=application")), /^shop-tests \/ Applications \/ Nouvelle application Nouvelle application$/);
+    assert.match(textOf(screen("#/applications/shop")), /^Applications shop-tests \/ Applications \/ Shop Shop Retirer l’application/);
+    assert.match(textOf(screen("#/applications?add=application")), /^Applications shop-tests \/ Applications \/ Nouvelle application Nouvelle application$/);
   });
 });

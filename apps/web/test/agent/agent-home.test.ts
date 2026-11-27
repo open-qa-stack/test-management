@@ -124,9 +124,9 @@ describe("the entry of the agent", () => {
 
   it("lists a session per row, with what was asked, its facts and its state", () => {
     const text = textOf(home([RUNNING, COMPLETED, INTERRUPTED]));
-    assert.match(text, /Sessions · 1 en direct tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC En direct /);
-    assert.match(text, /tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · local · 1 min 54 s 1 \/ 1 test réussi /);
-    assert.match(text, /Session sans demande 14 nov. 2026, 09:12:00 UTC Interrompue$/);
+    assert.match(text, /Sessions · 1 en direct tester la recherche d'un client 15 nov. 2026, 14:44:06 En direct /);
+    assert.match(text, /tester la recherche d'un client 15 nov. 2026, 14:44:06 · local · 1 min 54 s 1 \/ 1 test réussi /);
+    assert.match(text, /Session sans demande 14 nov. 2026, 09:12:00 Interrompue$/);
     assert.doesNotMatch(text, /Lecture des sessions|Aucune session/);
   });
 
@@ -134,23 +134,23 @@ describe("the entry of the agent", () => {
     const html = home([QUEUED, COMPLETED]);
     assert.match(
       textOf(html),
-      /Sessions · chaque demande ouvre une session tester la recherche d'un client 15 nov. 2026, 14:44:06 UTC · en attente d’un agent En file /,
+      /Sessions · chaque demande ouvre une session tester la recherche d'un client 15 nov. 2026, 14:44:06 · en attente d’un agent En file /,
     );
     assert.match(html, new RegExp(`<a class="row run-row" href="#/agent/sessions/${SESSION_ID}">`));
     assert.match(html, /<span class="badge outline">En file<\/span>/);
-    assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande 16 nov. 2026, 08:00:00 UTC · en attente d’un agent En file$/);
+    assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande 16 nov. 2026, 08:00:00 · en attente d’un agent En file$/);
   });
 
   it("names a session nothing was asked of by whether its agents still work, or as the mapping it is", () => {
     const text = textOf(home([UNASKED, { ...UNASKED, state: "completed" }]));
-    assert.match(text, /Session en cours 16 nov. 2026, 08:00:00 UTC En direct Session sans demande 16 nov. 2026, 08:00:00 UTC Terminée$/);
-    assert.match(textOf(home([{ ...UNASKED, purpose: "map" }])), /^.*Cartographie des connaissances 16 nov. 2026, 08:00:00 UTC En direct$/);
+    assert.match(text, /Session en cours 16 nov. 2026, 08:00:00 En direct Session sans demande 16 nov. 2026, 08:00:00 Terminée$/);
+    assert.match(textOf(home([{ ...UNASKED, purpose: "map" }])), /^.*Cartographie des connaissances 16 nov. 2026, 08:00:00 En direct$/);
   });
 
   it("tells the facts of a result even when it holds no test, and how each session stands", () => {
     const stopped: Session = { ...COMPLETED, result: { outcome: "stopped", durationMs: 42_000, modelRequests: 3, tests: [] } };
     const html = home([stopped, { ...RUNNING, state: "interrupted" }]);
-    assert.match(textOf(html), /15 nov. 2026, 14:44:06 UTC · local · 42 s Arrêté /);
+    assert.match(textOf(html), /15 nov. 2026, 14:44:06 · local · 42 s Arrêté /);
     assert.match(html, /<span class="badge neutral">Arrêté<\/span>/);
     assert.match(html, /<span class="badge warn">Interrompue<\/span>/);
   });

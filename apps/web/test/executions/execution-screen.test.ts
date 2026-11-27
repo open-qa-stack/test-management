@@ -30,7 +30,10 @@ const screen = (state: PolledState<Execution>, sessions: readonly Session[] = [S
 
 describe("the screen of an execution", () => {
   it("says it reads the execution until the instance read it, and why it could not", () => {
-    assert.equal(textOf(screen({}, [], "e9")), "lakeside-tests / Exécutions / e9 e9 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.");
+    assert.equal(
+      textOf(screen({}, [], "e9")),
+      "Exécutions lakeside-tests / Exécutions / e9 e9 Lecture de l’exécution Elle apparaît dès que l’instance a répondu.",
+    );
     assert.match(textOf(screen({ unread: "L’instance ne garde plus cette exécution." })), /Lecture de l’exécution L’instance ne garde plus cette exécution\.$/);
   });
 
@@ -40,7 +43,7 @@ describe("the screen of an execution", () => {
     nameApplications([]);
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec Réussis 3 60 % · 1 instable Échoués 1 Ignorés 1 Corrigés 0 depuis leur dernier passage Durée 9 s Premier passage de ces tests\. Lancée par la session « Test the policies » Voir la session → À regarder · 1 Tous · 5 Nouveaux échecs · 0 Corrigés · 0 Instables · 1 Policy Management · 5 tests Résultat Depuis son dernier passage Test Domaine Durée /,
+      /^Exécutions lakeside-tests \/ Exécutions \/ (\d+ nov\. 2026, \d\d:\d\d) Exécution du \1 Relancer l’échec Réussis 3 60 % · 1 instable Échoués 1 Ignorés 1 Corrigés 0 depuis leur dernier passage Durée 9 s Premier passage de ces tests\. Lancée par la session « Test the policies » Voir la session → À regarder · 1 Tous · 5 Nouveaux échecs · 0 Corrigés · 0 Instables · 1 Policy Management · 5 tests Résultat Depuis son dernier passage Test Domaine Durée /,
     );
     assert.match(text, / Détails techniques Version du dépôt de tests : 4f2a9c0$/);
     assert.match(
@@ -49,6 +52,7 @@ describe("the screen of an execution", () => {
     );
     const result = `#/executions/result?id=${LATEST.id}&path=${encodeURIComponent(DETAIL)}`;
     assert.deepEqual(linksOf(screen({ value: LATEST })), [
+      "#/executions",
       "#/executions",
       `#/agent/sessions/${LATEST.sessionId}`,
       ...EXECUTION_VIEWS.map((view) => `#/executions/view?id=${LATEST.id}&view=${view}`),

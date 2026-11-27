@@ -382,7 +382,7 @@ describe("the title of a script", () => {
   });
 
   it("is when the session was opened when nothing was asked", () => {
-    assert.equal(scriptWith([{ type: "phase_started", phase: "survey" }], UNASKED).title, "Session du 15 nov. 2026, 14:44:06 UTC");
+    assert.equal(scriptWith([{ type: "phase_started", phase: "survey" }], UNASKED).title, "Session du 15 nov. 2026, 14:44:06");
   });
 });
 
@@ -437,7 +437,7 @@ describe("a message the person sends while the session goes on", () => {
   it("never titles the session, which stays named after what opened it, or after its opening when nothing did", () => {
     const corrected = [{ type: "user_message", text: "sans le profil", number: 1 }, ...SAID] as const;
     assert.equal(scriptWith(corrected, UNASKED).title, "tester la recherche");
-    assert.equal(scriptWith([corrected[0]], UNASKED).title, "Session du 15 nov. 2026, 14:44:06 UTC");
+    assert.equal(scriptWith([corrected[0]], UNASKED).title, "Session du 15 nov. 2026, 14:44:06");
   });
 
   it("stays waiting when the agent it reached is one the console does not know: that delivery is left out", () => {
