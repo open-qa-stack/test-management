@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import type { AgentRuntime, TaskLimits, TraceLine } from "@open-qa-stack/domain";
@@ -72,6 +72,28 @@ describe("the edges of a run", () => {
       stateOf(run.root).tests!.map((test) => test.verdict),
       ["passed", "passed"],
     );
+  });
+
+  it("puts back the test a run stopped during its trial left in the repository, says so, and designs from the repository as it was", async () => {
+    const stray = "apps/shop/tests/orders/listing/stray.spec.ts";
+    const run = await ran(chain(), {
+      environment: "local",
+      root: (config) => {
+        const root = repository(config);
+        // As a process ended during a trial leaves it: the test at its path, and the mark of the trial.
+        mkdirSync(join(root, "apps/shop/tests/orders/listing"), { recursive: true });
+        writeFileSync(join(root, stray), "test under trial");
+        mkdirSync(join(root, ".oqas/trials"), { recursive: true });
+        writeFileSync(join(root, ".oqas/trials/open.json"), JSON.stringify({ path: stray, snapshots: false }));
+        return root;
+      },
+    });
+    assert.equal(run.code, 0, run.err);
+    assert.match(
+      run.err,
+      /\[design\] apps\/shop\/tests\/orders\/listing\/stray\.spec\.ts was under trial when a run was stopped: it was put back as the repository had it, and its scenario is written again\./,
+    );
+    assert.equal(existsSync(join(run.root, stray)), false);
   });
 
   it("stops with 5 on an unexpected error in a step, closes the step, and keeps what the steps before produced", async () => {
