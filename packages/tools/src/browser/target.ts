@@ -20,7 +20,7 @@ const text = { type: "string", minLength: 1 } as const;
 const within = {
   type: "object",
   description:
-    'The part of the page that holds the element, when the locator of the snapshot starts with one: for a locator that starts with page.getByRole("row", { name: "…" }), the role row and that name, copied from the snapshot.',
+    'The part of the page that holds the element, when the locator of the snapshot starts with one: for a locator that starts with page.getByRole("row", { name: "…" }), the role row and that name, copied from the snapshot. It holds the element, it is never the element itself: to click the button Show Details of a row, the target is the button and within is the row.',
   properties: { role: text, name: { type: "string" } },
   required: ["role"],
   additionalProperties: false,
@@ -32,7 +32,7 @@ const exact = { const: true, description: "Names, labels and texts are always ma
 /** JSON Schema of a `Target`, for the parameters of the tools. */
 export const TARGET_SCHEMA = {
   description:
-    "The element, as the page snapshot recommends: by role and accessible name, by label, by test id, or by text; with within for the part of the page that holds it, when the snapshot names one.",
+    "The element, as the page snapshot recommends: by role and accessible name, by label, by test id, or by text; with within, inside the target, for the part of the page that holds it, when the snapshot names one.",
   oneOf: [
     { type: "object", properties: { role: text, name: { type: "string" }, exact, within }, required: ["role"], additionalProperties: false },
     { type: "object", properties: { label: text, exact, within }, required: ["label"], additionalProperties: false },

@@ -52,6 +52,14 @@ export const MAX_REFUSED_PLANS = 6;
 const LAST_TEXTS = 5;
 /** Longest part of a text of a source a refused value is told with. */
 const MAX_TOLD_TEXT = 200;
+/** Most steps of a scenario: a longer journey is cut in several scenarios. */
+const MAX_STEPS = 8;
+/** Most browser actions a step cites. */
+const MAX_STEP_ACTIONS = 12;
+/** Most results a step expects. */
+const MAX_EXPECTS = 4;
+/** Most values a scenario enters. */
+const MAX_DATA = 12;
 /** What the agent is told of the actions of a step. */
 const ACTIONS_FIELD =
   'The numbers of the actions that did this step when you explored, in the order a test does them, as the results of the browser tools gave them in "action", such as [3, 4] for a step done by the actions 3 and 4. The first action of a scenario opens an address; scenarios may cite the same actions, such as those that sign in. Empty for an application without screens.';
@@ -339,7 +347,7 @@ export class PlanProposal {
     const texts = (description: string) => ({ type: "array", maxItems: 20, items: { type: "string", minLength: 1 }, description });
     return {
       name: PLAN_TOOL,
-      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. As many scenarios as the brief needs, each verifying something the others do not: one per business rule, information or behaviour the brief is about; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them. A step has one action, in actions the numbers of the browser actions that did it when you explored, and 0 to 4 expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
+      description: `Submits the test plan, once you have read the sources and done the brief once on the screens. As many scenarios as the brief needs, each verifying something the others do not: one per business rule, information or behaviour the brief is about; with two functional scenarios or more, one is negative. Each scenario gives its data (every value the test enters, ${MAX_DATA} at most, with the source that showed it, or "${MADE_UP}" for a value the test invents), then its steps as a user does them, ${MAX_STEPS} at most: cut a longer journey in several scenarios. A step has one action, in actions the numbers of the browser actions that did it when you explored, ${MAX_STEP_ACTIONS} at most, and 0 to ${MAX_EXPECTS} expects; an expect states one result seen after the action, with in shows the exact texts the screen then displays and in absent the exact texts it no longer displays. Each step becomes one test.step, and each text one assertion: the harness writes their code and their locators from the actions you cite and the screens you saw; you never write a locator. The harness refuses a value or a text no tool showed you.`,
       parameters: {
         type: "object",
         properties: {
@@ -404,7 +412,7 @@ export class PlanProposal {
                 },
                 data: {
                   type: "array",
-                  maxItems: 12,
+                  maxItems: MAX_DATA,
                   items: {
                     type: "object",
                     properties: {
@@ -422,14 +430,14 @@ export class PlanProposal {
                 steps: {
                   type: "array",
                   minItems: 1,
-                  maxItems: 8,
+                  maxItems: MAX_STEPS,
                   items: {
                     type: "object",
                     properties: {
                       action: { type: "string", minLength: 1, description: "What the user does, in one sentence, such as: Filter the orders by their status." },
                       actions: {
                         type: "array",
-                        maxItems: 12,
+                        maxItems: MAX_STEP_ACTIONS,
                         items: { type: "integer", minimum: 1 },
                         description: ACTIONS_FIELD,
                       },
@@ -440,7 +448,7 @@ export class PlanProposal {
                       },
                       expects: {
                         type: "array",
-                        maxItems: 4,
+                        maxItems: MAX_EXPECTS,
                         items: {
                           type: "object",
                           properties: {
