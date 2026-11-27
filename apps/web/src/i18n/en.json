@@ -9,7 +9,6 @@
     "fold": "Fold the menu",
     "unfold": "Unfold the menu",
     "menuTitle": "Menu",
-    "soon": "soon",
     "applications_one": "{{count}} application · project",
     "applications_other": "{{count}} applications · project",
     "groups": {
@@ -23,7 +22,6 @@
       "discovery": "Discovery",
       "review": "To review",
       "tests": "Tests",
-      "coverage": "Coverage",
       "executions": "Executions",
       "campaigns": "Campaigns",
       "defects": "Defects",

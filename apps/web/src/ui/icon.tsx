@@ -35,7 +35,6 @@ const DRAWINGS = {
   columns: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
   export: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
-  check: '<path d="M5 12l5 5L20 7"/>',
   more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   warning: '<path d="M12 3l10 18H2zM12 10v5M12 18h.01"/>',

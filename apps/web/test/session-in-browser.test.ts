@@ -51,7 +51,6 @@ describe("the shell on a narrow and on a wide screen", () => {
           "Découverte",
           "À relire",
           "Tests",
-          "Couverture",
           "Exécution",
           "Exécutions",
           "Campagnes",
@@ -91,13 +90,12 @@ describe("the shell on a narrow and on a wide screen", () => {
       const navigation = await page.locator(".nav").boundingBox();
       assert.ok(bar !== null && navigation !== null);
       assert.equal(navigation.y, bar.y);
-      assert.equal(await page.getByText("bientôt").first().isVisible(), false);
     } finally {
       await page.close();
     }
   });
 
-  it("shows the navigation as a sidebar at the left, with the project and what is coming, at 1100 px", async () => {
+  it("shows the navigation as a sidebar at the left, with the project, at 1100 px", async () => {
     const page = await app().open(1100, "", new PlayedInstance().api);
     try {
       const bar = await page.locator(".top").boundingBox();
@@ -106,8 +104,6 @@ describe("the shell on a narrow and on a wide screen", () => {
       assert.equal(sidebar.x, 0);
       assert.equal(sidebar.y, bar.y + bar.height);
       assert.equal(bar.width, 1100);
-      assert.equal(await page.getByText("bientôt").count(), 1);
-      assert.equal(await page.getByText("bientôt").first().isVisible(), true);
       await page.getByText("1 application · projet").waitFor();
     } finally {
       await page.close();

@@ -11,8 +11,8 @@ export interface NavigationEntry {
   readonly icon: IconName;
   /** What it opens, which names its label in the resources. */
   readonly key: keyof Words["shell"]["entries"];
-  /** The path of the screen it opens; none for a part of the console that does not exist yet. */
-  readonly path?: string;
+  /** The path of the screen it opens. */
+  readonly path: string;
 }
 
 /** A group of entries of the navigation, under a heading. */
@@ -25,8 +25,7 @@ export interface NavigationGroup {
 
 /**
  * The navigation of the console: the agents, which it shows at work, then the repository of tests and the
- * executions of its tests, with what is coming of them, named so that a person sees what is coming, and the knowledge and the configuration of
- * the project.
+ * executions of its tests, and the knowledge and the configuration of the project.
  */
 export const NAVIGATION: readonly NavigationGroup[] = [
   { key: "work", entries: [{ icon: "agent", key: "agent", path: "/agent" }] },
@@ -36,7 +35,6 @@ export const NAVIGATION: readonly NavigationGroup[] = [
       { icon: "discovery", key: "discovery", path: "/discovery" },
       { icon: "review", key: "review", path: "/review" },
       { icon: "tests", key: "tests", path: "/tests" },
-      { icon: "check", key: "coverage" },
     ],
   },
   {
@@ -63,10 +61,9 @@ export const NAVIGATION: readonly NavigationGroup[] = [
  *
  * @param route - Where the console is.
  * @param entry - The entry.
- * @returns Whether the entry is the one the console is at; never for what is coming.
+ * @returns Whether the entry is the one the console is at.
  */
 export function isAt(route: Route, entry: NavigationEntry): boolean {
-  if (entry.path === undefined) return false;
   return isUnder(route, entry.path) || (route.path.length === 0 && entry.path === HOME_PATH);
 }
 
