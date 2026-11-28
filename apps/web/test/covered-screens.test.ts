@@ -209,6 +209,9 @@ describe("the code of the console is covered in full", () => {
       ["src/tests/test-page.tsx", "src/tests/use-relaunch.ts"],
       async (page) => {
         await page.goto("http://console.test/#/tests");
+        // The test is in a group the list folds when it holds no failure: it is unfolded first.
+        const group = page.locator("details.tests-group", { has: page.locator("a", { hasText: "Display the detail of a policy" }) });
+        if ((await group.getAttribute("open")) === null) await group.locator("summary").click();
         await page.getByRole("link", { name: /Display the detail of a policy/ }).click();
         await page.waitForURL(/#\/tests\/view\?path=apps%2Fpolicy-management%2F/);
         await page.getByText("Open the policy of the customer", { exact: true }).waitFor();

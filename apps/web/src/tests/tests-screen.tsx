@@ -3,12 +3,12 @@ import type { LastVerdict, LaunchRequest, RepositoryTest } from "@open-qa-stack/
 import { t } from "../i18n/i18n.ts";
 import { LEVELS, levelName, statusCount, statusName } from "../i18n/vocabulary.ts";
 import { applicationName } from "../applications/application-names.ts";
-import { hrefTo, type Route } from "../routing/route.ts";
+import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
-import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
+import { SidePanel } from "../ui/side-panel.tsx";
 import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 import { TESTS_PATH, testHref } from "./tests-paths.ts";
 import type { TestsState } from "./tests-state.ts";
@@ -113,7 +113,7 @@ function OutcomeFilter({
           href={testsHref({ level, outcome, search })}
           aria-current={outcome === chosen ? "page" : undefined}
         >
-          {outcome === "failed" && <Icon name="close" size={12} />}
+          {outcome === "failed" && outcome !== chosen && <Icon name="close" size={12} />}
           {label} <span className="muted">{count}</span>
         </a>
       ))}
@@ -121,16 +121,20 @@ function OutcomeFilter({
   );
 }
 
-/** The filter of the levels: every level, then each level of the pyramid with how many tests it holds. */
-function LevelFilter({ tests, route }: { readonly tests: readonly RepositoryTest[]; readonly route: Route }): ReactNode {
-  const { level: chosen, outcome, q: search } = route.query;
-  const entries = [
+/** The levels of the pyramid, every level first, each with how many tests it holds. */
+function levelsOf(tests: readonly RepositoryTest[]): readonly { readonly level: string | undefined; readonly label: string; readonly count: number }[] {
+  return [
     { level: undefined, label: t("tests.allLevels"), count: tests.length },
     ...LEVELS.map((level) => ({ level, label: levelName(level), count: tests.filter((test) => test.level === level).length })),
   ];
+}
+
+/** The filter of the levels: every level, then each level of the pyramid with how many tests it holds; a phone opens it in a panel. */
+function LevelFilter({ tests, route }: { readonly tests: readonly RepositoryTest[]; readonly route: Route }): ReactNode {
+  const { level: chosen, outcome, q: search } = route.query;
   return (
-    <nav className="tests-levels" aria-label={t("tests.levelFilter")}>
-      {entries.map(({ level, label, count }) => (
+    <nav className="tests-levels tests-levels-row" aria-label={t("tests.levelFilter")}>
+      {levelsOf(tests).map(({ level, label, count }) => (
         <a
           key={label}
           className={level === chosen ? "chip on" : "chip"}
@@ -141,6 +145,30 @@ function LevelFilter({ tests, route }: { readonly tests: readonly RepositoryTest
         </a>
       ))}
     </nav>
+  );
+}
+
+/** The panel a phone chooses a level in: a row each, the level chosen marked, with how many tests it holds. */
+function LevelPanel({ tests, route }: { readonly tests: readonly RepositoryTest[]; readonly route: Route }): ReactNode {
+  const { level: chosen, outcome, q: search } = route.query;
+  return (
+    <SidePanel id="tests-levels" title={t("tests.filterTitle")} close={withPanel(route)}>
+      <h3 className="grp">{t("tests.levelHeading")}</h3>
+      <nav className="tests-level-rows" aria-label={t("tests.levelFilter")}>
+        {levelsOf(tests).map(({ level, label, count }) => (
+          <a
+            key={label}
+            className={level === chosen ? "row tests-level-row on" : "row tests-level-row"}
+            href={testsHref({ level, outcome, search })}
+            aria-current={level === chosen ? "page" : undefined}
+          >
+            <span className="tests-radio" aria-hidden="true" />
+            <span className="grow">{label}</span>
+            <span className="small muted">{count}</span>
+          </a>
+        ))}
+      </nav>
+    </SidePanel>
   );
 }
 
@@ -156,16 +184,17 @@ function TestRow({ test, verdict }: { readonly test: RepositoryTest; readonly ve
       <span className={`tests-mark ${verdict ?? "never"}`} role="img" aria-label={verdict === undefined ? t("test.neverRun") : statusName(verdict)}>
         {verdict !== undefined && <Icon name={failed ? "close" : "check"} size={12} />}
       </span>
-      <div className="grow">
+      <div className="grow tests-row-text">
         <b>{test.title}</b>
         {where !== "" && <div className="small muted mono">{where}</div>}
       </div>
-      {test.level !== undefined && <span className="small muted">{levelName(test.level)}</span>}
-      {test.kind === "visual" && <Badge tone="outline">{t("tests.visual")}</Badge>}
-      <span className="small muted">{t("tests.steps", { count: test.steps.length })}</span>
-      <span className={failed ? "small tests-verdict ko" : "small muted tests-verdict"}>
-        {verdict === undefined ? t("test.neverRun") : statusName(verdict)}
+      <span className="tests-row-facts small muted">
+        {test.level !== undefined && <span>{levelName(test.level)}</span>}
+        {test.kind === "visual" && <Badge tone="outline">{t("tests.visual")}</Badge>}
+        <span>{t("tests.steps", { count: test.steps.length })}</span>
+        <span className={failed ? "tests-verdict ko" : "tests-verdict"}>{verdict === undefined ? t("test.neverRun") : statusName(verdict)}</span>
       </span>
+      <Icon name="chevron" />
     </a>
   );
 }
@@ -225,29 +254,36 @@ export function TestsScreen({ project, route, state, controls, verdicts = [], re
           <form className="tests-search" role="search" onSubmit={controls.search}>
             <input type="search" name="q" defaultValue={search} aria-label={t("tests.search")} placeholder={t("tests.search")} />
           </form>
-          <OutcomeFilter tests={tests} verdicts={verdicts} route={route} />
+          <div className="tests-filters">
+            <OutcomeFilter tests={tests} verdicts={verdicts} route={route} />
+            <a className="btn tests-filter-open" href={withPanel(route, "levels")} aria-label={t("tests.filterTitle")}>
+              <Icon name="filter" />
+            </a>
+          </div>
           <LevelFilter tests={tests} route={route} />
           {shown.length === 0 ? (
             <EmptyState title={t("tests.noMatch")}>{t("tests.noMatchNote")}</EmptyState>
           ) : (
-            [...byApplication(shown)].map(([application, grouped]) => {
+            [...byApplication(shown)].map(([application, grouped], rank) => {
               const failed = grouped.filter((test) => verdictOf(test, verdicts) === "failed").length;
               return (
-                <Card
-                  key={application}
-                  title={application === "" ? t("tests.noApplication") : applicationName(application)}
-                  hint={t("tests.count", { count: grouped.length })}
-                  {...(failed === 0 ? {} : { aside: <Badge tone="ko">{statusCount("failed", failed)}</Badge> })}
-                >
+                <details key={application} className="card tests-group" open={failed > 0 || rank === 0}>
+                  <summary className="tests-group-head">
+                    <Icon name="chevron" />
+                    <b>{application === "" ? t("tests.noApplication") : applicationName(application)}</b>
+                    <span className="small muted grow">{t("tests.count", { count: grouped.length })}</span>
+                    {failed > 0 && <Badge tone="ko">{statusCount("failed", failed)}</Badge>}
+                  </summary>
                   {grouped.map((test) => (
                     <TestRow key={`${test.path}\n${test.title}`} test={test} verdict={verdictOf(test, verdicts)} />
                   ))}
-                </Card>
+                </details>
               );
             })
           )}
         </>
       )}
+      {tests !== undefined && route.query["panel"] === "levels" && <LevelPanel tests={tests} route={route} />}
     </Page>
   );
 }

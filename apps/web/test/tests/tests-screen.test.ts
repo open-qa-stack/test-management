@@ -49,13 +49,13 @@ describe("the tests of the repository", () => {
     const text = textOf(screen("#/tests"));
     nameApplications([]);
     assert.match(text, /^Tests 4 tests du dépôt de tests, tels que leurs fichiers sont maintenant\./);
-    assert.match(text, /customer-management · 1 test Customer Management answers Vérification rapide 1 étape Pas encore exécuté/);
+    assert.match(text, /customer-management 1 test Customer Management answers Vérification rapide 1 étape Pas encore exécuté/);
     assert.match(
       text,
-      /Policy Management · 2 tests Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Pas encore exécuté Compare the edit form of a policy policies › policy-edit Fonctionnel Visuel 1 étape/,
+      /Policy Management 2 tests Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Pas encore exécuté Compare the edit form of a policy policies › policy-edit Fonctionnel Visuel 1 étape/,
     );
     // A test without a tag is listed all the same, under no application.
-    assert.match(text, /Sans application · 1 test A test by hand 0 étape/);
+    assert.match(text, /Sans application 1 test A test by hand 0 étape/);
   });
 
   it("narrows the tests to a level and to the words of a search, which the address keeps, and says when none matches", () => {
@@ -70,6 +70,7 @@ describe("the tests of the repository", () => {
         "#/tests?q=policy",
         "#/tests?outcome=failed&q=policy",
         "#/tests?outcome=passed&q=policy",
+        "#/tests?q=policy&panel=levels",
         "#/tests?q=policy",
         "#/tests?level=smoke&q=policy",
         "#/tests?level=functional&q=policy",
@@ -81,12 +82,12 @@ describe("the tests of the repository", () => {
     const functional = textOf(screen("#/tests?level=functional"));
     assert.match(
       functional,
-      /Tous les niveaux 4 Vérification rapide 1 Fonctionnel 2 Parcours métier 0 Entre applications 0 De bout en bout 0 policy-management · 2 tests/,
+      /Tous les niveaux 4 Vérification rapide 1 Fonctionnel 2 Parcours métier 0 Entre applications 0 De bout en bout 0 policy-management 2 tests/,
     );
     assert.doesNotMatch(functional, /Customer Management answers/);
     assert.match(screen("#/tests?level=functional"), /<a class="chip on" href="#\/tests\?level=functional" aria-current="page">/);
     const searched = textOf(screen("#/tests?q=EDIT%20visual"));
-    assert.match(searched, /policy-management · 1 test Compare the edit form of a policy/);
+    assert.match(searched, /policy-management 1 test Compare the edit form of a policy/);
     assert.match(textOf(screen("#/tests?q=nothing")), /Aucun test ne correspond Cherchez d’autres mots, ou choisissez un autre niveau\.$/);
   });
 
@@ -102,7 +103,7 @@ describe("the tests of the repository", () => {
     const text = textOf(html);
     assert.match(text, /Tous 4 Échoués 1 Réussis 2 Tous les niveaux/);
     assert.match(text, /Customer Management answers Vérification rapide 1 étape Réussi /);
-    assert.match(text, /policy-management · 2 tests 1 échoué Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Échoué /);
+    assert.match(text, /policy-management 2 tests 1 échoué Display the detail of a policy policies › policy-detail Fonctionnel 2 étapes Échoué /);
     assert.match(
       html,
       /<a class="row tests-row failed" href="#\/tests\/view\?path=[^"]+policy-detail[^"]+"><span class="tests-mark failed" role="img" aria-label="Échoué">/,
@@ -110,6 +111,24 @@ describe("the tests of the repository", () => {
     assert.match(html, /<span class="tests-mark flaky" role="img" aria-label="Instable">/);
     assert.match(html, /<span class="tests-mark never" role="img" aria-label="Pas encore exécuté"><\/span>/);
     assert.equal(verdictOf({ ...TESTS[1]!, title: "Another title" }, VERDICTS), undefined);
+  });
+
+  it("opens the levels in a panel a phone chooses from, each with how many tests it holds, the one chosen marked", () => {
+    const html = screen("#/tests?level=functional&panel=levels");
+    assert.match(textOf(html), /Filtrer les tests .*Niveau Tous les niveaux 4 Vérification rapide 1 Fonctionnel 2/);
+    assert.match(
+      html,
+      /<a class="row tests-level-row on" href="#\/tests\?level=functional" aria-current="page"><span class="tests-radio" aria-hidden="true"><\/span>/,
+    );
+    assert.doesNotMatch(screen("#/tests"), /tests-level-row/);
+  });
+
+  it("folds each application under its name, open when it holds a failure or comes first", () => {
+    const html = screen("#/tests", { tests: TESTS }, VERDICTS);
+    const groups = [...html.matchAll(/<details class="card tests-group"( open="")?>/g)].map((group) => group[1] !== undefined);
+    assert.equal(groups[0], true);
+    assert.ok(groups.slice(1).includes(false), "a group with no failure past the first is folded");
+    assert.match(html, /<details class="card tests-group" open=""><summary class="tests-group-head">.*?policy-management/s);
   });
 
   it("narrows the tests to those that failed last, or to those that passed, flaky or not", () => {

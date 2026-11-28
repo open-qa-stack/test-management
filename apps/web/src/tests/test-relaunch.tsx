@@ -62,7 +62,7 @@ export function TestRelaunch({
           </select>
         </label>
       )}
-      <button type="submit" className="btn" {...button} disabled={running || pending}>
+      <button type="submit" className={several === undefined ? "btn" : "btn primary"} {...button} disabled={running || pending}>
         {pending ? t("relaunch.pending") : (several?.label ?? t("relaunch.button"))}
       </button>
       <span className="small" role="status">

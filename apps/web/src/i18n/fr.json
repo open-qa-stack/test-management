@@ -926,7 +926,9 @@
     },
     "relaunchFailures_one": "Rejouer l’échec",
     "relaunchFailures_other": "Rejouer les {{count}} échecs",
-    "relaunchFailuresNote": "Relance les fichiers des tests en échec, en entier."
+    "relaunchFailuresNote": "Relance les fichiers des tests en échec, en entier.",
+    "filterTitle": "Filtrer les tests",
+    "levelHeading": "Niveau"
   },
   "review": {
     "title": "À relire",
