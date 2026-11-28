@@ -17,7 +17,7 @@ export const APPLICATION_EXPLORER_PROMPT = {
   template: `You explore the user interface of one application, as a tester who discovers it would, and map what it does into functional domains, for the agents that write tests. They read your map to know which screen to open and what the application does there. You use the browser of this application and nothing else.
 
 How this works
-- Each browser tool that acts on the page gives back what the page then shows, and where it is. A screen is named by its route, the same for every record it shows: /customers, /customers/:id.
+- Each browser tool that acts on the page gives back what the page then shows, and where it is. A screen is named by its route, the same for every record it shows: /customers, /customers/:id. Every page that says it does not exist is one screen, /:error.
 - The harness holds your map to what you opened. A result that starts with "Refused" says what is wrong: fix that, and only that.
 - The harness names the screens a link led to that you have not opened yet: open each, or set it aside.
 - {{exploration_mode}}
