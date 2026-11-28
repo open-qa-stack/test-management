@@ -548,11 +548,10 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("lets the executions, a line unfolded into its tests, and the screen of one, fit the width of a small phone", async () => {
+  it("lets the executions, a card each, and the screen of one, fit the width of a small phone", async () => {
     const page = await app().open(360, "#/executions", new ListedInstance().api);
     try {
-      await page.locator(".exec-row summary").first().click();
-      await page.locator(".exec-tests .tests-row").first().waitFor();
+      await page.locator(".exec-card").first().waitFor();
       assert.equal(await overflowOf(page), 0);
       await page.goto(`http://console.test/#/executions/view?id=${EXECUTIONS[0]!.id}`);
       await page.locator(".tests-row").first().waitFor();
@@ -562,23 +561,21 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("shows the executions as a table on a wide screen, its heading on one line above the cells of each execution", async () => {
-    const page = await app().open(1280, "#/executions", new ListedInstance().api);
-    try {
-      await page.locator(".exec-row summary").first().waitFor();
-      // The cells of a line share a band: each starts above where every other ends.
-      const boxes = async (line: string) =>
-        Promise.all((await page.locator(`${line} > span, ${line} > a`).all()).map(async (cell) => (await cell.boundingBox())!));
-      for (const line of [".exec-head", "details.exec-row:first-of-type > summary"]) {
-        // The room of the toggle in the heading holds nothing, and has no height.
-        const cells = (await boxes(line)).filter((cell) => cell.height > 0);
-        assert.ok(
-          cells.length >= 5 && Math.max(...cells.map((cell) => cell.y)) < Math.min(...cells.map((cell) => cell.y + cell.height)),
-          `${line} ${JSON.stringify(cells)}`,
-        );
+  it("shows what came of an execution at the right of its card on a wide screen, and under it on a phone", async () => {
+    for (const [width, beside] of [
+      [1280, true],
+      [390, false],
+    ] as const) {
+      const page = await app().open(width, "#/executions", new ListedInstance().api);
+      try {
+        const card = page.locator(".exec-card").first();
+        const what = (await card.locator(".exec-card-what").boundingBox())!;
+        const result = (await card.locator(".exec-card-result").boundingBox())!;
+        assert.equal(result.x >= what.x + what.width && result.y < what.y + what.height, beside, `${width} ${JSON.stringify({ what, result })}`);
+        assert.equal(await overflowOf(page), 0);
+      } finally {
+        await page.close();
       }
-    } finally {
-      await page.close();
     }
   });
 
@@ -624,11 +621,7 @@ describe("the code of the console is covered in full", () => {
         instance.launches = { last: { ...running, endedAt: "2026-11-20T09:02:00.000Z", execution: EXECUTIONS[0]!.id } };
         await page.waitForURL(`**/#/executions/view?id=${EXECUTIONS[0]!.id}`);
         await page.goto("http://console.test/#/executions");
-        await page.locator(".exec-row summary").first().click();
-        await page
-          .getByRole("link", { name: /Ouvrir l’exécution/ })
-          .first()
-          .click();
+        await page.locator(".exec-date").first().click();
         await page.waitForURL(/#\/executions\/view\?id=/);
         // A view shows its tests, and the address keeps it.
         await page.getByRole("link", { name: "Tous · 5" }).click();

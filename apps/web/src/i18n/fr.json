@@ -1253,7 +1253,6 @@
       "result": "Résultat",
       "duration": "Durée"
     },
-    "session": "Session « {{request}} »",
     "tests_one": "{{count}} test",
     "tests_other": "{{count}} tests",
     "open": "Ouvrir l’exécution",
@@ -1273,7 +1272,10 @@
     "campaignNamed_other": "Campagne « {{name}} » · {{count}} tests",
     "campaignFilter": "Campagne",
     "allCampaigns": "Toutes les campagnes",
-    "sizeFilter": "Par page"
+    "sizeFilter": "Par page",
+    "seeFailures_one": "Voir l’échec",
+    "seeFailures_other": "Voir les {{count}} échecs",
+    "byTest": "Détail par test"
   },
   "execution": {
     "title": "Exécution du {{date}}",
