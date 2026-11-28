@@ -106,14 +106,8 @@
     "mapping": "Mapping of the knowledge"
   },
   "session": {
-    "filters": {
-      "all": "All",
-      "talk": "Exchanges",
-      "actions": "Actions",
-      "verdicts": "Verdicts"
-    },
     "stopAsked": "stop asked…",
-    "stop": "Stop",
+    "stop": "Stop the session",
     "reconnecting": "connection to the stream lost, trying again…",
     "replay": "Replay",
     "pause": "Pause",
@@ -124,9 +118,18 @@
     "progress": "Progress of the replay",
     "backToLive": "Back to live",
     "showAll": "Show everything",
-    "passes": "Passes of the session",
     "unfollow": "Stop following {{name}}",
-    "title": "Session of {{day}}"
+    "title": "Session of {{day}}, {{hour}}",
+    "pickUp": "Resume the session",
+    "pickUpText": "Pick up where the session stopped.",
+    "conversation": "Conversation",
+    "showAlso": "Also show",
+    "show": {
+      "verdicts": "Verdicts",
+      "actions": "Actions"
+    },
+    "unfoldAll": "Unfold all",
+    "foldAll": "Fold all"
   },
   "speakers": {
     "user": {
@@ -279,13 +282,13 @@
   },
   "composer": {
     "going": {
-      "asks": "Tell the agents what to correct",
+      "asks": "Write to the agents: clarify, correct, add a scenario",
       "sends": "Send",
-      "placeholder": "Tell the agents what to correct…"
+      "placeholder": "Write to the agents: clarify, correct, add a scenario…"
     },
     "ended": {
       "asks": "Tell the agents what to do next: correct a test, add a scenario…",
-      "sends": "Go on with the session",
+      "sends": "Continue",
       "placeholder": "Tell the agents what to do next: correct a test, add a scenario…"
     }
   },
@@ -1731,5 +1734,36 @@
   },
   "page": {
     "back": "Back to {{screen}}"
+  },
+  "summary": {
+    "label": "Summary of the session",
+    "tests": "Tests closed by the harness",
+    "duration": "Duration",
+    "work": "Work of the agents",
+    "branch": "Branch of the test repository",
+    "copyBranch": "Copy the name of the branch",
+    "interrupted": "The session stopped before its end.",
+    "kept": "Everything closed before is kept.",
+    "opened": "Opened at",
+    "phase": "Phase",
+    "actions": "Actions of the agents"
+  },
+  "phases": {
+    "label": "State of the phases",
+    "cartography": "Cartography",
+    "planPasses_one": "Plan and writing · {{count}} pass",
+    "planPasses_other": "Plan and writing · {{count}} passes",
+    "noTest": "No test written",
+    "written_one": "{{count}} test written",
+    "written_other": "{{count}} tests written",
+    "states": {
+      "done": "Done",
+      "current": "In progress",
+      "interrupted": "Interrupted"
+    }
+  },
+  "copy": {
+    "copied": "Copied",
+    "failed": "Could not copy: select the text."
   }
 }

@@ -16,7 +16,7 @@ describe("the console in a browser", () => {
       await page.getByRole("link", { name: /tester la recherche d'un client/ }).click();
       await page.getByText("I write the test now.").waitFor();
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${SESSION_ID}`);
-      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov.");
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov., 14:44 En direct");
       await page.goBack();
       await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
     } finally {
@@ -89,7 +89,7 @@ describe("the console in a browser", () => {
     const page = await app().open(1280, `#/agent/sessions/${SESSION_ID}`, instance.api);
     try {
       await page.getByText("I write the test now.").waitFor();
-      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov.");
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov., 14:44 En direct");
       await page.getByRole("link", { name: "Agent", exact: true }).first().click();
       await page.getByText("Aucune session pour l’instant").waitFor();
     } finally {
@@ -116,7 +116,7 @@ describe("the console in a browser", () => {
       assert.equal(await page.evaluate(() => document.documentElement.lang), "en");
       assert.equal(await overflowOf(page), 0, "the entry in English");
       await page.goto(`http://console.test/${SESSION}`);
-      await page.getByRole("button", { name: "Replay" }).waitFor();
+      await page.getByRole("link", { name: "Stop the session" }).waitFor();
       assert.equal(await overflowOf(page), 0, "a session in English");
       await page.goto(`http://console.test/${LOOKED}`);
       await page.getByRole("dialog", { name: /^Page looked at/ }).waitFor();
@@ -144,10 +144,10 @@ describe("the console in a browser", () => {
       await link.click();
       await page.getByText("I write the test now.").waitFor();
       assert.equal(await page.title(), "tester la recherche d'un client · Open QA Stack");
-      assert.equal(await focused(), "H1: Session du 15 nov.");
-      await page.getByRole("link", { name: "Échanges" }).click();
-      await page.waitForURL(/show=talk/);
-      assert.equal(await focused(), "A: Échanges");
+      assert.equal(await focused(), "H1: Session du 15 nov., 14:44 En direct");
+      await page.getByRole("switch", { name: "Actions" }).click();
+      await page.waitForURL(/actions=on/);
+      assert.equal(await focused(), "A: Actions");
       await page.goto("http://console.test/#/nowhere");
       await page.getByRole("heading", { level: 1, name: "Page introuvable" }).waitFor();
       assert.equal(await page.title(), "Page introuvable · Open QA Stack");
@@ -173,9 +173,9 @@ describe("the console in a browser", () => {
       assert.equal(new URL(page.url()).hash, `#/agent/sessions/${OPENED_ID}`);
       assert.deepEqual(instance.asked, [{ environment: "local", request: "vérifier le changement d'adresse" }]);
       await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
-      assert.equal(await page.locator(".session-bar .badge").innerText(), "En file");
+      assert.equal(await page.locator("h1 .badge").innerText(), "En file");
       assert.equal(await page.getByRole("status").filter({ hasText: "travaille" }).count(), 0);
-      assert.equal(await page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" }).isEnabled(), true);
+      assert.equal(await page.getByRole("textbox", { name: "Écrivez aux agents : préciser, corriger, ajouter un scénario" }).isEnabled(), true);
     } finally {
       await page.close();
     }
@@ -207,8 +207,8 @@ describe("the console in a browser", () => {
     const instance = new PlayedInstance();
     const page = await app().open(1280, "#/agent", instance.api);
     try {
-      const field = page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" });
-      const state = page.locator(".session-bar .badge");
+      const field = page.getByRole("textbox", { name: "Écrivez aux agents : préciser, corriger, ajouter un scénario" });
+      const state = page.locator("h1 .badge");
       const working = page.getByRole("status").filter({ hasText: "Planificateur travaille" });
       await page.getByRole("textbox", { name: "Dites aux agents quoi tester" }).fill("vérifier le changement d'adresse");
       await page.getByRole("button", { name: "Démarrer une session" }).click();

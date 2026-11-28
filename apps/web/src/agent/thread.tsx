@@ -10,7 +10,7 @@ import { EmptyState } from "../ui/empty-state.tsx";
 import { Icon } from "../ui/icon.tsx";
 import { identityOf } from "./agents.ts";
 import { eyeIdOf } from "./opened-look.ts";
-import { shows, type Frame, type ShownStep, type ThreadFilter } from "./playback.ts";
+import { DEFAULT_VIEW, shows, type Frame, type ShownStep, type ThreadView } from "./playback.ts";
 import {
   turnsOf,
   type NoteStep,
@@ -33,6 +33,8 @@ import { Fold } from "./fold.tsx";
 import { RefusalGroup } from "./refusal-group.tsx";
 import { stretchesOf, type WorkStretch } from "./work-stretches.ts";
 import { iconOf } from "./tool-icon.ts";
+import { PhaseRow } from "./phase-row.tsx";
+import { conversationOf, type SessionEnding } from "./session-phases.ts";
 
 /** What the thread of a session needs. */
 export interface ThreadProps {
@@ -42,15 +44,21 @@ export interface ThreadProps {
   readonly frame: Frame;
   /** The rank of the action whose look is open, if any. */
   readonly lookIndex: number | undefined;
-  /** What the thread keeps of the session; everything by default. */
-  readonly filter?: ThreadFilter;
+  /** What the thread shows besides what is said; the verdicts by default. */
+  readonly view?: ThreadView;
   /** The only speaker the thread follows, if any. */
   readonly followed?: Speaker;
   /** The parameters of the address the links of the thread keep, such as its filter. */
   readonly query?: Readonly<Record<string, string>>;
   /** Where the session is: an empty thread says what it waits for, or that nothing will come. */
   readonly stage: SessionStage;
-  /** What of the thread the person unfolded, by key: `text-9` for the long text of the step 9, `actions-4` for the actions from the step 4, `stretch-3` for the stretch of work from the step 3. */
+  /** Where the session is, as its phases tell it: the one its agents work in, or the one it stopped in. */
+  readonly ending: SessionEnding;
+  /** Whether every phase is open, whatever the person folded. */
+  readonly allOpen?: boolean;
+  /** How many sources the session read, which its cartography tells. */
+  readonly sources: number;
+  /** What of the thread the person unfolded, by key: `text-9` for the long text of the step 9, `actions-4` for the actions from the step 4, `stretch-3` for the stretch of work from the step 3, `phase-2` for the phase from the step 2 — folded, for a phase open by itself. */
   readonly unfolded: readonly string[];
   /** Unfolds a part of the thread, by its key, or folds it again. */
   readonly onUnfold: (key: string) => void;
@@ -508,53 +516,62 @@ function isCard(turn: Turn<ShownStep> | undefined, kind: Step["kind"]): boolean 
   return turn?.kind === "card" && turn.shown.step.kind === kind;
 }
 
-/**
- * The turns in the order a person reads them: what the session came to first, once it ended, and no pass that
- * holds nothing — one another pass follows at once, or that the thread ends on once nothing more will come.
- */
-function readingOrder(turns: readonly Turn<ShownStep>[], stage: SessionStage): Turn<ShownStep>[] {
-  const kept = turns.filter((turn, rank) => {
+/** The turns of a phase without the passes that hold nothing: one another pass follows at once, or that the phase ends on once nothing more will come. */
+function withoutEmptyPasses(turns: readonly Turn<ShownStep>[], stage: SessionStage): Turn<ShownStep>[] {
+  return turns.filter((turn, rank) => {
     if (!isCard(turn, "pass")) return true;
     const next = turns[rank + 1];
     return next === undefined ? stage === "live" : !isCard(next, "pass");
   });
-  const last = kept.findLastIndex((turn) => isCard(turn, "outcome"));
-  return stage !== "ended" || last === -1 ? kept : [kept[last]!, ...kept.slice(0, last), ...kept.slice(last + 1)];
+}
+
+/** Turns as the thread shows them, the work of the agents in a row folded into stretches. */
+function Turns({ turns, back }: { readonly turns: readonly Turn<ShownStep>[]; readonly back: Back }): ReactNode {
+  return stretchesOf(turns).map((entry, index) => (
+    <div key={index} className="thread-item">
+      {entry.kind === "stretch" ? <Stretch stretch={entry} back={back} /> : <TurnView turn={entry} back={back} />}
+    </div>
+  ));
+}
+
+/** What a session produced, in a few words, from the card of its outcome among turns. */
+function tallyIn(turns: readonly Turn<ShownStep>[]): string | undefined {
+  const card = turns.find((turn) => isCard(turn, "outcome"));
+  return card?.kind === "card" ? tallyOf(card.shown.step as OutcomeStep) : undefined;
 }
 
 /**
- * The thread of a session, as a conversation: what the session produced first, once it ended; what was asked, what
- * the person said since, each agent in turn — what it thought, folded, what it said, and what it did, its actions in
- * a row folded under their count — the verdicts of the harness, its refusals alike gathered, and the plans. The work
- * of the agents in a row, without a word of theirs, is folded under one line. While its agents work, its last line
- * names who is at work.
+ * The thread of a session, as a conversation: what was asked and what the person said before the agents started,
+ * then each phase on a line that unfolds on its turns — each agent in turn, what it thought, folded, what it said
+ * and what it did, its actions in a row folded under their count; the verdicts of the harness, its refusals alike
+ * gathered, and the plans; what the session produced in its summary. The work of the agents in a row, without a word
+ * of theirs, is folded under one line.
  *
  * @param props - The session at this moment.
  * @returns The thread.
  */
-export function Thread({ path, frame, lookIndex, filter = "all", followed, query = {}, stage, unfolded, onUnfold }: ThreadProps): ReactNode {
-  const turns = readingOrder(turnsOf(frame.shown.filter(({ step }) => shows(step, filter, followed))), stage);
+export function Thread(props: ThreadProps): ReactNode {
+  const { path, frame, lookIndex, view = DEFAULT_VIEW, followed, query = {}, stage, ending, allOpen = false, sources, unfolded, onUnfold } = props;
+  const { head, phases } = conversationOf(turnsOf(frame.shown.filter(({ step }) => shows(step, view, followed))), ending);
   const back: Back = { path, query, lookIndex, followed, unfolded, onUnfold };
-  const working = frame.speaking === undefined || frame.speaking === "user" ? undefined : frame.speaking;
   return (
     <section className="thread" aria-label={t("thread.label")}>
       {frame.shown.length === 0 && <EmptyState title={t(`thread.empty.${stage}.title`)}>{t(`thread.empty.${stage}.body`)}</EmptyState>}
-      {stretchesOf(turns).map((entry, index) => (
-        <div key={index} className="thread-item">
-          {entry.kind === "stretch" ? <Stretch stretch={entry} back={back} /> : <TurnView turn={entry} back={back} />}
-        </div>
+      <Turns turns={head} back={back} />
+      {phases.map((phase) => (
+        <PhaseRow
+          key={phase.key}
+          phase={phase}
+          sources={sources}
+          tally={tallyIn(phase.turns)}
+          allOpen={allOpen}
+          forced={phase.turns.some((turn) => ("items" in turn ? turn.items : [turn.shown]).some(({ index }) => index === lookIndex))}
+          unfolded={unfolded}
+          onUnfold={onUnfold}
+        >
+          <Turns turns={withoutEmptyPasses(phase.turns, stage)} back={back} />
+        </PhaseRow>
       ))}
-      {stage === "live" && frame.shown.length > 0 && (
-        <div className="working" role="status">
-          {working !== undefined && <SpeakerMark speaker={working} size="sm" active />}
-          <span>{working === undefined ? t("thread.agentsWork") : t("thread.agentWorks", { name: identityOf(working).name })}</span>
-          <span className="dots" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-        </div>
-      )}
     </section>
   );
 }

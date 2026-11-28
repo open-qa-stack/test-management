@@ -44,4 +44,9 @@ export interface ScriptWording {
    * @returns The title of a session nobody asked anything in.
    */
   readonly opened: (day: string, time: string) => string;
+  /**
+   * @param at - The moment of an event, as an ISO 8601 date in universal time.
+   * @returns Its time as the thread shows it; the time of day in universal time, as `14:44:06`, when the presentation gives no clock of its own.
+   */
+  readonly clock?: (at: string) => string;
 }

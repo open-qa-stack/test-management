@@ -18,6 +18,8 @@ export interface SessionControls {
   readonly follow: () => void;
   /** Sends to the agents the message the form of the composer holds. */
   readonly say: (event: FormEvent<HTMLFormElement>) => void;
+  /** Resumes a session that stopped without ending, where it stopped. */
+  readonly pickUp: () => void;
   /** Asks the instance to stop the session: what the confirmation of a stop does, and nothing else. */
   readonly stop: () => void;
   /** Unfolds a part of the thread, by its key — a long text to be read to the end, a row of actions or of refusals, a stretch of work —; folds it again when it is. */

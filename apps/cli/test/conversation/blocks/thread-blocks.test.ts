@@ -16,7 +16,7 @@ const NOTE: Step = { kind: "note", at: "09:00:00", text: "A note." };
 const PENDING: Step = { kind: "tool", from: "writer", at: "09:00:01", tool: "run_test", title: "Ran the test", pending: true };
 const ANSWERED: Step = { kind: "tool", from: "writer", at: "09:00:01", tool: "run_test", title: "Ran the test", durationMs: 4 };
 const SENT: Step = { kind: "say", from: "user", at: "09:00:02", text: "Go on.", number: 1 };
-const PASS: Step = { kind: "pass", at: "09:00:03", title: "Plan", summary: "" };
+const PASS: Step = { kind: "pass", at: "09:00:03", phase: "plan", title: "Plan", summary: "" };
 
 describe("the blocks of a thread", () => {
   it("are one per turn, and one per thing an agent said or did or per note of the harness, the first of which heads its turn", () => {

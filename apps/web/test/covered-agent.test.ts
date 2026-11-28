@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { describe, it } from "vitest";
 import { builtConsole } from "./in-browser.ts";
 import { PlayedInstance } from "./played-instance.ts";
+import { SESSION_ID } from "./agent/session-fixture.ts";
 
 const app = builtConsole();
 
@@ -19,6 +20,7 @@ describe("the code of the console is covered in full", () => {
         instance.unlisted = false;
         await page.getByRole("link", { name: /tester la recherche d'un client/ }).click();
         await page.getByText("I write the test now.").waitFor();
+        await page.getByRole("switch", { name: "Actions" }).click();
         await page.getByText("2 actions", { exact: true }).click();
         await page
           .getByRole("link", { name: /voir la page consultée/ })
@@ -37,17 +39,7 @@ describe("the code of the console is covered in full", () => {
         await page.locator(".refusals > summary").click();
         await page.getByRole("button", { name: "Lire la suite" }).click();
         await page.getByRole("button", { name: "Replier", exact: true }).waitFor();
-        await page.getByRole("button", { name: "Rejouer" }).click();
-        await page.getByRole("button", { name: "Pause" }).waitFor();
-        await page.waitForFunction(() => Number(document.querySelector(".playback-progress")?.getAttribute("aria-valuenow")) > 0);
-        await page.getByRole("button", { name: "Changer la vitesse" }).click();
-        await page.getByRole("button", { name: "Pause" }).click();
-        await page.getByRole("button", { name: "Reprendre" }).waitFor();
-        await page.getByRole("button", { name: "Aller au prochain verdict" }).click();
-        await page.getByText("Plan accepté par le harnais").waitFor();
-        await page.getByRole("button", { name: "Revenir au direct" }).click();
-        await page.getByRole("button", { name: "Rejouer" }).waitFor();
-        const field = page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" });
+        const field = page.getByRole("textbox", { name: "Écrivez aux agents : préciser, corriger, ajouter un scénario" });
         await field.fill("   ");
         await field.press("Enter");
         instance.deaf = true;
@@ -58,13 +50,32 @@ describe("the code of the console is covered in full", () => {
         instance.deaf = false;
         await page.getByRole("button", { name: "Envoyer" }).click();
         await page.locator(".sent", { hasText: "sans le profil" }).waitFor();
-        await page.getByRole("link", { name: "Arrêter" }).click();
+        await page.getByRole("link", { name: "Arrêter la session" }).click();
         await page.getByRole("button", { name: "Arrêter la session" }).click();
         await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
         instance.obey();
+        // A session that stopped is replayed at the pace the person asks, then shown whole again.
+        await page.getByRole("button", { name: "Rejouer" }).click();
+        await page.getByRole("button", { name: "Pause" }).waitFor();
+        await page.waitForFunction(() => Number(document.querySelector(".playback-progress")?.getAttribute("aria-valuenow")) > 0);
+        await page.getByRole("button", { name: "Changer la vitesse" }).click();
+        await page.getByRole("button", { name: "Pause" }).click();
+        await page.getByRole("button", { name: "Reprendre", exact: true }).waitFor();
+        await page.getByRole("button", { name: "Aller au prochain verdict" }).click();
+        await page.getByText("Plan accepté par le harnais").waitFor();
+        await page.getByRole("button", { name: "Tout afficher" }).click();
+        await page.getByRole("button", { name: "Rejouer" }).waitFor();
         await page.getByRole("textbox", { name: "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…" }).fill("corriger le test");
-        await page.getByRole("button", { name: "Poursuivre la session" }).click();
+        await page.getByRole("button", { name: "Poursuivre" }).click();
         await page.getByRole("button", { name: "Envoyer" }).waitFor();
+        // Stopped again, it is picked up where it stopped, without a word to write.
+        await page.getByRole("link", { name: "Arrêter la session" }).click();
+        await page.getByRole("button", { name: "Arrêter la session" }).click();
+        await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
+        instance.obey();
+        await page.getByRole("button", { name: "Reprendre la session" }).click();
+        await page.getByRole("button", { name: "Envoyer" }).waitFor();
+        assert.equal(instance.resumedWith.at(-1)?.text, "Reprends là où la session s’est arrêtée.");
         instance.down = true;
         await page.getByRole("alert").waitFor();
         instance.down = false;
@@ -97,6 +108,27 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(main!.uncovered, []);
     assert.ok(application!.lines.length > 20, "the application is in the build");
     assert.deepEqual(application!.uncovered, []);
+  });
+
+  it("runs every line of the button that copies the branch of a session, which says when the browser refuses", async () => {
+    const instance = new PlayedInstance();
+    instance.complete();
+    const [button] = await app().measure(
+      ["src/ui/copy-button.tsx"],
+      async (page) => {
+        await page.goto(`http://console.test/#/agent/sessions/${SESSION_ID}`);
+        const copy = page.getByRole("button", { name: "Copier le nom de la branche" });
+        // A page served over plain HTTP has no clipboard, as one whose browser refuses: the person is told to select the text.
+        await copy.click();
+        await page.getByRole("status").filter({ hasText: "Copie impossible : sélectionnez le texte." }).waitFor();
+        await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() } }));
+        await copy.click();
+        await page.getByRole("status").filter({ hasText: "Copié" }).waitFor();
+      },
+      instance.api,
+    );
+    assert.ok(button!.lines.length > 5, "the button is in the build");
+    assert.deepEqual(button!.uncovered, []);
   });
 
   it("runs every line of the screen of the discovery when it is used in the browser, and opens the session kept to the domains picked", async () => {

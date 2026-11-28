@@ -58,30 +58,30 @@ function english(node: ReactNode): string {
 }
 
 describe("the console in English", () => {
-  it("tells a session that ended: its facts, its thread, its plan, its verdicts and its composer", async () => {
+  it("tells a session that ended: its summary, its conversation, its plan, its verdicts and its composer", async () => {
     await inEnglish();
-    const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x"), live: liveOf(COMPLETED), project: "p" }));
-    assert.match(text, /Passed Nov 15, 2026, 2:44:06 PM · 1 min 54 sec · 3 actions · 50 requests to the model · \S+ Replay/);
-    assert.match(text, /All Exchanges Actions Verdicts/);
+    const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x?actions=on"), live: liveOf(COMPLETED), project: "p" }));
+    assert.match(text, /^Agent p \/ Agent \/ Session of Nov 15, 2:44 PM Session of Nov 15, 2:44 PM Passed Replay /);
+    assert.match(
+      text,
+      /Tests closed by the harness 1 1 \/ 1 test passed Duration 1 min 54 sec 2:44 PM → \d+:\d\d PM Work of the agents 3 actions 50 requests to the model Branch of the test repository \S+ /,
+    );
+    assert.match(text, /Conversation Also show Verdicts Actions Unfold all /);
     assert.match(text, /Your request: .* Harness hands over to Planner /);
     assert.match(text, /Planner explores the application and proposes the plan .* Reasoning /);
     assert.match(text, /Opened \/ in customer-management .* 900 ms Proposed a plan of 1 scenario /);
     assert.match(text, /Plan accepted by the harness 1 scenario .* Identifier search Level Quick check Case nominal Application customer-management Details /);
     assert.match(text, /Harness automatic check refused PLAN-ELEMENT .* Read more Page at that moment /);
-    assert.match(
-      text,
-      /Verdicts Verdict of the run: 1 test 1 passed Passed Rechercher un client par son nom Every attempt passed\. Configuration The configuration is valid; the session targets the environment local\. /,
-    );
+    assert.match(text, /Verdict of the run: 1 test 1 passed Passed Rechercher un client par son nom Every attempt passed\./);
     assert.match(text, /Writing a test search Writer writes and runs the Playwright tests /);
-    assert.match(text, /Tell the agents what to do next: correct a test, add a scenario… Go on with the session$/);
+    assert.match(text, /Tell the agents what to do next: correct a test, add a scenario… Continue$/);
   });
 
   it("asks before it stops a session that goes on", async () => {
     await inEnglish();
     const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x?stop=ask"), live: liveOf(RUNNING), project: "p" }));
-    assert.match(text, /Live Nov 15, 2026, 2:44:06 PM · 2 actions Stop Replay Stop this session\? Its agents stop as soon as they hand over/);
-    assert.match(text, /Cancel Stop the session /);
-    assert.match(text, /The agents are working|is working/);
+    assert.match(text, /Live Stop the session .*Stop this session\? Its agents stop as soon as they hand over/);
+    assert.match(text, /Cancel Stop the session Writer is working · /);
   });
 
   it("lists the sessions under the request that opens one, and names the screens that lead nowhere", async () => {

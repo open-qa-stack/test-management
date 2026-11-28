@@ -118,6 +118,7 @@ export default defineConfig({
         "**/src/configuration/use-panel-controls.ts",
         "**/src/applications/applications-page.tsx",
         "**/src/ui/side-panel.tsx",
+        "**/src/ui/copy-button.tsx",
         "**/src/discovery/discovery-page.tsx",
         "**/src/knowledge/knowledge-page.tsx",
         "**/src/tests/tests-page.tsx",

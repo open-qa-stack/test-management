@@ -93,6 +93,12 @@ describe("the script of a session", () => {
     );
   });
 
+  it("tells the time of each step, by the clock of its presentation, and the opening of a session nobody asked anything in in universal time", () => {
+    const script = scriptOf(UNASKED, numbered([{ type: "phase_started", phase: "configuration" }]), { ...WORDING, clock: (at) => `clock ${at}` });
+    assert.equal(script.steps[0]!.at, "clock 2026-11-13T14:44:06.000Z");
+    assert.equal(script.title, "opened 2026-11-13 14:44:05");
+  });
+
   it("starts a pass at each phase, a review or a writing as a part, and none for the work on one source, which it counts once", () => {
     const script = scriptOf(
       RUNNING,
@@ -108,10 +114,10 @@ describe("the script of a session", () => {
     );
     assert.deepEqual(script.sources, ["order-specs"]);
     assert.deepEqual(script.steps, [
-      { kind: "pass", at: "14:44:06", title: "phase configuration", summary: "" },
-      { kind: "pass", at: "14:44:09", title: "phase review", summary: "", minor: true },
-      { kind: "pass", at: "14:44:10", title: "phase write", summary: "search", minor: true },
-      { kind: "pass", at: "14:44:11", title: "phase later", summary: "" },
+      { kind: "pass", at: "14:44:06", phase: "configuration", title: "phase configuration", summary: "" },
+      { kind: "pass", at: "14:44:09", phase: "review", title: "phase review", summary: "", minor: true },
+      { kind: "pass", at: "14:44:10", phase: "write", title: "phase write", summary: "search", minor: true },
+      { kind: "pass", at: "14:44:11", phase: "later", title: "phase later", summary: "" },
     ]);
   });
 

@@ -42,9 +42,9 @@ describe("the turns of a thread", () => {
 
   it("read a session as a conversation, every step kept once and in order", () => {
     const shown = shownOf([
-      { kind: "pass", at: "09:00:00", title: "Configuration", summary: "" },
+      { kind: "pass", at: "09:00:00", phase: "configuration", title: "Configuration", summary: "" },
       NOTE,
-      { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },
+      { kind: "pass", at: "09:00:00", phase: "plan", title: "Plan", summary: "" },
       { kind: "say", from: "user", at: "09:00:00", text: "Test the search." },
       { kind: "say", from: "harness", to: "planner", at: "09:00:00", text: "Plan it." },
       THOUGHT,
@@ -124,8 +124,8 @@ describe("the turns of a thread", () => {
 
   it("leave the start of a pass, a verdict, a plan and the outcome each alone, as a card", () => {
     const cards: readonly Step[] = [
-      { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },
-      { kind: "pass", at: "09:00:00", title: "Plan", summary: "" },
+      { kind: "pass", at: "09:00:00", phase: "plan", title: "Plan", summary: "" },
+      { kind: "pass", at: "09:00:00", phase: "plan", title: "Plan", summary: "" },
       { kind: "verdict", at: "09:00:01", accepted: false, about: "Plan", text: "Refused.", reason: "Refused." },
       { kind: "plan", at: "09:00:02", title: "Plan accepté", scenarios: [] },
       { kind: "outcome", at: "09:00:03", title: "Verdict", tests: [] },
@@ -151,7 +151,7 @@ describe("the turns of a thread", () => {
       ...(code === undefined ? {} : { code }),
       ...(tool === undefined ? {} : { tool }),
     });
-    const pass: Step = { kind: "pass", at: "09:00:04", title: "Plan", summary: "" };
+    const pass: Step = { kind: "pass", at: "09:00:04", phase: "plan", title: "Plan", summary: "" };
     const accepted: Step = { kind: "verdict", at: "09:00:06", accepted: true, about: "Plan", text: "Accepted.", reason: "Accepted." };
     const steps = [
       refusal("PLAN-SHOWN", "a"),

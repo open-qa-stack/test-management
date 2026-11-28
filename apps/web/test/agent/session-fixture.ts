@@ -11,6 +11,7 @@ export const NO_CONTROLS: SessionControls = {
   skip: () => {},
   follow: () => {},
   say: () => {},
+  pickUp: () => {},
   stop: () => {},
   unfold: () => {},
   sayOnEnter: () => {},

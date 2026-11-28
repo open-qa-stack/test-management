@@ -123,10 +123,10 @@ describe("the console", () => {
         project: { name: "lakeside-tests", applications: [] },
         ...(sessions === undefined ? {} : { sessions }),
       });
-      assert.match(pageOf(html), /^Agent lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. En direct/);
+      assert.match(pageOf(html), /^Agent lakeside-tests \/ Agent \/ Session du 15 nov\., 14:44 Session du 15 nov\., 14:44 En direct/);
       assert.match(html, /<section class="thread" aria-label="Fil de la session">/);
     }
-    assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Agent Projet \/ Agent \/ Session du 15 nov\. /);
+    assert.match(pageOf(consoleAt(`${SESSION}?show=talk`, { live: liveOf(COMPLETED) })), /^Agent Projet \/ Agent \/ Session du 15 nov\., 14:44 /);
   });
 
   it("names the project by a word of its own while the instance has none", () => {

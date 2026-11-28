@@ -185,7 +185,9 @@ export function consoleAfter(state: ConsoleState, action: ConsoleAction): Consol
       if (followed?.id !== action.session.id) return state;
       const session = settled(followed.session, action.session);
       if (session === followed.session && !state.unreachable) return state;
-      return { ...state, unreachable: false, followed: { ...followed, session } };
+      // A stop asked is over once the session is: a session resumed after it can be stopped again.
+      const over = session.state !== "queued" && session.state !== "running";
+      return { ...state, unreachable: false, followed: { ...followed, session, ...(over ? { stopping: IDLE } : {}) } };
     }
     case "missing":
       return state.followed?.id === action.id ? { ...state, unreachable: false, followed: { ...state.followed, missing: true } } : state;
