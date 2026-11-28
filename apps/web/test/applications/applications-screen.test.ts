@@ -43,7 +43,7 @@ describe("the applications of the project", () => {
     const html = screen("#/applications");
     assert.match(
       textOf(html),
-      /^Applications Ajouter une application Les applications que testent les agents, chacune avec ses environnements et ses API\. Shop Interface web et API · 1 environnement · 1 API · 1 compte de test 8 connaissances shop$/,
+      /^Applications Les applications que testent les agents, chacune avec ses environnements et ses API\. Ajouter une application Shop shop Interface web et API Environnements 1 · \w+ API 1 Connaissances 8 Comptes de test 1$/,
     );
     assert.ok(linksOf(html).includes("#/applications/shop"));
     assert.ok(linksOf(html).includes("#/applications?add=application"));
@@ -52,7 +52,9 @@ describe("the applications of the project", () => {
       "#/applications",
       told({ ...BARE, applications: [{ ...BARE.applications[0]!, authentication: { method: "none" }, environments: [{ name: "local" }] }] }),
     );
-    assert.match(textOf(bare), /Application 1 Interface web · 1 environnement · aucune API · aucun compte de test/);
+    // An application without a test account says so in the tone of a warning.
+    assert.match(textOf(bare), /Application 1 Interface web Environnements 1 · local API 0 Connaissances 0 Comptes de test Aucun$/);
+    assert.match(bare, /<dd class="app-tile-none">Aucun<\/dd>/);
   });
 
   it("shows the page of an application, and the application the person adds", () => {

@@ -18,6 +18,8 @@ export interface PageProps {
   readonly title?: ReactNode;
   /** Its actions, the primary one last. */
   readonly actions?: ReactNode;
+  /** What the page invites to do first: at the right of its title from a tablet, a large button under what it is for on a phone. */
+  readonly invite?: ReactNode;
   /** What the page is for, in a line under its title. */
   readonly hint?: ReactNode;
   /** The header of the entity the page shows, in place of a title. */
@@ -35,7 +37,7 @@ export interface PageProps {
  * @param props - The header and the content of the page.
  * @returns The page.
  */
-export function Page({ crumbs, title, actions, hint, entity, children }: PageProps): ReactNode {
+export function Page({ crumbs, title, actions, invite, hint, entity, children }: PageProps): ReactNode {
   const parent = crumbs.slice(0, -1).findLast((crumb) => crumb.href !== undefined);
   return (
     <>
@@ -67,6 +69,7 @@ export function Page({ crumbs, title, actions, hint, entity, children }: PagePro
         {title !== undefined && <h1 tabIndex={-1}>{title}</h1>}
         {actions !== undefined && <div className="actions">{actions}</div>}
         {hint !== undefined && <p className="page-hint">{hint}</p>}
+        {invite !== undefined && <div className="actions page-invite">{invite}</div>}
       </div>
       {entity}
       <div className="content">{children}</div>

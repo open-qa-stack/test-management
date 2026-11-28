@@ -355,3 +355,57 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* An application among the others: its name over its identifier beside what it exposes, then what it holds two by two. */
+.app-tile .tile-head {
+  justify-content: space-between;
+}
+
+.app-tile-name {
+  display: grid;
+  min-width: 0;
+}
+
+.app-tile-name b {
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
+}
+
+/* What the application exposes, a small grey label that leaves its name the room. */
+.app-tile .tile-head .chip {
+  flex: none;
+  min-height: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-inner);
+  font-size: var(--type-caption);
+  line-height: var(--leading-caption);
+}
+
+.app-tile-name .mono {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  overflow-wrap: anywhere;
+}
+
+.app-tile-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.app-tile-facts dt {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.app-tile-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-tile-facts .app-tile-none {
+  color: var(--warn);
+  font-weight: var(--weight-strong);
+}
