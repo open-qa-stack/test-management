@@ -881,7 +881,12 @@
       "truncated": "Cartographiée en partie",
       "noKnowledgeBase": "Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt, puis l’ensemble est mis en commun par domaine.",
       "knowledgeBase": "Base de connaissance mise en commun par domaine le {{date}}.",
-      "partKnowledgeBase": "Base de connaissance mise en commun par domaine le {{date}}, en partie : une limite a arrêté la cartographie."
+      "partKnowledgeBase": "Base de connaissance mise en commun par domaine le {{date}}, en partie : une limite a arrêté la cartographie.",
+      "title": {
+        "none": "Pas encore de cartographie",
+        "behind": "Cartographie à compléter",
+        "done": "Cartographie à jour"
+      }
     },
     "add": "Ajouter une connaissance",
     "addHint": "choisissez ce que les agents liront",
@@ -892,7 +897,9 @@
     "project": "Tout le projet",
     "projectHint": "lue quelle que soit l’application testée",
     "sourceId": "Identifiant : {{id}}",
-    "where": "Lue depuis : {{where}}"
+    "where": "Lue depuis : {{where}}",
+    "sourceCount_one": "{{count}} source",
+    "sourceCount_other": "{{count}} sources"
   },
   "tests": {
     "title": "Tests",

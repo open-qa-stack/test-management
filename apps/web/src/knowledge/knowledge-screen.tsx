@@ -19,7 +19,7 @@ import { EditContext } from "../configuration/configuration-edit.ts";
 import { rankIn } from "../configuration/use-item-pages.ts";
 import type { ConfigurationControls } from "../configuration/configuration-screen.tsx";
 import type { ConfigurationState } from "../configuration/configuration-state.ts";
-import { AddSourceButtons, KIND_ICONS, kindOf } from "../configuration/knowledge-card.tsx";
+import { AddSourceButtons } from "../configuration/knowledge-card.tsx";
 import { TechnicalDetails } from "../ui/technical-details.tsx";
 import { kindName, sourceName } from "./source-name.ts";
 import { nameIn } from "../applications/application-names.ts";
@@ -119,19 +119,18 @@ function SourceRow({
   /** Where the cartography of the source stands; none for a source it does not read. */
   readonly mapped?: MappedSource;
 }): ReactNode {
-  const narrowed = attachment === undefined ? undefined : narrowing(attachment);
   return (
     <a className="row knowledge-row" href={hrefTo(sourcePath(source.id))}>
-      <span className="knowledge-kind">
-        <Icon name={KIND_ICONS[kindOf(source)]} />
-      </span>
       <div className="grow">
         <span className="knowledge-id">{kindName(source)}</span>
-        <div className="small muted">{source.id}</div>
+        <div className="small muted mono">{source.id}</div>
       </div>
-      {narrowed !== undefined && <span className="small muted">{narrowed}</span>}
+      {attachment?.environment !== undefined && <span className="small muted">{attachment.environment}</span>}
       {documents !== undefined && <Badge tone="outline">{t("knowledge.documentCount", { count: documents.length })}</Badge>}
       {mapped !== undefined && mapped.state !== "mapped" && <Badge tone={MAPPING_TONES[mapped.state]}>{t(`knowledge.mapping.${mapped.state}`)}</Badge>}
+      <span className="knowledge-go" aria-hidden="true">
+        <Icon name="chevron" size={16} />
+      </span>
     </a>
   );
 }
@@ -151,6 +150,27 @@ export function KnowledgeBaseLine({ mapping }: { readonly mapping: CartographySt
             date: dateText(knowledgeBase.producedAt),
           })}
     </p>
+  );
+}
+
+/** Where the cartography stands, in a word: none yet, every source read into the knowledge base, or some left to read. */
+function mappingTitle(mapping: CartographyState): string {
+  const { knowledgeBase, sources } = mapping;
+  if (knowledgeBase === undefined) return t("knowledge.mapping.title.none");
+  const done = knowledgeBase.status === "complete" && sources.every(({ state }) => state === "mapped");
+  return t(done ? "knowledge.mapping.title.done" : "knowledge.mapping.title.behind");
+}
+
+/** The cartography of the knowledge: where it stands and when the knowledge base was written, then the button that maps it all again. */
+function MappingCard({ state, controls }: { readonly state: KnowledgeState; readonly controls: KnowledgeControls }): ReactNode {
+  return (
+    <section className="card knowledge-mapping">
+      <div className="knowledge-mapping-text">
+        {state.mapping !== undefined && <b>{mappingTitle(state.mapping)}</b>}
+        <KnowledgeBaseLine mapping={state.mapping} />
+      </div>
+      <RemapButton remap={state.remap} onRemap={controls.remap} />
+    </section>
   );
 }
 
@@ -191,7 +211,7 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
     <Page
       crumbs={[{ label: project }, { label: title }]}
       title={title}
-      {...(adding ? {} : { actions: action })}
+      {...(adding ? {} : { invite: action })}
       {...(state.read && sources.length > 0 ? { hint: t("knowledge.lead") } : {})}
     >
       {adding && <Adder route={route} editing={editing} controls={controls} />}
@@ -205,12 +225,13 @@ function Overview({ project, route, state, editing, controls }: KnowledgeScreenP
         </EmptyState>
       ) : (
         <>
-          <KnowledgeBaseLine mapping={state.mapping} />
-          <RemapButton remap={state.remap} onRemap={controls.remap} />
+          <MappingCard state={state} controls={controls} />
           <ProjectSources sources={sources} state={state} />
-          {configuration!.applications.map((application) => (
-            <ApplicationSources key={application.id} application={application} sources={sources} state={state} />
-          ))}
+          <div className="knowledge-groups">
+            {configuration!.applications.map((application) => (
+              <ApplicationSources key={application.id} application={application} sources={sources} state={state} />
+            ))}
+          </div>
         </>
       )}
     </Page>
@@ -251,7 +272,7 @@ function ApplicationSources({
       .map((attachment) => ({ source, attachment })),
   );
   return (
-    <Card title={application.name} hint={application.id}>
+    <Card title={application.name} aside={t("knowledge.sourceCount", { count: attached.length })} className="knowledge-group">
       {attached.length === 0 && <EmptyState title={t("knowledge.noSource")} />}
       {attached.map(({ source, attachment }, index) => (
         <SourceRow
