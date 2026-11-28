@@ -317,7 +317,7 @@
 
 .run-compare {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14em), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8em), 1fr));
   gap: var(--space-2);
   margin: 0;
 }
