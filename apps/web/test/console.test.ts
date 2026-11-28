@@ -259,11 +259,10 @@ describe("the console", () => {
       /^e1 lakeside-tests \/ Exécutions \/ e1 \/ apps\/shop\/orders\.spec\.ts .* Lecture du test/,
     );
     assert.equal(documentTitleOf({ route: at("#/executions/result?id=e1&path=a.spec.ts") }), "Résultat d’un test · Open QA Stack");
-    // The trace of a test in an execution has its own screen; an address that does not name both leads nowhere.
-    assert.match(
-      pageOf(consoleAt("#/executions/trace?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT })),
-      /^e1 lakeside-tests \/ Exécutions \/ e1 \/ Trace Trace ← apps\/shop\/orders\.spec\.ts Lecture du test/,
-    );
+    // The trace of a test in an execution has its own screen, over the whole window; an address that does not name both leads nowhere.
+    const trace = consoleAt("#/executions/trace?id=e1&path=apps%2Fshop%2Forders.spec.ts", { project: PROJECT });
+    assert.match(pageOf(trace), /^Résultat Trace · apps\/shop\/orders\.spec\.ts e1 Lecture du test/);
+    assert.match(trace, /^<div class="shell bare"><main class="shell-page"><div class="trace-screen">/);
     assert.equal(documentTitleOf({ route: at("#/executions/trace?id=e1&path=a.spec.ts") }), "Trace d’un test · Open QA Stack");
     for (const hash of ["#/executions/trace?id=e1", "#/executions/trace?path=a.spec.ts"]) assert.match(pageOf(consoleAt(hash)), /Page introuvable/, hash);
     assert.deepEqual(

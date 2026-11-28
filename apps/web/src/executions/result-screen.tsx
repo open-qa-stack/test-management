@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import type { QaStep, QaView, TestReading } from "@open-qa-stack/domain/sessions";
+import type { QaView, TestReading } from "@open-qa-stack/domain/sessions";
 import { API_BASE } from "../api/api-client.ts";
 import type { PolledState } from "../api/polled-state.ts";
-import { dateText, elapsedText } from "../i18n/formats.ts";
+import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { statusName, type Status } from "../i18n/vocabulary.ts";
 import { hrefTo } from "../routing/route.ts";
@@ -11,7 +11,8 @@ import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { EXECUTIONS_PATH, executionHref, resultHref, traceHref } from "./executions-paths.ts";
+import { EXECUTIONS_PATH, executionHref, traceHref } from "./executions-paths.ts";
+import { Comparison, numbered, outcomeText, reportHref, StepRows, type NumberedStep, type Place } from "./test-run.tsx";
 
 /** The address of the capture of a step in the run of an execution, as the instance serves it. */
 function captureSrc(id: string, path: string, step: number): string {
@@ -31,16 +32,6 @@ export interface ResultScreenProps {
   /** What the instance told of the test in that execution. */
   readonly state: PolledState<TestReading>;
 }
-
-/** Where a step of the test is shown. */
-interface Place {
-  readonly id: string;
-  readonly path: string;
-}
-
-/** The numbered steps of a test: those it calls, in its order. */
-const numbered = (view: QaView): readonly (QaStep & { readonly number: number })[] =>
-  view.steps.filter((step): step is QaStep & { readonly number: number } => step.number !== undefined);
 
 /**
  * The step whose page the screen shows: the one the address asks for when the test has it; otherwise the step that
@@ -69,78 +60,53 @@ export function stepBeside(view: QaView, asked: number | undefined, by: -1 | 1):
 /** The status of each way Playwright says a test ended, as every screen names it. */
 const STATUSES: Readonly<Record<QaView["status"], Status>> = { expected: "passed", unexpected: "failed", flaky: "flaky", skipped: "skipped" };
 
-/** How the test ended in the execution, in one sentence: where it failed, or in how many steps it went through. */
-function Summary({ view }: { readonly view: QaView }): ReactNode {
-  const count = numbered(view).length;
-  const tone = view.status === "unexpected" ? "ko" : view.status === "flaky" ? "warn" : view.status === "skipped" ? "neutral" : "ok";
-  const sentence = view.failedStep !== undefined ? t("test.summary.failedAt", { step: view.failedStep, count }) : t(`test.summary.${view.status}`, { count });
+/**
+ * How the test ended in the execution, at the head of the screen: where it failed and what it expected and received,
+ * in the tone of the failure, or how it went through its steps; then its trace, the action a person takes first,
+ * and the report of a defect when it failed.
+ */
+function Outcome({ view, place, traced }: { readonly view: QaView; readonly place: Place; readonly traced: boolean }): ReactNode {
+  const failed = view.status === "unexpected";
+  const tone = failed ? "ko" : view.status === "flaky" ? "warn" : view.status === "skipped" ? "neutral" : "ok";
   return (
-    <Card>
-      <div className="row test-summary">
+    <section className={`run-outcome ${tone}`} aria-label={t("result.outcome")}>
+      <header className="run-outcome-head">
         <Badge tone={tone}>{statusName(STATUSES[view.status])}</Badge>
-        <div className="grow">
-          <b>{sentence}</b>
+        <b>{outcomeText(view)}</b>
+      </header>
+      {view.failedStep !== undefined && <Comparison view={view} />}
+      {(traced || failed) && (
+        <div className="run-outcome-actions">
+          {traced && (
+            <a className="btn primary" href={traceHref(place.id, place.path)}>
+              {t("trace.openPlaywright")}
+            </a>
+          )}
+          {failed && (
+            <a className="btn" href={reportHref(place.path)}>
+              {t("result.report")}
+            </a>
+          )}
         </div>
-      </div>
-    </Card>
-  );
-}
-
-/** What the failed assertion expected and received, when its message says both. */
-function Comparison({ view }: { readonly view: QaView }): ReactNode {
-  if (view.failedStep === undefined) return null;
-  return (
-    <Card>
-      {view.expected !== undefined && view.received !== undefined ? (
-        <dl className="test-compare">
-          <dt>{t("test.expected")}</dt>
-          <dd className="mono">{view.expected}</dd>
-          <dt>{t("test.received")}</dt>
-          <dd className="mono">{view.received}</dd>
-        </dl>
-      ) : (
-        <p className="test-compare small muted">{t("test.noCompare")}</p>
       )}
-    </Card>
-  );
-}
-
-/** A step of the test in the list: its number and state, its title and the steps it holds, its duration; it shows its page. */
-function StepRow({ step, place, shown }: { readonly step: QaStep & { readonly number: number }; readonly place: Place; readonly shown: boolean }): ReactNode {
-  const failed = step.state === "failed";
-  return (
-    <a
-      className={["row", "test-step", failed ? "failed" : "", shown ? "on" : ""].filter((name) => name !== "").join(" ")}
-      href={resultHref(place.id, place.path, step.number)}
-      aria-current={shown ? "step" : undefined}
-    >
-      <span className="small muted test-step-number">{step.number}</span>
-      <span className={failed ? "test-step-state ko" : "test-step-state ok"} role="img" aria-label={statusName(step.state)}>
-        {failed ? "✕" : "✓"}
-      </span>
-      <div className="grow">
-        <b>{step.title}</b>
-        {step.steps.length > 0 && (
-          <ul className="small muted test-substeps">
-            {step.steps.map((inner, index) => (
-              <li key={index}>{inner.title}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <span className="small muted">{elapsedText(step.duration)}</span>
-    </a>
+    </section>
   );
 }
 
 /** The page at a step, as the run captured it, whole width. */
-function Screen({ step, place }: { readonly step: QaStep & { readonly number: number }; readonly place: Place }): ReactNode {
+function Screen({ step, place }: { readonly step: NumberedStep; readonly place: Place }): ReactNode {
+  const src = captureSrc(place.id, place.path, step.number);
   return (
     <Card title={t("test.screenAt", { number: step.number })}>
       {step.capture === undefined ? (
         <p className="test-compare small muted">{t("test.noCapture")}</p>
       ) : (
-        <img className="test-capture" src={captureSrc(place.id, place.path, step.number)} alt={t("test.capture", { number: step.number })} />
+        <>
+          <img className="test-capture" src={src} alt={t("test.capture", { number: step.number })} />
+          <a className="test-capture-open" href={src} target="_blank" rel="noopener">
+            {t("result.enlarge")} ↗
+          </a>
+        </>
       )}
     </Card>
   );
@@ -166,14 +132,23 @@ function Details({ view, path }: { readonly view: QaView; readonly path: string 
 }
 
 /** The test read in steps: how it ended, what it expected and found, its steps, the page at one of them, and its details. */
-function Reading({ place, view, asked }: { readonly place: Place; readonly view: QaView; readonly asked: number | undefined }): ReactNode {
+function Reading({
+  place,
+  view,
+  asked,
+  traced,
+}: {
+  readonly place: Place;
+  readonly view: QaView;
+  readonly asked: number | undefined;
+  readonly traced: boolean;
+}): ReactNode {
   const steps = numbered(view);
   const shown = shownStep(view, asked);
   const step = steps.find((candidate) => candidate.number === shown);
   return (
     <>
-      <Summary view={view} />
-      <Comparison view={view} />
+      <Outcome view={view} place={place} traced={traced} />
       <div className="test-reading">
         <Card
           title={t("test.steps")}
@@ -181,9 +156,7 @@ function Reading({ place, view, asked }: { readonly place: Place; readonly view:
           {...(steps.length > 1 ? { aside: <span className="keys small muted">{t("test.stepKeys")}</span> } : {})}
         >
           {steps.length === 0 && <EmptyState title={t("test.noStep")} />}
-          {steps.map((candidate) => (
-            <StepRow key={candidate.number} step={candidate} place={place} shown={candidate.number === shown} />
-          ))}
+          <StepRows view={view} place={place} {...(shown === undefined ? {} : { shown })} />
         </Card>
         {step !== undefined && <Screen step={step} place={place} />}
       </div>
@@ -194,8 +167,9 @@ function Reading({ place, view, asked }: { readonly place: Place; readonly view:
 
 /**
  * The screen of what came of a test in an execution, read as a person checks it: how it ended and where it failed,
- * what it expected and what it found, its steps, and the page at one of them, the one that failed by default; the
- * mechanics folded. It leads to the card of the test, to its trace when its run kept one, and back to the execution.
+ * what it expected and what it found, its trace to open first when its run kept one, its steps, and the page at one
+ * of them, the one that failed by default, to enlarge; the mechanics folded. It leads to the card of the test, where
+ * a defect of a failure is reported, and back to the execution.
  *
  * @param props - The name of the project, the execution and the path of the test, the step the address asks to show, and what the instance told.
  * @returns The screen.
@@ -210,13 +184,7 @@ export function ResultScreen({ project, id, path, step, state }: ResultScreenPro
       title={title}
     >
       <p className="small">
-        <a href={testHref(path)}>{t("result.card")} →</a>
-        {reading?.traced === true && (
-          <>
-            {" · "}
-            <a href={traceHref(id, path)}>{t("trace.open")} →</a>
-          </>
-        )}
+        <a href={testHref(path)}>{t("result.card")}</a>
       </p>
       {reading === undefined ? (
         <EmptyState title={t("test.reading")}>
@@ -225,7 +193,7 @@ export function ResultScreen({ project, id, path, step, state }: ResultScreenPro
       ) : reading.view === undefined ? (
         <EmptyState title={t("result.gone")}>{t("result.goneNote")}</EmptyState>
       ) : (
-        <Reading place={{ id, path }} view={reading.view} asked={step} />
+        <Reading place={{ id, path }} view={reading.view} asked={step} traced={reading.traced === true} />
       )}
     </Page>
   );

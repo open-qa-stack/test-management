@@ -1170,7 +1170,8 @@
       "atStep": " à l’étape {{number}} ({{title}})",
       "request": "Le test « {{title}} » ({{path}}) échoue{{step}}. Cherche pourquoi. Si le test est en tort, répare-le ; si c’est l’application, dis-le et laisse le test tel quel.",
       "report": "Signaler l’anomalie"
-    }
+    },
+    "compared": "attendu {{expected}}, obtenu {{received}}"
   },
   "executions": {
     "title": "Exécutions",
@@ -1277,7 +1278,10 @@
   "result": {
     "card": "Fiche du test",
     "gone": "Le détail de cette exécution n’est plus disponible",
-    "goneNote": "Son rapport a été supprimé, ou ne contient pas ce test."
+    "goneNote": "Son rapport a été supprimé, ou ne contient pas ce test.",
+    "outcome": "Issue du test",
+    "report": "Signaler une anomalie",
+    "enlarge": "Agrandir la capture"
   },
   "trace": {
     "title": "Trace",
@@ -1286,7 +1290,22 @@
     "frame": "Trace de « {{title}} »",
     "none": "Aucune trace de ce test",
     "noneNote": "Cette exécution ne l’a pas gardée : Playwright garde la trace d’un test selon sa configuration, souvent seulement quand il échoue.",
-    "back": "Revenir au résultat"
+    "back": "Revenir au résultat",
+    "openPlaywright": "Ouvrir la trace Playwright",
+    "result": "Résultat",
+    "heading": "Trace · {{title}}",
+    "ran": "Exécution du {{date}}",
+    "failedAt": "Échoué à l’étape {{step}}",
+    "context": "Contexte du test",
+    "expectation": "Ce que le test attendait",
+    "steps": "Étapes du test",
+    "phone": {
+      "title": "La trace Playwright s’ouvre mieux sur un grand écran",
+      "note": "Sa frise, ses captures et ses panneaux ne tiennent pas dans cette largeur. L’essentiel pour décider est déjà dans le résultat : l’étape en échec, l’écart attendu / obtenu et la capture.",
+      "copy": "Copier le lien de la trace",
+      "anyway": "L’ouvrir quand même, en plein écran",
+      "link": "Le lien ouvre la même trace sur un ordinateur relié à cette instance."
+    }
   },
   "campaigns": {
     "title": "Campagnes",

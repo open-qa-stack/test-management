@@ -349,15 +349,20 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("runs every line of the screen of a trace when it is used in the browser, from the result of a test, the menu folded", async () => {
+  it("runs every line of the screen of a trace when it is used in the browser, from the result of a test, over the whole window", async () => {
     const [screen] = await app().measure(
       ["src/executions/trace-page.tsx"],
       async (page) => {
         await page.goto(`http://console.test/#/executions/result?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`);
-        await page.getByRole("link", { name: /Voir la trace/ }).click();
+        await page.getByRole("link", { name: "Ouvrir la trace Playwright" }).click();
         await page.waitForURL(/#\/executions\/trace\?id=/);
         await page.locator("iframe.trace-frame").waitFor();
-        await page.locator(".shell.folded").waitFor();
+        assert.equal(await page.locator(".shell-sidebar").count(), 0, "a trace has no menu");
+        await page.getByRole("link", { name: "Contexte du test" }).click();
+        await page.waitForURL(/context=hidden/);
+        await page.locator(".trace-context").waitFor({ state: "detached" });
+        await page.getByRole("link", { name: "Revenir au résultat" }).click();
+        await page.getByRole("link", { name: "Ouvrir la trace Playwright" }).waitFor();
       },
       new ListedInstance().api,
     );
@@ -438,10 +443,34 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
-  it("lets the screen of a trace fit the width of a small phone", async () => {
+  it("shows a small phone no trace viewer, but the way back to the result and the link of the trace, within its width", async () => {
     const page = await app().open(360, `#/executions/trace?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`, new ListedInstance().api);
     try {
-      await page.locator("iframe.trace-frame").waitFor();
+      await page.getByRole("heading", { name: "La trace Playwright s’ouvre mieux sur un grand écran" }).waitFor();
+      assert.equal(await page.locator("iframe.trace-frame").isVisible(), false);
+      assert.equal(await page.locator(".trace-context").isVisible(), false);
+      assert.equal(await overflowOf(page), 0);
+      assert.deepEqual(await tooSmallOf(page), []);
+    } finally {
+      await page.close();
+    }
+  });
+
+  it("gives the viewer and the context of the test the window under the bar, from a tablet", async () => {
+    const page = await app().open(1280, `#/executions/trace?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`, new ListedInstance().api);
+    try {
+      const frame = page.locator("iframe.trace-frame");
+      await frame.waitFor();
+      const [viewer, context, bar] = await Promise.all([
+        frame.boundingBox(),
+        page.locator(".trace-context").boundingBox(),
+        page.locator(".trace-bar").boundingBox(),
+      ]);
+      assert.ok(viewer !== null && context !== null && bar !== null);
+      assert.deepEqual([viewer.x, viewer.y, Math.round(viewer.x + viewer.width)], [0, bar.height, Math.round(context.x)]);
+      assert.equal(Math.round(context.x + context.width), 1280);
+      assert.equal(Math.round(viewer.y + viewer.height), 800);
+      assert.equal(await page.locator(".trace-phone").isVisible(), false);
       assert.equal(await overflowOf(page), 0);
     } finally {
       await page.close();

@@ -6,6 +6,9 @@ export const TESTS_PATH = "/tests";
 /** The address of the screen of a test, whose path the query gives. */
 export const TEST_PATH = `${TESTS_PATH}/view`;
 
+/** The panel of the card of a test that reports a defect of it, as the address names it. */
+export const REPORT_PANEL = "report";
+
 /**
  * The link to the screen of a test.
  *

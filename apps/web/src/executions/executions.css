@@ -290,13 +290,281 @@
   }
 }
 
-/* The trace viewer of Playwright takes the width of the page and the height of the window under its header. */
-.trace-frame {
-  display: block;
-  width: 100%;
-  height: calc(100dvh - var(--trace-header));
-  min-height: 480px;
+/* What came of a test, at the head of its result: a card in the tone of how it ended, what it expected and received side by side, then what to do. */
+.run-outcome {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--pad) var(--pad);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
+}
+
+.run-outcome.ko {
+  border-color: var(--ko-line);
+}
+
+.run-outcome-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.run-outcome.ko .run-outcome-head b {
+  color: var(--ko);
+}
+
+.run-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14em), 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.run-compare-part {
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-inner);
+  background: var(--surface-soft);
+}
+
+.run-compare-part.ko {
+  background: var(--ko-soft);
+  color: var(--ko);
+}
+
+.run-compare-part dt {
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.run-compare-part dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.run-compare-none {
+  margin: 0;
+}
+
+.run-outcome-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14em), 1fr));
+  gap: var(--space-2);
+}
+
+/* A step of the test as it ran: its state, then its title over how it ended, the one that failed in the tone of the failure. */
+.test-step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--control);
+  padding: var(--space-3) var(--inset);
+  border-bottom: var(--hairline) solid var(--line-soft);
+}
+
+.test-step:last-child {
+  border-bottom: 0;
+}
+
+.test-step.on {
+  box-shadow: inset var(--stroke) 0 0 var(--primary);
+}
+
+.test-step-text {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.test-step-facts {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.test-step-facts.ko {
+  color: var(--ko);
+  font-weight: var(--weight-medium);
+}
+
+.test-capture-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+/*
+ * The trace of a test, over the whole window: its bar, then the trace viewer beside the context of the test. A phone
+ * shows neither: what it shows in their place leads back to the result.
+ */
+.trace-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.trace-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: var(--bar);
+  padding: var(--space-2) var(--gutter);
+  border-bottom: var(--hairline) solid var(--line);
+  background: var(--surface);
+}
+
+.trace-bar-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding-right: var(--space-3);
+  border-right: var(--hairline) solid var(--line);
+  color: var(--text);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.trace-bar-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.trace-bar-title h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trace-bar-title p {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.trace-bar-context,
+.trace-bar-tab,
+.trace-bar .badge {
+  display: none;
+}
+
+.trace-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.trace-frame,
+.trace-context {
+  display: none;
+}
+
+/* What a phone shows in place of the viewer: why, the way back to the result, then the link of the trace. */
+.trace-phone {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  width: 100%;
+  padding: var(--space-4) var(--gutter);
+}
+
+.trace-phone h2,
+.trace-phone p {
+  margin: 0;
+}
+
+.trace-phone-back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--pad);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.trace-phone-back .grow {
+  display: grid;
+  min-width: 0;
+}
+
+.trace-phone-back > svg {
+  transform: rotate(-90deg);
+}
+
+@media (min-width: 720px) {
+  .trace-bar-context,
+  .trace-bar-tab,
+  .trace-bar .badge {
+    display: inline-flex;
+  }
+
+  .trace-phone {
+    display: none;
+  }
+
+  .trace-frame {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    height: calc(100dvh - var(--bar));
+    border: 0;
+    background: var(--surface);
+  }
+
+  /* The context of the test, at the right of the viewer, scrolls on its own; its actions stay at its foot. */
+  .trace-context {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: var(--drawer);
+    height: calc(100dvh - var(--bar));
+    overflow-y: auto;
+    border-left: var(--hairline) solid var(--line);
+    background: var(--surface);
+  }
+
+  .trace-context-part {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--pad);
+    border-bottom: var(--hairline) solid var(--line-soft);
+  }
+
+  .trace-context-steps {
+    padding-inline: 0;
+  }
+
+  .trace-context-steps h2 {
+    padding-inline: var(--pad);
+  }
+
+  .trace-context-part h2 {
+    margin: 0;
+    color: var(--text-3);
+    font-size: var(--type-caption);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+  }
+
+  .trace-context-actions {
+    display: grid;
+    margin-top: auto;
+    padding: var(--pad);
+    border-top: var(--hairline) solid var(--line);
+  }
 }

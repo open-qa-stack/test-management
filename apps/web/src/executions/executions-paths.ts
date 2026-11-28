@@ -87,10 +87,11 @@ export function resultHref(id: string, path: string, step?: number): string {
  *
  * @param id - The identifier of the execution.
  * @param path - The path of the test, relative to the root of the test repository.
+ * @param context - `hidden` for the trace without the context of the test beside it.
  * @returns The fragment to put in an `href`.
  */
-export function traceHref(id: string, path: string): string {
-  return hrefTo(TRACE_PATH, { id, path });
+export function traceHref(id: string, path: string, context?: "hidden"): string {
+  return hrefTo(TRACE_PATH, { id, path, ...(context === undefined ? {} : { context }) });
 }
 
 /**

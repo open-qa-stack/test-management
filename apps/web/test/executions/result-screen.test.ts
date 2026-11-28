@@ -18,7 +18,7 @@ describe("the screen of what came of a test in an execution", () => {
   it("says it reads the test until the instance read it, and why it could not, under the way to the card of the test", () => {
     assert.equal(
       textOf(screen({})),
-      `e1 lakeside-tests / Exécutions / e1 / ${DETAIL.path} ${DETAIL.path} Fiche du test → Lecture du test Il apparaît dès que l’instance a répondu.`,
+      `e1 lakeside-tests / Exécutions / e1 / ${DETAIL.path} ${DETAIL.path} Fiche du test Lecture du test Il apparaît dès que l’instance a répondu.`,
     );
     assert.match(textOf(screen({ unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\.$/);
     assert.deepEqual(linksOf(screen({})), [
@@ -41,18 +41,22 @@ describe("the screen of what came of a test in an execution", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /^\d+ nov\. 2026, \d\d:\d\d lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Display the detail of a policy Display the detail of a policy Fiche du test →/,
+      /^\d+ nov\. 2026, \d\d:\d\d lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Display the detail of a policy Display the detail of a policy Fiche du test /,
     );
-    assert.match(text, /Échoué Échoue à l’étape 2 sur 2\. Attendu "1500 CHF" Obtenu "250 CHF"/);
+    assert.match(text, /Échoué Échoue à l’étape 2 sur 2\. Attendu "1500 CHF" Obtenu "250 CHF" Signaler une anomalie/);
+    assert.match(html, /<section class="run-outcome ko" aria-label="Issue du test">/);
+    assert.match(html, /<div class="run-compare-part ko"><dt>Obtenu<\/dt><dd class="mono">&quot;250 CHF&quot;<\/dd><\/div>/);
+    assert.ok(linksOf(html).includes(`#/tests/view?path=${encodeURIComponent(DETAIL.path)}&panel=report`));
     assert.match(
       text,
-      /Étapes · 2 étapes ← → pour changer d’étape 1 ✓ 1\. Open the policy of the customer Fill the search 224 ms 2 ✕ 2\. Read its amounts 5,0 s/,
+      /Étapes · 2 étapes ← → pour changer d’étape 1\. Open the policy of the customer Fill the search Réussi · 224 ms 2\. Read its amounts Échoué · 5,0 s · attendu "1500 CHF", obtenu "250 CHF"/,
     );
+    assert.match(html, /<span class="test-step-facts ko">Échoué · /);
     // The step that failed is shown: the run kept no capture of it.
     assert.match(text, /Écran à l’étape 2 Aucune capture pour cette étape\. Détails techniques/);
     assert.match(
       html,
-      /<a class="row test-step failed on" href="#\/executions\/result\?id=e1&amp;path=apps%2Fpolicy-management%2F[^"]*&amp;step=2" aria-current="step">/,
+      /<a class="test-step failed on" href="#\/executions\/result\?id=e1&amp;path=apps%2Fpolicy-management%2F[^"]*&amp;step=2" aria-current="step">/,
     );
     assert.match(
       text,
@@ -73,21 +77,25 @@ describe("the screen of what came of a test in an execution", () => {
     assert.doesNotMatch(textOf(screen({ value: one })), /pour changer d’étape/);
   });
 
-  it("leads to the trace of the test, only when its run kept one", () => {
+  it("opens the trace of the test first, only when its run kept one", () => {
     const trace = "#/executions/trace?id=e1&path=apps%2Fpolicy-management%2F";
-    assert.match(textOf(screen({ value: { ...RAN, traced: true } })), /Fiche du test → · Voir la trace →/);
+    assert.match(
+      screen({ value: { ...RAN, traced: true } }),
+      /<div class="run-outcome-actions"><a class="btn primary" href="#\/executions\/trace\?[^"]+">Ouvrir la trace Playwright<\/a><a class="btn" href=/,
+    );
     assert.ok(linksOf(screen({ value: { ...RAN, traced: true } })).some((link) => link.startsWith(trace)));
     assert.ok(!linksOf(screen({ value: { ...RAN, traced: false } })).some((link) => link.startsWith(trace)));
   });
 
   it("shows the page at the step the address asks for, whole width, from the run of the execution", () => {
     const html = screen({ value: RAN }, 1);
-    assert.match(textOf(html), /Écran à l’étape 1 Détails/);
+    assert.match(textOf(html), /Écran à l’étape 1 Agrandir la capture ↗ Détails/);
+    assert.match(html, /<a class="test-capture-open" href="\/api\/tests\/capture\?[^"]+" target="_blank" rel="noopener">/);
     assert.match(
       html,
       /<img class="test-capture" src="\/api\/tests\/capture\?path=apps%2Fpolicy-management%2F[^"]*&amp;step=1&amp;execution=e1" alt="Capture de l’étape 1"\/>/,
     );
-    assert.match(html, /<a class="row test-step on" href="[^"]*&amp;step=1" aria-current="step">/);
+    assert.match(html, /<a class="test-step on" href="[^"]*&amp;step=1" aria-current="step">/);
     // A step the test does not have is no step to show: the one that failed is.
     assert.match(textOf(screen({ value: RAN }, 9)), /Écran à l’étape 2/);
   });
@@ -97,7 +105,8 @@ describe("the screen of what came of a test in an execution", () => {
     const steps = rest.steps.map((step) => ({ ...step, state: "passed" as const }));
     const read = (status: "expected" | "flaky" | "skipped", shown = steps) =>
       textOf(screen({ value: { ...READING, view: { ...rest, steps: shown, status } } }));
-    assert.match(read("expected"), /Réussi Réussit ses 2 étapes\. .* Écran à l’étape 1 /);
+    assert.match(read("expected"), /Réussi Réussit ses 2 étapes\. Étapes .* Écran à l’étape 1 /);
+    assert.doesNotMatch(read("expected"), /run-outcome-actions|Signaler/);
     assert.match(read("flaky", steps.slice(0, 1)), /Instable Réussit son étape après une nouvelle tentative\./);
     // Without any capture, the page shown is that of the first step.
     assert.match(
@@ -118,6 +127,6 @@ describe("the screen of what came of a test in an execution", () => {
     );
     // A failure the report tells without a step that failed is told as such.
     const { failedStep: ___, ...unplaced } = view;
-    assert.match(textOf(screen({ value: { ...READING, view: unplaced } })), /Échoué Échoue\. Étapes/);
+    assert.match(textOf(screen({ value: { ...READING, view: unplaced } })), /Échoué Échoue\. Signaler une anomalie Étapes/);
   });
 });

@@ -1170,7 +1170,8 @@
       "atStep": " at step {{number}} ({{title}})",
       "request": "The test “{{title}}” ({{path}}) fails{{step}}. Find why. If the test is at fault, repair it; if the application is, say so and leave the test as it is.",
       "report": "Report the defect"
-    }
+    },
+    "compared": "expected {{expected}}, received {{received}}"
   },
   "executions": {
     "title": "Executions",
@@ -1277,7 +1278,10 @@
   "result": {
     "card": "Card of the test",
     "gone": "The detail of this execution is no longer available",
-    "goneNote": "Its report was removed, or does not hold this test."
+    "goneNote": "Its report was removed, or does not hold this test.",
+    "outcome": "Outcome of the test",
+    "report": "Report a defect",
+    "enlarge": "Enlarge the capture"
   },
   "trace": {
     "title": "Trace",
@@ -1286,7 +1290,22 @@
     "frame": "Trace of “{{title}}”",
     "none": "No trace of this test",
     "noneNote": "This execution did not keep it: Playwright keeps the trace of a test as its configuration says, often only when it fails.",
-    "back": "Back to the result"
+    "back": "Back to the result",
+    "openPlaywright": "Open the Playwright trace",
+    "result": "Result",
+    "heading": "Trace · {{title}}",
+    "ran": "Execution of {{date}}",
+    "failedAt": "Failed at step {{step}}",
+    "context": "Context of the test",
+    "expectation": "What the test expected",
+    "steps": "Steps of the test",
+    "phone": {
+      "title": "The Playwright trace opens better on a large screen",
+      "note": "Its timeline, its captures and its panels do not fit this width. What a decision needs is already in the result: the step that failed, what was expected and received, and the capture.",
+      "copy": "Copy the link of the trace",
+      "anyway": "Open it anyway, full screen",
+      "link": "The link opens the same trace on a computer connected to this instance."
+    }
   },
   "campaigns": {
     "title": "Campaigns",

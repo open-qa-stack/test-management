@@ -28,6 +28,8 @@ export interface ShellProps {
   readonly unreachable?: boolean;
   /** The menu of a wide screen, unfolded and without a way to fold it when none is given. */
   readonly menu?: ShellMenu;
+  /** Whether the page takes the whole window, without the navigation, as a trace does. */
+  readonly bare?: boolean;
   /** The page shown in the main area. */
   readonly children?: ReactNode;
 }
@@ -38,12 +40,13 @@ export interface ShellProps {
  * which leads back to it — tabs at the bottom open the screens a person goes back to all day, and the screen that
  * lists the others. From a tablet the navigation is a menu at the left of the
  * page, under the mark: a button folds it to its icons, and one at its foot opens the help of the shortcuts, as `?`
- * does, in a panel its address keeps. A project that has no name yet is not named.
+ * does, in a panel its address keeps. A page that takes the whole window, as a trace does, has no navigation: it
+ * leads back by itself. A project that has no name yet is not named.
  *
  * @param props - The route, the project and the page to frame.
  * @returns The shell.
  */
-export function Shell({ route, project, unreachable = false, menu, children }: ShellProps): ReactNode {
+export function Shell({ route, project, unreachable = false, menu, bare = false, children }: ShellProps): ReactNode {
   const folded = menu?.folded === true;
   const brand = (
     <a className="brand" href={hrefTo(HOME_PATH)}>
@@ -51,13 +54,22 @@ export function Shell({ route, project, unreachable = false, menu, children }: S
       <span>Open QA Stack</span>
     </a>
   );
+  const band = unreachable && (
+    <div className="env" role="alert">
+      ● {t("shell.offline")} <span className="n">{t("shell.offlineDetail")}</span>
+    </div>
+  );
+  if (bare) {
+    return (
+      <div className="shell bare">
+        {band}
+        <main className="shell-page">{children}</main>
+      </div>
+    );
+  }
   return (
     <div className={folded ? "shell folded" : "shell"}>
-      {unreachable && (
-        <div className="env" role="alert">
-          ● {t("shell.offline")} <span className="n">{t("shell.offlineDetail")}</span>
-        </div>
-      )}
+      {band}
       <header className="top">
         {brand}
         <span className="top-project">{project?.name}</span>

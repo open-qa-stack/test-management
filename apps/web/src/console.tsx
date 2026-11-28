@@ -140,7 +140,7 @@ function given(value: string | undefined): value is string {
 }
 
 /**
- * Tells whether a route opens the trace of a test, which the menu gives the whole width to.
+ * Tells whether a route opens the trace of a test, which takes the whole window.
  *
  * @param route - The route.
  * @returns Whether it is the address of the screen of a trace.
@@ -277,7 +277,7 @@ function Screen(props: ConsoleProps): ReactNode {
         />
       );
     case "trace":
-      return <TracePage key={`${shown.id}:${shown.path}`} project={name} id={shown.id} path={shown.path} />;
+      return <TracePage key={`${shown.id}:${shown.path}`} route={route} id={shown.id} path={shown.path} />;
     case "opening":
     case "no_session":
     case "nowhere": {
@@ -306,7 +306,13 @@ function Screen(props: ConsoleProps): ReactNode {
 export function Console(props: ConsoleProps): ReactNode {
   const { route, project, unreachable = false, menu } = props;
   return (
-    <Shell route={route} unreachable={unreachable} {...(project === undefined ? {} : { project })} {...(menu === undefined ? {} : { menu })}>
+    <Shell
+      route={route}
+      unreachable={unreachable}
+      bare={isTrace(route)}
+      {...(project === undefined ? {} : { project })}
+      {...(menu === undefined ? {} : { menu })}
+    >
       <Screen {...props} />
     </Shell>
   );

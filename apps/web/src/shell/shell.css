@@ -349,6 +349,19 @@
   padding-bottom: var(--space-6);
 }
 
+/* A page that takes the whole window, as a trace does: no navigation, the page alone under the band. */
+.shell.bare {
+  display: flex;
+  flex-direction: column;
+}
+
+.shell.bare > .shell-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
+}
+
 /* The screen of the other entries: a list of rows under the heading of each group, as a phone lists its settings. */
 .more-group .grp {
   margin: 0;
