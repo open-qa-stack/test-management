@@ -6,10 +6,10 @@ import {
   endOf,
   frameOf,
   INITIAL_PLAYBACK,
-  passesOf,
   PAUSE_TICKS,
   played,
   shows,
+  DEFAULT_VIEW,
   TOOL_TICKS,
   type Playback,
 } from "../../src/agent/playback.ts";
@@ -23,7 +23,7 @@ const LOOK = { kind: "page", name: "card", lines: ["a rule"] } as const;
  */
 const STEPS: readonly Step[] = [
   { kind: "say", from: "user", at: "10:00:00", text: "Cover the quotes." },
-  { kind: "pass", at: "10:00:01", title: "Pass 1", summary: "The shortest path." },
+  { kind: "pass", at: "10:00:01", phase: "plan", title: "Pass 1", summary: "The shortest path." },
   { kind: "say", from: "planner", at: "10:00:02", thinking: true, text: "12345678" },
   { kind: "tool", from: "planner", at: "10:00:03", tool: "shop_goto", title: "Opened the form", look: LOOK },
   { kind: "verdict", at: "10:00:04", accepted: false, code: "PLAN-SHOWN", about: "The plan", text: "Never shown.", reason: "Never shown." },
@@ -79,7 +79,7 @@ describe("the frame of a session a person follows", () => {
       frame.shown.map(({ index, written, running }) => [index, written, running]),
       STEPS.map((step, index) => [index, step.kind === "say" ? step.text : "", false]),
     );
-    assert.deepEqual([frame.speaking, frame.finished, frame.actions, frame.pass, frame.passRank, frame.progress], [undefined, true, 2, "Pass 1", 0, 1]);
+    assert.deepEqual([frame.speaking, frame.finished, frame.actions, frame.progress], [undefined, true, 2, 1]);
     assert.ok(!("speaking" in frame));
   });
 
@@ -111,7 +111,7 @@ describe("the frame of a session a person follows", () => {
 
   it("shows a run that wrote nothing yet as an empty session more is to come of, and one that ended so as over", () => {
     const waiting = frameOf(upTo(0), INITIAL_PLAYBACK);
-    assert.deepEqual([waiting.shown.length, waiting.speaking, waiting.finished, waiting.progress, waiting.pass], [0, undefined, false, 1, undefined]);
+    assert.deepEqual([waiting.shown.length, waiting.speaking, waiting.finished, waiting.progress], [0, undefined, false, 1]);
     const over = frameOf(upTo(0, "ended"), INITIAL_PLAYBACK);
     assert.deepEqual([over.shown.length, over.finished, over.progress], [0, true, 1]);
   });
@@ -124,15 +124,12 @@ describe("the frame of a session a person replays", () => {
       frame.shown.map(({ index, written, running }) => [index, written, running]),
       [[0, "Cover the quotes.", false]],
     );
-    assert.deepEqual(
-      [frame.speaking, frame.finished, frame.actions, frame.pass, frame.passRank, frame.progress],
-      [undefined, false, 0, undefined, undefined, 0],
-    );
+    assert.deepEqual([frame.speaking, frame.finished, frame.actions, frame.progress], [undefined, false, 0, 0]);
   });
 
   it("writes a message a few characters at a tick, and names who speaks while it does", () => {
     const writing = frameOf(SCRIPT, at(STARTS[2]! + 1));
-    assert.deepEqual([writing.shown.at(-1)!.written, writing.shown.at(-1)!.running, writing.speaking, writing.pass], ["1234", true, "planner", "Pass 1"]);
+    assert.deepEqual([writing.shown.at(-1)!.written, writing.shown.at(-1)!.running, writing.speaking], ["1234", true, "planner"]);
     const written = frameOf(SCRIPT, at(STARTS[2]! + 2));
     assert.deepEqual([written.shown.at(-1)!.written, written.shown.at(-1)!.running, written.speaking], ["12345678", false, undefined]);
   });
@@ -252,114 +249,39 @@ describe("the playback of a session", () => {
   });
 });
 
-describe("the passes of a session", () => {
-  const TWO: SessionScript = { ...SCRIPT, steps: [...STEPS.slice(0, 4), { kind: "pass", at: "10:01:00", title: "Pass 2", summary: "The rules." }, STEPS[7]!] };
+describe("what the conversation shows", () => {
+  const kinds = (view: Parameters<typeof shows>[1], speaker?: Parameters<typeof shows>[2]) =>
+    STEPS.filter((step) => shows(step, view, speaker)).map((step) => step.kind);
 
-  it("are pending before a replay reaches them, current while it is in them, done afterwards and at its end", () => {
-    assert.deepEqual(passesOf(TWO, frameOf(TWO, at(0))), [
-      { title: "Pass 1", state: "pending" },
-      { title: "Pass 2", state: "pending" },
-    ]);
-    assert.deepEqual(
-      passesOf(TWO, frameOf(TWO, at(STARTS[2]!))).map(({ state }) => state),
-      ["current", "pending"],
-    );
-    assert.deepEqual(
-      passesOf(TWO, frameOf(TWO, at(STARTS[4]!))).map(({ state }) => state),
-      ["done", "current"],
-    );
-    assert.deepEqual(
-      passesOf(TWO, frameOf(TWO, at(endOf(TWO)))).map(({ state }) => state),
-      ["done", "done"],
-    );
+  it("is what is said — the notes of the harness included —, the start of a pass and what the session produced, then the verdicts and the actions when asked", () => {
+    assert.deepEqual(kinds({ verdicts: false, actions: false }), ["say", "pass", "say", "note", "say", "outcome"]);
+    assert.deepEqual(kinds(DEFAULT_VIEW), ["say", "pass", "say", "verdict", "note", "plan", "say", "outcome"]);
+    assert.deepEqual(kinds({ verdicts: false, actions: true }), ["say", "pass", "say", "tool", "note", "say", "tool", "outcome"]);
+    assert.equal(kinds({ verdicts: true, actions: true }).length, STEPS.length);
   });
 
-  it("are all done when a run that ended is followed, the last one current while the run still writes", () => {
-    assert.deepEqual(
-      passesOf(TWO, frameOf(TWO, INITIAL_PLAYBACK)).map(({ state }) => state),
-      ["done", "done"],
-    );
-    const live: SessionScript = { ...TWO, stage: "live" };
-    assert.deepEqual(
-      passesOf(live, frameOf(live, INITIAL_PLAYBACK)).map(({ state }) => state),
-      ["done", "current"],
-    );
-  });
-});
-
-describe("the passes of a session whose passes have parts, or the same title", () => {
-  const PARTS: SessionScript = {
-    ...SCRIPT,
-    steps: [
-      STEPS[0]!,
-      { kind: "pass", at: "10:00:01", title: "Plan", summary: "" },
-      { kind: "pass", at: "10:00:02", title: "Writing", summary: "a", minor: true },
-      { kind: "pass", at: "10:00:03", title: "Plan", summary: "" },
-    ],
-  };
-
-  it("leave the parts out, and tell two passes of the same title apart by their rank", () => {
-    const first = frameOf(PARTS, at(2 * PAUSE_TICKS + 2));
-    assert.deepEqual([first.pass, first.passRank, first.shown.length], ["Plan", 0, 3]);
-    assert.deepEqual(
-      passesOf(PARTS, first).map(({ state }) => state),
-      ["current", "pending"],
-    );
-    assert.deepEqual(
-      passesOf(PARTS, frameOf(PARTS, at(3 * PAUSE_TICKS + 2))).map(({ state }) => state),
-      ["done", "current"],
-    );
-  });
-});
-
-describe("what the thread keeps", () => {
-  const kinds = (filter: Parameters<typeof shows>[1], speaker?: Parameters<typeof shows>[2]) =>
-    STEPS.filter((step) => shows(step, filter, speaker)).map((step) => step.kind);
-
-  it("is everything, what is said — the notes of the harness included —, what is done, or the verdicts, the start of a pass always", () => {
-    assert.equal(kinds("all").length, STEPS.length);
-    assert.deepEqual(kinds("talk"), ["say", "pass", "say", "note", "say"]);
-    assert.deepEqual(kinds("actions"), ["pass", "tool", "plan", "tool", "outcome"]);
-    assert.deepEqual(kinds("verdicts"), ["pass", "verdict", "plan", "outcome"]);
-  });
-
-  it("follows one speaker, a verdict or a note being the harness speaking, a plan and an outcome nobody", () => {
-    assert.deepEqual(kinds("all", "planner"), ["pass", "say", "tool"]);
-    assert.deepEqual(kinds("all", "harness"), ["pass", "verdict", "note"]);
-    assert.deepEqual(kinds("talk", "writer"), ["pass", "say"]);
-    assert.deepEqual(kinds("actions", "writer"), ["pass", "tool"]);
+  it("follows one speaker, a verdict or a note being the harness speaking, a plan nobody", () => {
+    const all = { verdicts: true, actions: true };
+    assert.deepEqual(kinds(all, "planner"), ["pass", "say", "tool", "outcome"]);
+    assert.deepEqual(kinds(all, "harness"), ["pass", "verdict", "note", "outcome"]);
+    assert.deepEqual(kinds(DEFAULT_VIEW, "writer"), ["pass", "say", "outcome"]);
   });
 
   it("keeps the verdict of a reviewer among the verdicts, and with the reviewer it follows", () => {
     const review: Step = { kind: "review", from: "code_reviewer", at: "10:00:10", remarks: [], tool: "report_quality" };
-    assert.deepEqual(
-      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(review, filter)),
-      [true, false, false, true],
-    );
-    assert.deepEqual([shows(review, "all", "code_reviewer"), shows(review, "all", "harness")], [true, false]);
+    assert.deepEqual([shows(review, DEFAULT_VIEW), shows(review, { verdicts: false, actions: true })], [true, false]);
+    assert.deepEqual([shows(review, DEFAULT_VIEW, "code_reviewer"), shows(review, DEFAULT_VIEW, "harness")], [true, false]);
   });
 
-  it("keeps a row of notes alike as the harness speaking, among what is said", () => {
+  it("keeps a row of notes alike as the harness speaking", () => {
     const alike: Step = { kind: "repeated", at: "10:00:10", before: "A ", after: ".", sources: ["a", "b"], notes: [] };
-    assert.deepEqual(
-      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(alike, filter, "harness")),
-      [true, true, false, false],
-    );
+    assert.deepEqual([shows(alike, DEFAULT_VIEW, "harness"), shows(alike, DEFAULT_VIEW, "writer")], [true, false]);
   });
 
-  it("keeps what the session works on whatever else it keeps, whoever it follows", () => {
+  it("keeps what the session works on and the delivery of a message whatever it shows, whoever it follows", () => {
     const scope: Step = { kind: "scope", at: "10:00:10", title: "Portée", environment: "local", applications: ["shop"], levels: ["smoke"] };
-    assert.deepEqual(
-      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(scope, filter, "writer")),
-      [true, true, true, true],
-    );
-  });
-
-  it("keeps the delivery of a message whatever else it keeps: it only says where a message the thread shows is", () => {
     const delivery: Step = { kind: "delivery", at: "10:00:10", message: 1, to: "planner" };
-    assert.deepEqual(
-      (["all", "talk", "actions", "verdicts"] as const).map((filter) => shows(delivery, filter, "writer")),
-      [true, true, true, true],
-    );
+    const none = { verdicts: false, actions: false };
+    assert.deepEqual([shows(scope, none, "writer"), shows(delivery, none, "writer")], [true, true]);
   });
 });

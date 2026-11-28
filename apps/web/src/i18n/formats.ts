@@ -39,6 +39,26 @@ export function momentText(iso: string): string {
 }
 
 /**
+ * Writes the time of a moment to the second, in the time zone of the browser, as the thread of a session tells each of its steps.
+ *
+ * @param iso - The moment, in ISO 8601.
+ * @returns Its time, such as `14:44:06`.
+ */
+export function clockText(iso: string): string {
+  return new Intl.DateTimeFormat(locale(), { timeStyle: "medium" }).format(new Date(iso));
+}
+
+/**
+ * Writes the time of a moment to the minute, in the time zone of the browser, as the phases of a session tell when they ran.
+ *
+ * @param iso - The moment, in ISO 8601.
+ * @returns Its hour and its minute, such as `14:44`.
+ */
+export function hourText(iso: string): string {
+  return new Intl.DateTimeFormat(locale(), { timeStyle: "short" }).format(new Date(iso));
+}
+
+/**
  * Writes the day of a moment, short, in the time zone of the browser, as the thread of a session tells its times.
  *
  * @param iso - The moment, in ISO 8601.

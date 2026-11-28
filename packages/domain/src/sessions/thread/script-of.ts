@@ -62,8 +62,8 @@ function noted(last: Step, previous: Alike, note: NoteStep, alike: Alike | undef
     : undefined;
 }
 
-/** The time of an event, as a thread shows it. */
-function clock(at: string): string {
+/** The time of day of an event, in universal time: how a thread shows it when its presentation gives no clock. */
+function universalClock(at: string): string {
   return at.slice(11, 19);
 }
 
@@ -119,6 +119,7 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
   let previous: Alike | undefined;
   /** By reviewer, the rank of its verdict the harness just took, whose one-word reply is still to come. */
   const replies = new Map<string, number>();
+  const clock = wording.clock ?? universalClock;
   /** The scope last told, as a text that compares it with the next. */
   let scope: string | undefined;
   /** By scenario, the refusals of the harness about it since the plan of the pass started. */
@@ -161,7 +162,14 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
             plan = steps.length;
             refused.clear();
           }
-          steps.push({ kind: "pass", at, title: wording.phase(event.phase), summary: event.scenario ?? "", ...(part ? { minor: true } : {}) });
+          steps.push({
+            kind: "pass",
+            at,
+            phase: event.phase,
+            title: wording.phase(event.phase),
+            summary: event.scenario ?? "",
+            ...(part ? { minor: true } : {}),
+          });
         }
         break;
       case "action_started": {
@@ -294,6 +302,6 @@ export function scriptOf(session: Session, events: readonly SessionEvent[], word
       }
     }
   }
-  const opened = wording.opened(session.openedAt.slice(0, 10), clock(session.openedAt));
+  const opened = wording.opened(session.openedAt.slice(0, 10), universalClock(session.openedAt));
   return { id: session.id, title: oneLine(session.request ?? asked ?? opened), sources: [...sources], stage: stageOf(session), steps };
 }

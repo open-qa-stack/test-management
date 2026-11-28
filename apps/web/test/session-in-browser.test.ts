@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "vitest";
 import type { Locator, Page } from "playwright-core";
 import { SESSION_ID } from "./agent/session-fixture.ts";
-import { builtConsole, focusedOf, LOOKED, overflowOf, SESSION, settled, tooSmallOf } from "./in-browser.ts";
+import { ACTIONS, builtConsole, focusedOf, LOOKED, overflowOf, SESSION, settled, tooSmallOf } from "./in-browser.ts";
 import { PlayedInstance } from "./played-instance.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
 
@@ -97,7 +97,7 @@ describe("the shell on a narrow and on a wide screen", () => {
         ["#/agent", ".run-row"],
         [SESSION, ".thread .turn-text"],
         [LOOKED, ".look-panel .look"],
-        [`${SESSION}?show=verdicts&agent=planner`, ".followed-chip"],
+        [`${SESSION}?verdicts=off&agent=planner`, ".followed-chip"],
         ["#/agent/sessions/oqas-gone", ".state"],
         ["#/nowhere", ".state"],
       ] as const) {
@@ -106,6 +106,7 @@ describe("the shell on a narrow and on a wide screen", () => {
         const overflow = await overflowOf(page);
         if (overflow > 0) overflowing.push(`${hash} by ${overflow} px`);
       }
+      instance.complete();
       await page.goto(`http://console.test/${SESSION}`);
       await page.getByRole("button", { name: "Rejouer" }).click();
       await page.getByRole("button", { name: "Pause" }).waitFor();
@@ -136,7 +137,8 @@ describe("the shell on a narrow and on a wide screen", () => {
   });
 
   it("gives a finger 44 px at least on all that is pressed on the entry and on a session, on a phone", async () => {
-    const page = await app().open(390, "#/agent", new PlayedInstance().api);
+    const instance = new PlayedInstance();
+    const page = await app().open(390, "#/agent", instance.api);
     try {
       await page.locator(".run-row").waitFor();
       assert.deepEqual(await tooSmallOf(page), []);
@@ -148,6 +150,7 @@ describe("the shell on a narrow and on a wide screen", () => {
         await page.locator(shown).first().waitFor();
         assert.deepEqual(await tooSmallOf(page), [], hash);
       }
+      instance.complete();
       await page.goto(`http://console.test/${SESSION}`);
       await page.getByRole("button", { name: "Rejouer" }).click();
       await page.getByRole("button", { name: "Pause" }).waitFor();
@@ -186,10 +189,8 @@ describe("what an agent had before its eyes", () => {
         const title = await page.getByRole("heading", { level: 1 }).boundingBox();
         assert.ok(thread !== null && title !== null);
         assert.ok(thread.width <= 860, `${width}: a column of ${thread.width} px`);
-        const edges = await page
-          .locator(".session-bar, .pass-stepper, .thread-filters, .composer")
-          .evaluateAll((all) => all.map((one) => one.getBoundingClientRect().x));
-        assert.deepEqual(edges, [title.x, title.x, title.x, title.x], `${width}: one left edge`);
+        const edges = await page.locator(".summary, .conversation-head, .composer").evaluateAll((all) => all.map((one) => one.getBoundingClientRect().x));
+        assert.deepEqual(edges, [title.x, title.x, title.x], `${width}: one left edge`);
         assert.equal(thread.x, title.x, `${width}: the thread starts where the title does`);
         assert.equal(await overflowOf(page), 0, `${width}`);
       } finally {
@@ -199,7 +200,7 @@ describe("what an agent had before its eyes", () => {
   });
 
   it("opens from the eye of an action, on that action, named after it, and takes the focus", async () => {
-    const page = await app().open(1440, SESSION, new PlayedInstance().api);
+    const page = await app().open(1440, ACTIONS, new PlayedInstance().api);
     try {
       await page.getByText("I write the test now.").waitFor();
       await page.getByText("2 actions", { exact: true }).click();
@@ -218,7 +219,7 @@ describe("what an agent had before its eyes", () => {
 
   it("closes by its link, by Escape and by the way back, and gives the focus back to the eye, in the window", async () => {
     for (const width of [390, 1440]) {
-      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      const page = await app().open(width, ACTIONS, new PlayedInstance().api);
       const closings: readonly (readonly [string, () => Promise<unknown>])[] = [
         ["its link", () => page.getByRole("dialog").getByRole("link", { name: "Fermer" }).click()],
         ["Escape", () => page.keyboard.press("Escape")],
@@ -234,7 +235,7 @@ describe("what an agent had before its eyes", () => {
           await page.getByRole("dialog").waitFor();
           await close();
           await page.getByRole("dialog").waitFor({ state: "detached" });
-          assert.equal(new URL(page.url()).hash, SESSION, `${width}, ${name}`);
+          assert.equal(new URL(page.url()).hash, ACTIONS, `${width}, ${name}`);
           assert.equal(await focusedOf(page), EYE, `${width}, ${name}`);
           const box = await eye.boundingBox();
           assert.ok(box !== null && box.y >= 0 && box.y + box.height <= 420, `${width}, ${name}: the eye is at ${box?.y}`);
@@ -247,7 +248,7 @@ describe("what an agent had before its eyes", () => {
 
   it("covers the whole screen of a phone and of a tablet, and holds the page behind it still", async () => {
     for (const width of [390, 1099]) {
-      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      const page = await app().open(width, ACTIONS, new PlayedInstance().api);
       try {
         await page.setViewportSize({ width, height: 420 });
         await page.getByText("I write the test now.").waitFor();
@@ -343,27 +344,34 @@ describe("the thread of a session", () => {
       [390, 44],
       [1440, 44],
     ] as const) {
-      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      const page = await app().open(width, ACTIONS, new PlayedInstance().api);
       try {
         await page.getByText("I write the test now.").waitFor();
-        const thread = await page.locator(".thread").boundingBox();
-        assert.ok(thread !== null);
-        const starts = await page
-          .locator(".turn-body > :not(.turn-head), .brief .speaker-mark, .verdict, .result-card, .pass.minor .pass-title")
-          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().left))]);
-        assert.deepEqual(starts, [thread.x + keyline], `${width}: one keyline`);
-        const texts = await page
-          .locator(".brief summary > span:not([class]), .note-text")
-          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().left))]);
-        assert.deepEqual(texts, [thread.x + keyline + 28], `${width}: the harness speaks from one edge, after the room of its mark`);
-        const held = await page
-          .locator(".act-line, .thinking svg, .lead")
-          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().left))]);
-        assert.deepEqual(held, [thread.x + keyline + 16], `${width}: what a surface holds is set in by one padding`);
+        // A phase sets its turns in by its padding: they start and end where its content does.
+        const phase = await page.locator(".phase.current .phase-turns").evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return { x: box.left + parseFloat(style.paddingLeft), right: box.right - parseFloat(style.paddingRight) };
+        });
+        const lefts = (selector: string): Promise<number[]> =>
+          page
+            .locator(selector)
+            .evaluateAll((all) => [...new Set(all.filter((one) => one.getClientRects().length > 0).map((one) => one.getBoundingClientRect().left))]);
+        assert.deepEqual(
+          await lefts(".turn-body > :not(.turn-head), .brief .speaker-mark, .verdict, .result-card, .pass.minor .pass-title"),
+          [phase.x + keyline],
+          `${width}: one keyline`,
+        );
+        assert.deepEqual(
+          await lefts(".brief summary > span:not([class]), .note-text"),
+          [phase.x + keyline + 28],
+          `${width}: the harness speaks from one edge, after the room of its mark`,
+        );
+        assert.deepEqual(await lefts(".act-line, .thinking svg, .lead"), [phase.x + keyline + 16], `${width}: what a surface holds is set in by one padding`);
         const ends = await page
           .locator(".turn-head .turn-at, .brief .turn-at, .verdict .turn-at, .result-card .turn-at, .act-time")
-          .evaluateAll((all) => [...new Set(all.map((one) => one.getBoundingClientRect().right))]);
-        assert.deepEqual(ends, [thread.x + thread.width - 16], `${width}: one right edge for the times`);
+          .evaluateAll((all) => [...new Set(all.filter((one) => one.getClientRects().length > 0).map((one) => one.getBoundingClientRect().right))]);
+        assert.deepEqual(ends, [phase.right - 16], `${width}: one right edge for the times`);
       } finally {
         await page.close();
       }
@@ -396,15 +404,21 @@ describe("the thread of a session", () => {
     }
   });
 
-  it("keeps the passes of a session on one line on a phone", async () => {
-    const page = await app().open(360, SESSION, new PlayedInstance().api);
-    try {
-      await page.getByText("I write the test now.").waitFor();
-      const steps = await page.locator(".pass-step").evaluateAll((all) => all.map((step) => step.getBoundingClientRect().top));
-      assert.ok(steps.length > 1);
-      assert.equal(new Set(steps).size, 1);
-    } finally {
-      await page.close();
+  it("sets the facts of the summary two by two on a phone, and on one line from a tablet", async () => {
+    for (const [width, rows] of [
+      [360, 2],
+      [720, 1],
+    ] as const) {
+      const page = await app().open(width, SESSION, new PlayedInstance().api);
+      try {
+        await page.getByText("I write the test now.").waitFor();
+        const tops = await page.locator(".summary-fact").evaluateAll((all) => all.map((fact) => fact.getBoundingClientRect().top));
+        assert.equal(tops.length, 3);
+        assert.equal(new Set(tops).size, rows, `${width}`);
+        assert.equal(await overflowOf(page), 0, `${width}`);
+      } finally {
+        await page.close();
+      }
     }
   });
 
@@ -424,7 +438,7 @@ describe("the thread of a session", () => {
 
 describe("what the person says to the agents while they work", () => {
   /** The field of the composer. */
-  const fieldOf = (page: Page): Locator => page.getByRole("textbox", { name: "Dites aux agents ce qu’il faut corriger" });
+  const fieldOf = (page: Page): Locator => page.getByRole("textbox", { name: "Écrivez aux agents : préciser, corriger, ajouter un scénario" });
 
   /** Tells whether something ends at the bottom of the window, to the pixel: a page whose height is a fraction of one is not laid out more exactly. */
   const atBottom = (end: number): boolean => Math.abs(end - 800) < 1;
@@ -454,7 +468,7 @@ describe("what the person says to the agents while they work", () => {
       instance.deliver(1, "writer");
       await sent.getByText("remis à Rédacteur").waitFor();
       assert.match(await sent.locator(".request").innerText(), /^Votre message :\s+sans le profil$/);
-      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov.");
+      assert.equal(await page.getByRole("heading", { level: 1 }).innerText(), "Session du 15 nov., 14:44 En direct");
       assert.equal(await page.title(), "tester la recherche d'un client · Open QA Stack");
     } finally {
       await page.close();
@@ -505,7 +519,7 @@ describe("what the person says to the agents while they work", () => {
       assert.equal(await page.locator(".sent").count(), 0);
       await page.waitForFunction(() => {
         const composer = document.querySelector(".composer")!.getBoundingClientRect();
-        return composer.bottom > window.innerHeight - 1 && document.querySelector(".working")!.getBoundingClientRect().bottom <= composer.top;
+        return composer.bottom > window.innerHeight - 1 && document.querySelector(".thread > :last-child")!.getBoundingClientRect().bottom <= composer.top;
       });
       instance.deaf = false;
       await field.press("Enter");
@@ -528,8 +542,8 @@ describe("what the person says to the agents while they work", () => {
       assert.equal(await page.getByRole("button", { name: "Envoyer" }).count(), 0);
       await page.reload();
       await next.fill("corriger le test en échec");
-      await page.getByRole("button", { name: "Poursuivre la session" }).click();
-      await page.locator(".session-bar .badge", { hasText: "En direct" }).waitFor();
+      await page.getByRole("button", { name: "Poursuivre" }).click();
+      await page.locator("h1 .badge", { hasText: "En direct" }).waitFor();
       assert.deepEqual(instance.resumedWith, [{ text: "corriger le test en échec" }]);
       // The session is live again before its stream told the request of the new turn: the thread is read once it did.
       await page.locator(".thread-item", { hasText: "corriger le test en échec" }).waitFor();
@@ -553,8 +567,8 @@ describe("what the person says to the agents while they work", () => {
         return [element.getBoundingClientRect().bottom, composer.top, composer.bottom] as const;
       });
     try {
-      const working = page.getByRole("status").filter({ hasText: "travaille" });
-      await working.waitFor();
+      await page.getByRole("status").filter({ hasText: "travaille" }).waitFor();
+      const working = page.locator(".thread > :last-child");
       await page.waitForFunction(() => window.scrollY > 0);
       const [end, top, bottom] = await over(working);
       assert.ok(atBottom(bottom), `the composer stands at the bottom of the window: ${bottom}`);
@@ -565,15 +579,15 @@ describe("what the person says to the agents while they work", () => {
       assert.ok(size >= 16, `a field of ${size} px`);
       await page.evaluate(() => window.scrollTo(0, 0));
       assert.ok(atBottom((await over(working))[2]), "the composer stays there while the thread scrolls");
-      assert.equal(await working.evaluate((element) => element.getBoundingClientRect().top > window.innerHeight), true);
+      assert.equal(await working.evaluate((element) => element.getBoundingClientRect().bottom > window.innerHeight), true);
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       await fieldOf(page).fill("sans le profil");
       await fieldOf(page).press("Enter");
       const sent = sentOf(page, "sans le profil");
       await sent.waitFor();
       await page.waitForFunction(() => {
-        const status = document.querySelector('.working[role="status"]')!.getBoundingClientRect();
-        return status.bottom <= document.querySelector(".composer")!.getBoundingClientRect().top && status.top > 0;
+        const end = document.querySelector(".thread > :last-child")!.getBoundingClientRect();
+        return end.bottom <= document.querySelector(".composer")!.getBoundingClientRect().top && end.bottom > 0;
       });
       assert.equal(await sent.isVisible(), true);
       assert.equal(await overflowOf(page), 0);
@@ -583,17 +597,21 @@ describe("what the person says to the agents while they work", () => {
     }
   });
 
-  it("stands at the bottom of the window however short the thread, which does not scroll then", async () => {
+  it("stands at the bottom of the window however short the thread, which does not scroll then on a wide screen", async () => {
     const instance = new PlayedInstance();
     instance.happened = 2;
-    for (const width of [390, 1440]) {
+    for (const [width, height] of [
+      [390, undefined],
+      [1440, 800],
+    ] as const) {
       const page = await app().open(width, SESSION, instance.api);
       try {
         await page.getByRole("status").filter({ hasText: "travaille" }).waitFor();
         const composer = await page.locator(".composer").boundingBox();
         assert.ok(composer !== null);
         assert.ok(atBottom(composer.y + composer.height), `${width}`);
-        assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), 800, `${width}`);
+        // On a phone the summary alone may take the window: the page scrolls then, its composer still at the bottom.
+        if (height !== undefined) assert.equal(await page.evaluate(() => document.documentElement.scrollHeight), height, `${width}`);
       } finally {
         await page.close();
       }
@@ -635,7 +653,7 @@ describe("what the person says to the agents while they work", () => {
 });
 
 describe("the stop of a session, in a browser", () => {
-  /** What the bar of the session holds about its stop. */
+  /** What the actions of the session hold about its stop. */
   const controlOf = (page: Page): Locator => page.locator("#session-stop");
 
   it("opens a confirmation a finger can press, on the way out, which closes without stopping anything and gives the focus back", async () => {
@@ -650,7 +668,7 @@ describe("the stop of a session, in a browser", () => {
       assert.equal(await page.evaluate(() => window.location.hash.endsWith("?stop=ask")), true);
       await page.keyboard.press("Enter");
       await confirmation.waitFor({ state: "detached" });
-      assert.equal(await focusedOf(page), "A:  Arrêter");
+      assert.equal(await focusedOf(page), "A:  Arrêter la session");
       assert.deepEqual(instance.interrupted, []);
       await page.goBack();
       await confirmation.waitFor();
@@ -665,7 +683,7 @@ describe("the stop of a session, in a browser", () => {
     const instance = new PlayedInstance();
     let release = (): void => {};
     instance.hold = new Promise((resolve) => (release = resolve));
-    const page = await app().open(1280, `${SESSION}?show=talk&stop=ask`, instance.api);
+    const page = await app().open(1280, `${SESSION}?actions=on&stop=ask`, instance.api);
     try {
       const stop = page.getByRole("button", { name: "Arrêter la session" });
       await stop.click();
@@ -674,14 +692,14 @@ describe("the stop of a session, in a browser", () => {
       release();
       await page.getByRole("status").filter({ hasText: "arrêt demandé…" }).waitFor();
       assert.deepEqual(instance.interrupted, [SESSION_ID]);
-      assert.equal(await page.evaluate(() => window.location.hash), `${SESSION}?show=talk`);
+      assert.equal(await page.evaluate(() => window.location.hash), `${SESSION}?actions=on`);
       assert.equal(await focusedOf(page), "SPAN: arrêt demandé…");
       assert.equal(await page.locator(".session-stop").count(), 0);
-      assert.equal(await page.locator(".session-bar .badge").innerText(), "En direct");
+      assert.equal(await page.locator("h1 .badge").innerText(), "En direct");
       instance.obey();
-      await page.locator(".session-bar .badge", { hasText: "Interrompue" }).waitFor();
+      await page.locator("h1 .badge", { hasText: "Interrompue" }).waitFor();
       await controlOf(page).waitFor({ state: "detached" });
-      await page.getByRole("button", { name: "Poursuivre la session" }).waitFor();
+      await page.getByRole("button", { name: "Poursuivre" }).waitFor();
     } finally {
       await page.close();
     }

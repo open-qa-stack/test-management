@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { dayText, durationText, momentText } from "../i18n/formats.ts";
+import { turnsOf, type Speaker } from "@open-qa-stack/domain/sessions";
+import { dayText, hourText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
@@ -10,9 +11,10 @@ import { Composer } from "./composer.tsx";
 import type { LiveSession } from "./live-session.ts";
 import { LookPanel } from "./look-panel.tsx";
 import { openedLookOf, withoutLook } from "./opened-look.ts";
-import { scopeText, stateOf, waitText } from "./session-facts.ts";
-import { passesOf, type ThreadFilter } from "./playback.ts";
-import type { Speaker } from "@open-qa-stack/domain/sessions";
+import { DEFAULT_VIEW, type ThreadView } from "./playback.ts";
+import { stateOf } from "./session-facts.ts";
+import { conversationOf, type SessionEnding } from "./session-phases.ts";
+import { SessionSummary } from "./session-summary.tsx";
 import { StopConfirmation } from "./stop-confirmation.tsx";
 import { asksToStop, STOP_CONTROL_ID, withoutStop, withStop } from "./stop-request.ts";
 import { Thread } from "./thread.tsx";
@@ -25,30 +27,25 @@ export interface SessionScreenProps {
   readonly project: string;
 }
 
-/** What the thread may keep. */
-const FILTERS: readonly ThreadFilter[] = ["all", "talk", "actions", "verdicts"];
+/** What the conversation shows besides what is said, as the address tells it: `?verdicts=off`, `?actions=on`. */
+function viewOf(route: Route): ThreadView {
+  return { verdicts: route.query["verdicts"] !== "off", actions: route.query["actions"] === "on" };
+}
 
-/** The facts of a session, in a line: when it was opened, what it waits for, how long it took, what its agents read and did, what it cost, where its tests are. */
-function factsOf(live: LiveSession): string[] {
-  const { session, frame, script } = live;
-  const { result } = session;
-  const waiting = waitText(session);
-  const scope = scopeText(session);
-  return [
-    momentText(session.openedAt),
-    ...(scope === undefined ? [] : [scope]),
-    ...(waiting === undefined ? [] : [waiting]),
-    ...(result === undefined ? [] : [durationText(result.durationMs)]),
-    ...(script.sources.length === 0 ? [] : [t("facts.sourcesRead", { count: script.sources.length })]),
-    t("facts.actions", { count: frame.actions }),
-    ...(result === undefined ? [] : [t("facts.modelRequests", { count: result.modelRequests })]),
-    ...(result?.branch === undefined ? [] : [result.branch]),
-  ];
+/** The parameters of the address that tell a view, those of the view shown by default left out. */
+function queryOf(view: ThreadView): Record<string, string> {
+  return { ...(view.verdicts === DEFAULT_VIEW.verdicts ? {} : { verdicts: "off" }), ...(view.actions === DEFAULT_VIEW.actions ? {} : { actions: "on" }) };
+}
+
+/** Where a session is, as its phases tell it. */
+function endingOf(live: LiveSession): SessionEnding {
+  if (live.script.stage !== "ended") return "live";
+  return live.session.state === "interrupted" ? "interrupted" : "ended";
 }
 
 /**
- * What the bar of a session that goes on holds about its stop: the link to its confirmation or, once the
- * instance took the request, the word that it was asked — the session goes on until the process that runs it obeyed.
+ * How the person stops a session that goes on: the link to its confirmation or, once the instance took the request,
+ * the word that it was asked — the session goes on until the process that runs it obeyed.
  */
 function StopControl({ route, live }: { readonly route: Route; readonly live: LiveSession }): ReactNode {
   if (live.stopping.state === "asked")
@@ -58,24 +55,26 @@ function StopControl({ route, live }: { readonly route: Route; readonly live: Li
       </span>
     );
   return (
-    <a id={STOP_CONTROL_ID} className="btn ghost sm" href={withStop(route)}>
+    <a id={STOP_CONTROL_ID} className="btn danger" href={withStop(route)}>
       <Icon name="stop" /> {t("session.stop")}
     </a>
   );
 }
 
-/** The bar of a session that is followed: its state, its facts, the way to stop it while it goes on, and the replay it offers. */
-function FollowBar({ route, live }: { readonly route: Route; readonly live: LiveSession }): ReactNode {
-  const state = stateOf(live.session);
+/** The actions of a session, the primary one last: stop it while it goes on; once it ended, replay it, and pick it up where it stopped when it did not end. */
+function Actions({ route, live }: { readonly route: Route; readonly live: LiveSession }): ReactNode {
+  if (live.script.stage !== "ended") return <StopControl route={route} live={live} />;
   return (
-    <div className="session-bar">
-      <Badge tone={state.tone}>{state.label}</Badge>
-      <span className="session-facts">{live.stream === "reconnecting" ? t("session.reconnecting") : factsOf(live).join(" · ")}</span>
-      {live.script.stage !== "ended" && <StopControl route={route} live={live} />}
-      <button type="button" className="btn ghost sm" onClick={live.controls.restart} disabled={live.script.steps.length === 0}>
+    <>
+      <button type="button" className="btn" onClick={live.controls.restart} disabled={live.script.steps.length === 0}>
         <Icon name="restart" /> {t("session.replay")}
       </button>
-    </div>
+      {live.session.state === "interrupted" && (
+        <button type="button" className="btn primary" onClick={live.controls.pickUp} disabled={live.saying.state === "sending"}>
+          {t("session.pickUp")}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -115,69 +114,101 @@ function ReplayBar({ live }: { readonly live: LiveSession }): ReactNode {
   );
 }
 
+/** What the conversation shows besides what is said, two switches, and the way to open every phase or to fold them back. */
+function ConversationHead({
+  path,
+  view,
+  kept,
+  allOpen,
+}: {
+  readonly path: string;
+  readonly view: ThreadView;
+  readonly kept: Readonly<Record<string, string>>;
+  readonly allOpen: boolean;
+}): ReactNode {
+  const toggle = (part: keyof ThreadView): string =>
+    hrefTo(path, { ...kept, ...queryOf({ ...view, [part]: !view[part] }), ...(allOpen ? { open: "all" } : {}) });
+  return (
+    <div className="conversation-head">
+      <h2>{t("session.conversation")}</h2>
+      <div className="conversation-view" role="group" aria-label={t("session.showAlso")}>
+        <span className="conversation-also" aria-hidden="true">
+          {t("session.showAlso")}
+        </span>
+        {(["verdicts", "actions"] as const).map((part) => (
+          <a key={part} className={view[part] ? "chip on" : "chip"} href={toggle(part)} role="switch" aria-checked={view[part]}>
+            <Icon name={view[part] ? "check" : "plus"} />
+            {t(`session.show.${part}`)}
+          </a>
+        ))}
+        <a className="btn sm" href={hrefTo(path, { ...kept, ...queryOf(view), ...(allOpen ? {} : { open: "all" }) })}>
+          {t(allOpen ? "session.foldAll" : "session.unfoldAll")}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 /**
- * A session, named by its day — what was asked stays in the bubble that opens its thread: its thread alone, followed as the agents work or replayed, over the composer of a message to the
- * agents: one sent while it waits its turn is delivered when its agents start, and one sent once it ended resumes it. Until
- * then its bar offers to stop it, behind a confirmation the address opens (`?stop=ask`). What an agent had before its eyes
- * when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
+ * A session, named by its day and its hour, under its state and what was asked: its summary, then its conversation,
+ * each phase on a line that unfolds, followed as the agents work or replayed, over the composer of a message to the
+ * agents: one sent while it goes on is delivered to the next agent that takes the hand, and one sent once it ended
+ * resumes it. Until then its stop is behind a confirmation the address opens (`?stop=ask`). What an agent had before
+ * its eyes when it acted opens in a panel, from the eye of that action: the address names the action (`?look=6`).
  *
  * @param props - The route, the session and the project.
  * @returns The screen.
  */
 export function SessionScreen({ route, live, project }: SessionScreenProps): ReactNode {
-  const { script, playback, frame } = live;
+  const { script, playback, frame, session } = live;
   const path = `/agent/sessions/${script.id}`;
   const opened = openedLookOf(route, script);
-  const filter = FILTERS.find((name) => name === route.query["show"]) ?? "all";
+  const view = viewOf(route);
+  const allOpen = route.query["open"] === "all";
   const followed = AGENTS.find((agent) => agent === route.query["agent"]) as Speaker | undefined;
-  const kept = { ...(filter === "all" ? {} : { show: filter }), ...(followed === undefined ? {} : { agent: followed }) };
-  const title = t("session.title", { day: dayText(live.session.openedAt) });
+  const kept = followed === undefined ? {} : { agent: followed };
+  const query = { ...kept, ...queryOf(view), ...(allOpen ? { open: "all" } : {}) };
+  const ending = endingOf(live);
+  const { phases } = conversationOf(turnsOf(frame.shown), ending);
+  const title = t("session.title", { day: dayText(session.openedAt), hour: hourText(session.openedAt) });
+  const state = stateOf(session);
   return (
-    <Page crumbs={[{ label: project }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: title }]} title={title}>
+    <Page
+      crumbs={[{ label: project }, { label: t("console.titles.entry"), href: hrefTo("/agent") }, { label: title }]}
+      title={
+        <>
+          {title} <Badge tone={state.tone}>{state.label}</Badge>
+        </>
+      }
+      hint={session.request === undefined ? undefined : <span className="session-request">{session.request}</span>}
+      actions={<Actions route={route} live={live} />}
+    >
       <div className="session">
-        {playback.following ? <FollowBar route={route} live={live} /> : <ReplayBar live={live} />}
         {asksToStop(route) && script.stage !== "ended" && live.stopping.state !== "asked" && (
           <StopConfirmation stopping={live.stopping} cancel={withoutStop(route)} onStop={live.controls.stop} />
         )}
-        <div className="pass-stepper" aria-label={t("session.passes")}>
-          {passesOf(script, frame).map((pass, index, passes) => (
-            <span key={index} className="pass-step">
-              <span className={pass.state === "done" ? "s done" : pass.state === "current" ? "s cur" : "s"}>
-                <span className="n">{pass.state === "done" ? "✓" : index + 1}</span>
-                {pass.title}
-              </span>
-              {index < passes.length - 1 && <span className="sep" />}
-            </span>
-          ))}
-        </div>
-        <div className="thread-filters">
-          {FILTERS.map((name) => (
-            <a
-              key={name}
-              className={name === filter ? "chip on" : "chip"}
-              href={hrefTo(path, { ...(name === "all" ? {} : { show: name }), ...(followed === undefined ? {} : { agent: followed }) })}
-              aria-current={name === filter ? "true" : undefined}
-            >
-              {t(`session.filters.${name}`)}
-            </a>
-          ))}
-          {followed !== undefined && (
-            <a
-              className="chip on followed-chip"
-              href={hrefTo(path, filter === "all" ? {} : { show: filter })}
-              aria-label={t("session.unfollow", { name: identityOf(followed).name })}
-            >
-              {identityOf(followed).name} ×
-            </a>
-          )}
-        </div>
+        {!playback.following && <ReplayBar live={live} />}
+        <SessionSummary live={live} phases={phases} />
+        <ConversationHead path={path} view={view} kept={kept} allOpen={allOpen} />
+        {followed !== undefined && (
+          <a
+            className="chip on followed-chip"
+            href={hrefTo(path, { ...queryOf(view), ...(allOpen ? { open: "all" } : {}) })}
+            aria-label={t("session.unfollow", { name: identityOf(followed).name })}
+          >
+            {identityOf(followed).name} ×
+          </a>
+        )}
         <Thread
           path={path}
           frame={frame}
           stage={script.stage}
+          ending={ending}
+          allOpen={allOpen}
+          sources={script.sources.length}
           lookIndex={opened?.index}
-          filter={filter}
-          query={kept}
+          view={view}
+          query={query}
           unfolded={live.unfolded}
           onUnfold={live.controls.unfold}
           {...(followed === undefined ? {} : { followed })}

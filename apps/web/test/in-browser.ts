@@ -26,8 +26,11 @@ export function builtConsole(): () => BuiltConsole {
 /** The address of the session of the fixtures. */
 export const SESSION = `#/agent/sessions/${SESSION_ID}`;
 
+/** The session of the fixtures, its actions shown. */
+export const ACTIONS = `${SESSION}?actions=on`;
+
 /** The address of that session with the look of the page its planner opened, the seventh step of its thread. */
-export const LOOKED = `${SESSION}?look=6`;
+export const LOOKED = `${ACTIONS}&look=6`;
 
 /** The least side of what a finger presses, in CSS pixels. */
 export const TAP = 44;

@@ -51,20 +51,6 @@
   box-shadow: var(--elevation-rest);
 }
 
-.session-bar .badge {
-  margin: 0 auto 0 var(--space-2);
-}
-
-.session-facts {
-  order: 1;
-  flex-basis: 100%;
-  padding: 0 var(--space-2) var(--space-1);
-  color: var(--text-3);
-  font-size: var(--type-small);
-  line-height: var(--leading-small);
-  overflow-wrap: anywhere;
-}
-
 /* The word that a stop was asked, where the link that asks for it stood: read beside the state, and focused when the confirmation closes. */
 .session-stopping {
   padding: 0 var(--space-2);
@@ -160,73 +146,6 @@
   margin-left: auto;
 }
 
-/* The passes of the session: one line, which scrolls on a phone; each but the last is tied to the next. */
-.pass-stepper {
-  display: flex;
-  align-items: center;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.pass-step {
-  flex: none;
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-}
-
-.pass-step .sep {
-  width: var(--space-4);
-  height: var(--hairline);
-  margin: 0 var(--space-2);
-  background: var(--line);
-}
-
-.pass-step .s {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--text-3);
-  font-size: var(--type-small);
-  font-weight: var(--weight-medium);
-  line-height: var(--leading-small);
-}
-
-.pass-step .s.cur,
-.pass-step .s.done {
-  color: var(--text);
-}
-
-.pass-step .n {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--space-6);
-  height: var(--space-6);
-  border-radius: var(--radius-pill);
-  background: var(--neutral-soft);
-  color: var(--text-2);
-  font-size: var(--type-caption);
-  font-weight: var(--weight-strong);
-}
-
-.pass-step .done .n {
-  background: var(--ok);
-  color: var(--on-brand);
-}
-
-.pass-step .cur .n {
-  background: var(--brand-navy);
-  color: var(--on-brand);
-}
-
-/* What the thread keeps: every choice in sight, on as many lines as it takes. */
-.thread-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .thread,
 .thread-item {
   display: flex;
@@ -238,8 +157,7 @@
  * What stands apart in the thread, each step twice the one before: the rows of a turn, then the turns, then
  * the passes. The harness that hands the work over, and the label of a part of a pass, stay close to what they open.
  */
-.thread-item + .thread-item,
-.thread-item + .working {
+.thread-item + .thread-item {
   margin-top: var(--gap-turn);
 }
 
@@ -250,6 +168,303 @@
 
 .thread-item + .thread-item:has(> .pass:not(.minor)) {
   margin-top: var(--gap-pass);
+}
+
+/* What was asked, under the title: two lines at most, the rest in its bubble at the head of the conversation. */
+.session-request {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/*
+ * The summary of a session: a card whose facts sit side by side, two by two on a phone, over the line of the state
+ * of its phases; a banner opens it when the session stopped without ending or lost its stream.
+ */
+.summary {
+  overflow: hidden;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--elevation-rest);
+}
+
+.summary.live {
+  border-color: var(--primary-line);
+}
+
+.summary-banner {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--pad);
+  border-bottom: var(--hairline) solid var(--warn-line);
+  background: var(--warn-soft);
+  color: var(--warn);
+  line-height: var(--leading-small);
+}
+
+.summary-banner p {
+  margin: 0;
+}
+
+.summary-banner b {
+  display: block;
+}
+
+.summary-banner svg {
+  flex: none;
+  margin-top: var(--space-1);
+}
+
+/* What the agents do now, in the tone of what goes on. */
+.summary-now {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--pad);
+  border-bottom: var(--hairline) solid var(--primary-line);
+  background: var(--primary-faint);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.summary-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.summary-fact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--pad);
+  border-bottom: var(--hairline) solid var(--line-soft);
+}
+
+.summary-fact:nth-child(odd) {
+  border-right: var(--hairline) solid var(--line-soft);
+}
+
+.summary-fact dt {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.summary-fact dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.summary-value {
+  min-width: 0;
+  font-size: var(--type-title);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-title);
+}
+
+.summary-detail {
+  color: var(--text-2);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.summary-branch {
+  display: block;
+  overflow: hidden;
+  font-size: var(--type-small);
+  font-weight: var(--weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-fact dd:has(.summary-branch) {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.summary-fact .copy-button {
+  flex: none;
+}
+
+.copy-state.failed {
+  flex-basis: 100%;
+  color: var(--ko);
+  font-size: var(--type-small);
+}
+
+/* The line of the state of the phases: each with its mark, on as many lines as it takes. */
+.phase-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3) var(--pad);
+  list-style: none;
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.phase-line li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.phase-line .current {
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+}
+
+.phase-line .interrupted {
+  color: var(--warn);
+  font-weight: var(--weight-medium);
+}
+
+/* The mark of the state of a phase: a tick in a soft circle once it is done, a pause once it stopped without ending. */
+.phase-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.phase-mark.interrupted {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.phase-line .phase-mark {
+  width: auto;
+  height: auto;
+  background: none;
+}
+
+/* The head of the conversation: its title, then what it shows besides what is said and the way to open every phase. */
+.conversation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.conversation-head h2 {
+  margin: 0;
+  font-size: var(--type-heading);
+  line-height: var(--leading-heading);
+}
+
+.conversation-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.conversation-also {
+  color: var(--text-3);
+  font-size: var(--type-small);
+}
+
+.conversation-view .chip,
+.conversation-view .btn {
+  min-height: var(--tap);
+}
+
+/* The phases stand apart from what opened the session, and from one another. */
+.thread > * + .phase {
+  margin-top: var(--gap-row);
+}
+
+/* A phase of the session: a card whose line unfolds on its turns; the one that goes on, and the one that stopped, outlined in their tone. */
+.phase {
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.phase.current {
+  border-color: var(--primary);
+}
+
+.phase.interrupted {
+  border-color: var(--warn-line);
+}
+
+.phase > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--pad);
+  border-radius: inherit;
+  cursor: pointer;
+  list-style: none;
+}
+
+.phase > summary::-webkit-details-marker {
+  display: none;
+}
+
+.phase[open] > summary {
+  border-bottom: var(--hairline) solid var(--line-soft);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--surface-soft);
+}
+
+.phase-what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.phase-result {
+  color: var(--text-2);
+}
+
+.phase-at {
+  grid-column: 2;
+  color: var(--text-3);
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+  white-space: nowrap;
+}
+
+.phase > summary > svg {
+  grid-column: 3;
+  grid-row: 1;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+}
+
+.phase[open] > summary > svg {
+  transform: none;
+}
+
+.phase-turns {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-4) var(--pad);
 }
 
 /* The end of the session, which the console keeps in view while a run writes: under the composer when there is one, so that the thread ends over it. */
@@ -1420,30 +1635,6 @@
   color: var(--text-3);
 }
 
-/* Who is at work, while the session goes on: its picture on the middle of the pictures of the turns, its name on their keyline. */
-.working {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--text-3);
-}
-
-.working .speaker-mark {
-  margin-inline: calc((var(--picture) - var(--picture-sm)) / 2);
-}
-
-.dots {
-  display: inline-flex;
-  gap: var(--space-1);
-}
-
-.dots i {
-  width: var(--space-1);
-  height: var(--space-1);
-  border-radius: var(--radius-pill);
-  background: var(--text-3);
-}
-
 /* While a look covers the screen, the page behind it does not scroll under the finger. */
 html:has(.look-panel) {
   overflow: hidden;
@@ -1579,20 +1770,36 @@ html:has(.look-panel) {
 }
 
 @media (min-width: 720px) {
+  .summary-facts {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    grid-auto-flow: column;
+  }
+
+  .summary-fact,
+  .summary-fact:nth-child(odd) {
+    border-right: var(--hairline) solid var(--line-soft);
+  }
+
+  .summary-fact:last-child {
+    border-right: 0;
+  }
+
+  .phase > summary {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .phase-at {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .phase > summary > svg {
+    grid-column: 4;
+  }
+
   .session-bar {
     flex-wrap: nowrap;
     gap: var(--space-3);
-  }
-
-  .session-bar .badge {
-    margin-right: 0;
-  }
-
-  .session-facts {
-    order: 0;
-    flex: 1;
-    min-width: 0;
-    padding: 0;
   }
 
   .btn-label {
@@ -1611,11 +1818,6 @@ html:has(.look-panel) {
 
   .playback-progress ~ .btn {
     margin-left: 0;
-  }
-
-  .pass-stepper {
-    flex-wrap: wrap;
-    row-gap: var(--gap-row);
   }
 
   .turn-head .turn-role {
@@ -1680,18 +1882,6 @@ html:has(.look-panel) {
     animation: mark-pulse 1.4s ease-in-out infinite;
   }
 
-  .dots i {
-    animation: dot-bounce 1.2s ease-in-out infinite;
-  }
-
-  .dots i:nth-child(2) {
-    animation-delay: 0.15s;
-  }
-
-  .dots i:nth-child(3) {
-    animation-delay: 0.3s;
-  }
-
   /* Only the place moves here too: a panel whose animation is held still shows its look. */
   .look-panel {
     animation: look-in 0.18s ease-out;
@@ -1725,19 +1915,5 @@ html:has(.look-panel) {
 @keyframes mark-pulse {
   50% {
     box-shadow: 0 0 0 var(--space-1) var(--primary-tint);
-  }
-}
-
-@keyframes dot-bounce {
-  0%,
-  60%,
-  100% {
-    opacity: 0.3;
-    transform: translateY(0);
-  }
-
-  30% {
-    opacity: 1;
-    transform: translateY(calc(-1 * var(--space-1)));
   }
 }

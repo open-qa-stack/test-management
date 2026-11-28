@@ -106,14 +106,8 @@
     "mapping": "Cartographie des connaissances"
   },
   "session": {
-    "filters": {
-      "all": "Tout",
-      "talk": "Échanges",
-      "actions": "Actions",
-      "verdicts": "Verdicts"
-    },
     "stopAsked": "arrêt demandé…",
-    "stop": "Arrêter",
+    "stop": "Arrêter la session",
     "reconnecting": "connexion au flux interrompue, nouvelle tentative…",
     "replay": "Rejouer",
     "pause": "Pause",
@@ -124,9 +118,18 @@
     "progress": "Avancement de la relecture",
     "backToLive": "Revenir au direct",
     "showAll": "Tout afficher",
-    "passes": "Passes de la session",
     "unfollow": "Ne plus suivre {{name}}",
-    "title": "Session du {{day}}"
+    "title": "Session du {{day}}, {{hour}}",
+    "pickUp": "Reprendre la session",
+    "pickUpText": "Reprends là où la session s’est arrêtée.",
+    "conversation": "Conversation",
+    "showAlso": "Afficher aussi",
+    "show": {
+      "verdicts": "Verdicts",
+      "actions": "Actions"
+    },
+    "unfoldAll": "Tout déplier",
+    "foldAll": "Tout replier"
   },
   "speakers": {
     "user": {
@@ -279,13 +282,13 @@
   },
   "composer": {
     "going": {
-      "asks": "Dites aux agents ce qu’il faut corriger",
+      "asks": "Écrivez aux agents : préciser, corriger, ajouter un scénario",
       "sends": "Envoyer",
-      "placeholder": "Dites aux agents ce qu’il faut corriger…"
+      "placeholder": "Écrivez aux agents : préciser, corriger, ajouter un scénario…"
     },
     "ended": {
       "asks": "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…",
-      "sends": "Poursuivre la session",
+      "sends": "Poursuivre",
       "placeholder": "Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…"
     }
   },
@@ -1731,5 +1734,36 @@
   },
   "page": {
     "back": "Retour à {{screen}}"
+  },
+  "summary": {
+    "label": "Bilan de la session",
+    "tests": "Tests clos par le harnais",
+    "duration": "Durée",
+    "work": "Travail des agents",
+    "branch": "Branche du dépôt de tests",
+    "copyBranch": "Copier le nom de la branche",
+    "interrupted": "La session s’est arrêtée sans aller à son terme.",
+    "kept": "Tout ce qui a été clos avant reste acquis.",
+    "opened": "Ouverte à",
+    "phase": "Phase",
+    "actions": "Actions des agents"
+  },
+  "phases": {
+    "label": "État des phases",
+    "cartography": "Cartographie",
+    "planPasses_one": "Plan et écriture · {{count}} passe",
+    "planPasses_other": "Plan et écriture · {{count}} passes",
+    "noTest": "Aucun test écrit",
+    "written_one": "{{count}} test écrit",
+    "written_other": "{{count}} tests écrits",
+    "states": {
+      "done": "Terminée",
+      "current": "En cours",
+      "interrupted": "Interrompue"
+    }
+  },
+  "copy": {
+    "copied": "Copié",
+    "failed": "Copie impossible : sélectionnez le texte."
   }
 }

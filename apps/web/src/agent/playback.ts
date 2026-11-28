@@ -50,10 +50,6 @@ export interface Frame {
   readonly finished: boolean;
   /** How many tools were used. */
   readonly actions: number;
-  /** The pass the session is in. */
-  readonly pass?: string;
-  /** The rank of that pass among the passes of the session, from 0. */
-  readonly passRank?: number;
   /** How far the replay is, from 0 to 1. */
   readonly progress: number;
 }
@@ -138,15 +134,8 @@ export function frameOf(script: SessionScript, playback: Playback): Frame {
     ...(speaking === undefined ? {} : { speaking }),
     finished: script.stage === "ended" && (playback.following || playback.tick >= end - PAUSE_TICKS),
     actions: shown.filter(({ step, running }) => step.kind === "tool" && !running).length,
-    ...passOf(shown),
     progress: playback.following || end === 0 ? 1 : Math.min(1, playback.tick / end),
   };
-}
-
-/** The pass the last steps shown belong to, and its rank among the passes of the session. */
-function passOf(shown: readonly ShownStep[]): { readonly pass?: string; readonly passRank?: number } {
-  const passes = shown.flatMap(({ step }) => (step.kind === "pass" && step.minor !== true ? [step.title] : []));
-  return passes.length === 0 ? {} : { pass: passes.at(-1)!, passRank: passes.length - 1 };
 }
 
 /**
@@ -191,49 +180,30 @@ function skipped(script: SessionScript, playback: Playback): Playback {
   return { ...playback, following: true, playing: false };
 }
 
-/** A pass of a session, and where the session is with it. */
-export interface PassProgress {
-  /** Its title, such as `Plan · smoke`. */
-  readonly title: string;
-  /** `done` once a later pass started or the session ended, `current` while the session is in it, `pending` before. */
-  readonly state: "done" | "current" | "pending";
+/** What the conversation of a session shows besides what is said: the verdicts of the harness and of the reviewers, and the actions of the agents. */
+export interface ThreadView {
+  readonly verdicts: boolean;
+  readonly actions: boolean;
 }
 
-/**
- * Where a session is with each of its passes.
- *
- * @param script - The session.
- * @param frame - The session at a moment.
- * @returns Its passes, in order, each with its state; the parts of a pass are left out.
- */
-export function passesOf(script: SessionScript, frame: Frame): PassProgress[] {
-  const titles = script.steps.flatMap((step) => (step.kind === "pass" && step.minor !== true ? [step.title] : []));
-  const current = frame.passRank ?? -1;
-  return titles.map((title, index) => ({
-    title,
-    state: index < current || (frame.finished && index === current) ? "done" : index === current ? "current" : "pending",
-  }));
-}
-
-/** What the thread of a session keeps: everything, what is said, what is done, or the verdicts, of the harness and of the reviewers alike. */
-export type ThreadFilter = "all" | "talk" | "actions" | "verdicts";
+/** What a conversation shows when the person chose nothing: the verdicts, not the actions. */
+export const DEFAULT_VIEW: ThreadView = { verdicts: true, actions: false };
 
 /**
- * Tells whether the thread shows a step, given what it keeps.
+ * Tells whether the conversation shows a step.
  *
  * @param step - The step.
- * @param filter - What the thread keeps.
- * @param speaker - The only speaker the thread follows, if any.
- * @returns Whether the step shows. The start of a pass always does, what the session works on, and the delivery
- * of a message, which only says where a message shown is. What is said is what the person, the agents and the harness say, its notes
- * included; a verdict is one of the harness or one of a reviewer alike, and so are the plan it accepted and the
- * verdicts of the tests.
+ * @param view - What it shows besides what is said.
+ * @param speaker - The only speaker it follows, if any.
+ * @returns Whether the step shows. The start of a pass always does, what the session works on, the delivery of a
+ * message, which only says where a message shown is, and what the session produced. What is said — by the person,
+ * the agents and the harness, its notes included — shows unless another speaker is followed; a verdict, of the
+ * harness or of a reviewer alike, and the plan it accepted, when the verdicts do; an action when the actions do.
  */
-export function shows(step: Step, filter: ThreadFilter, speaker?: Speaker): boolean {
-  if (step.kind === "pass" || step.kind === "delivery" || step.kind === "scope") return true;
+export function shows(step: Step, view: ThreadView, speaker?: Speaker): boolean {
+  if (step.kind === "pass" || step.kind === "delivery" || step.kind === "scope" || step.kind === "outcome") return true;
   if (speaker !== undefined && fromOf(step) !== speaker) return false;
-  if (filter === "talk") return step.kind === "say" || step.kind === "note" || step.kind === "repeated";
-  if (filter === "actions") return step.kind === "tool" || step.kind === "plan" || step.kind === "outcome";
-  if (filter === "verdicts") return step.kind === "verdict" || step.kind === "review" || step.kind === "plan" || step.kind === "outcome";
+  if (step.kind === "verdict" || step.kind === "review" || step.kind === "plan") return view.verdicts;
+  if (step.kind === "tool") return view.actions;
   return true;
 }

@@ -19,7 +19,7 @@ import { scriptOf } from "./agent/session-steps.ts";
 import { openingOf } from "./agent/scope-choices.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { api } from "./api/instance-api.ts";
-import { i18n } from "./i18n/i18n.ts";
+import { i18n, t } from "./i18n/i18n.ts";
 import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "./console.tsx";
 import { keepMenuFold, readMenuFold } from "./shell/menu-fold.ts";
 import { withShortcuts } from "./shell/shortcuts-help.ts";
@@ -146,6 +146,7 @@ export function App(): ReactNode {
         if (script.stage === "ended") sync.resume(session.id, text);
         else sync.say(session.id, text);
       },
+      pickUp: () => sync.resume(session.id, t("session.pickUpText")),
       // Once the instance took the request, its confirmation closes: the bar of the session says the stop was asked.
       unfold: (key: string) => dispatch({ type: "unfold", id: session.id, key }),
       stop: () => sync.interrupt(session.id, () => (window.location.hash = withoutStop(parseRoute(currentHash())))),

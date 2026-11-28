@@ -59,8 +59,8 @@ describe("the script of a session", () => {
       ["Plan · Vérification rapide", "", false],
       ["Écriture d’un test", "search", true],
     ]);
-    assert.deepEqual(steps[0], { kind: "pass", at: "14:44:06", title: "Configuration", summary: "" });
-    assert.deepEqual(steps[10], { kind: "pass", at: "14:44:18", title: "Écriture d’un test", summary: "search", minor: true });
+    assert.deepEqual(steps[0], { kind: "pass", at: "14:44:06", phase: "configuration", title: "Configuration", summary: "" });
+    assert.deepEqual(steps[10], { kind: "pass", at: "14:44:18", phase: "write", title: "Écriture d’un test", summary: "search", minor: true });
   });
 
   it("tells what the person, the harness and an agent said, a reasoning apart", () => {
@@ -299,7 +299,7 @@ describe("the decisions of the harness in a script", () => {
       { type: "refusal", phase: "triage" as SessionPhase, text: "Nothing to triage." },
     ]);
     assert.deepEqual(steps, [
-      { kind: "pass", at: "14:44:06", title: "Étape", summary: "" },
+      { kind: "pass", at: "14:44:06", phase: "triage", title: "Étape", summary: "" },
       { kind: "verdict", at: "14:44:07", accepted: false, about: "Étape", text: "Nothing to triage.", reason: "Nothing to triage." },
     ]);
   });

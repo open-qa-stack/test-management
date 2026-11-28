@@ -225,6 +225,21 @@ describe("the request of a person to stop the session a console follows", () => 
     assert.deepEqual(asked.followed, { ...FOLLOWING.followed, stopping: { state: "asked" } });
   });
 
+  it("is over once the session is, so that a session resumed after it can be stopped again", () => {
+    const asked = after(
+      [
+        { type: "session", session: RUNNING },
+        { type: "stop_asked", id: SESSION_ID },
+      ],
+      SENDING,
+    );
+    assert.deepEqual(asked.followed?.stopping, { state: "asked" });
+    const going = consoleAfter(asked, { type: "session", session: { ...RUNNING, lastEventAt: "2026-11-15T14:45:00.000Z" } });
+    assert.deepEqual(going.followed?.stopping, { state: "asked" });
+    const over = consoleAfter(going, { type: "session", session: { ...RUNNING, state: "interrupted" } });
+    assert.deepEqual(over.followed?.stopping, { state: "idle" });
+  });
+
   it("keeps the message of the API when it refused, until the person asks again", () => {
     const refused = consoleAfter(SENDING, { type: "unstopped", id: SESSION_ID, message: "L’instance ne répond pas." });
     assert.deepEqual(refused.followed?.stopping, { state: "refused", message: "L’instance ne répond pas." });

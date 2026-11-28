@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { createElement, type ReactNode } from "react";
-import type { PlanScenario, Session, SessionEvent, SessionScript, Step } from "@open-qa-stack/domain/sessions";
+import type { PlanScenario, Session, SessionEvent, SessionPhase, SessionScript, Step } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
 import { Composer } from "../../src/agent/composer.tsx";
 import type { Sending } from "../../src/agent/console-state.ts";
 import type { LiveSession, SessionControls } from "../../src/agent/live-session.ts";
 import { LookPanel } from "../../src/agent/look-panel.tsx";
 import { LookView } from "../../src/agent/look-view.tsx";
-import { endOf, frameOf, INITIAL_PLAYBACK, type Playback } from "../../src/agent/playback.ts";
+import { endOf, frameOf, INITIAL_PLAYBACK, type Playback, type ThreadView } from "../../src/agent/playback.ts";
 import { scriptOf } from "../../src/agent/session-steps.ts";
 import { SessionScreen } from "../../src/agent/session-screen.tsx";
 import { SpeakerMark } from "../../src/agent/speaker-mark.tsx";
@@ -21,6 +21,12 @@ const PATH = `/agent/sessions/${SESSION_ID}`;
 /** What a thread needs of a person who unfolded no long text. */
 const UNREAD = { unfolded: [], onUnfold: NO_CONTROLS.unfold } as const;
 const ADDRESS = `#${PATH}`;
+
+/** What a conversation shows when the person asked for everything: its verdicts and its actions. */
+const EVERYTHING = { verdicts: true, actions: true } as const;
+
+/** What a conversation shows when the person turned the verdicts off: what is said alone. */
+const SAID_ONLY = { verdicts: false, actions: false } as const;
 
 /** The rank, in the session of the fixtures, of what the harness asks of the planner. */
 const BRIEF = 4;
@@ -42,7 +48,7 @@ const STOPPED: Session = { ...RUNNING, state: "completed", result: { outcome: "s
 
 /** What the fixtures of a session never write: an accepted verdict, a failed tool, a file handed in without an answer, and every verdict of a test. */
 const REVIEWED: readonly Step[] = [
-  { kind: "pass", at: "09:00:00", title: "Plan · Vérification rapide", summary: "le chemin le plus court" },
+  { kind: "pass", at: "09:00:00", phase: "plan", title: "Plan · Vérification rapide", summary: "le chemin le plus court" },
   { kind: "say", from: "planner", to: "harness", at: "09:00:01", text: "Voici le plan." },
   {
     kind: "verdict",
@@ -177,7 +183,7 @@ function countOf(html: string, pattern: RegExp): number {
 }
 
 /**
- * Renders the thread of a session as its screen does when the address asks for nothing.
+ * Renders the thread of a session as its screen does when the address asks for its verdicts and its actions.
  *
  * @param live - The session.
  * @param lookIndex - The rank of the action whose look is open, if any.
@@ -189,7 +195,10 @@ function thread(live: LiveSession = liveOf(), lookIndex?: number): string {
       path: PATH,
       frame: live.frame,
       lookIndex,
+      view: EVERYTHING,
       stage: live.script.stage,
+      ending: live.script.stage !== "ended" ? "live" : live.session.state === "interrupted" ? "interrupted" : "ended",
+      sources: live.script.sources.length,
       unfolded: live.unfolded,
       onUnfold: NO_CONTROLS.unfold,
     }),
@@ -275,36 +284,14 @@ describe("the thread of a session", () => {
     assert.equal(ended, "Cette session n’a laissé aucun événement Elle s’est arrêtée avant que ses agents ne commencent.");
   });
 
-  it("is a labelled region whose turns come one under another, what an ended session came to first", () => {
+  it("is a labelled region: what opened the session, then its phases, each on a line, the one that goes on open", () => {
     const html = thread();
     assert.match(
       html,
-      /^<section class="thread" aria-label="Fil de la session"><div class="thread-item"><div class="pass" role="separator" aria-label="Configuration">/,
+      /^<section class="thread" aria-label="Fil de la session"><details class="phase done"><summary><span class="phase-mark done" role="img" aria-label="Terminée">/,
     );
-    assert.equal(countOf(html, /<div class="thread-item">/g), 10);
-    assert.match(
-      thread(liveOf(COMPLETED)),
-      /^<section class="thread" aria-label="Fil de la session"><div class="thread-item"><section class="result-card outcome">/,
-    );
-  });
-
-  it("ends on who is at work, with its picture, only while the session goes on", () => {
-    assert.match(
-      thread(),
-      /<div class="working" role="status"><span class="speaker-mark sm tone-primary active" aria-hidden="true">.*?<\/span><span>Rédacteur travaille<\/span><span class="dots" aria-hidden="true"><i><\/i><i><\/i><i><\/i><\/span><\/div><\/section>$/,
-    );
-    assert.match(thread(replayAt(REASONING, 2)), /<span>Planificateur travaille<\/span>/);
-    assert.match(thread(replayAt(BRIEF, 2)), /<span class="speaker-mark sm tone-neutral active" aria-hidden="true">.*?<\/span><span>Harnais travaille<\/span>/);
-    assert.doesNotMatch(thread(liveOf(COMPLETED)), /class="working"/);
-    assert.doesNotMatch(thread(liveOf(INTERRUPTED)), /class="working"/);
-    assert.doesNotMatch(thread(liveWith([], RUNNING)), /class="working"/);
-  });
-
-  it("says the agents work, without a picture, when nobody in particular does or when the person just spoke", () => {
-    const nobody = /<div class="working" role="status"><span>Les agents travaillent<\/span><span class="dots" aria-hidden="true">/;
-    assert.match(thread(liveWith([REVIEWED[0]!], RUNNING)), nobody);
-    assert.match(thread(liveWith([{ kind: "say", from: "user", at: "09:00:00", text: "tester la recherche" }], RUNNING)), nobody);
-    assert.match(thread(replayAt(REASONING, -1)), nobody);
+    assert.match(html, /<details class="phase current" open=""><summary><span class="spinner" role="img" aria-label="En cours"><\/span>/);
+    assert.doesNotMatch(html, /class="working"/);
   });
 
   it("shows what the person asked as their own bubble, said to be theirs to who cannot see it", () => {
@@ -335,9 +322,9 @@ describe("the thread of a session", () => {
     assert.match(at(reached), /Votre message : sans le profil remis à Rédacteur .*I go on\.$/);
   });
 
-  it("keeps where a message is under it when the thread keeps only what is said, or follows the person alone", () => {
+  it("keeps where a message is under it when the thread shows only what is said, or follows the person alone", () => {
     const live = liveOf(RUNNING, {}, CORRECTED);
-    const kept = (filter: "talk" | "all", followed?: "user"): string =>
+    const kept = (view: ThreadView, followed?: "user"): string =>
       textOf(
         render(
           createElement(Thread, {
@@ -346,13 +333,15 @@ describe("the thread of a session", () => {
             frame: live.frame,
             lookIndex: undefined,
             stage: "live",
-            filter,
+            ending: "live",
+            sources: 0,
+            view,
             ...(followed === undefined ? {} : { followed }),
           }),
         ),
       );
-    assert.match(kept("talk"), /Votre message : sans le profil remis à Rédacteur/);
-    assert.match(kept("all", "user"), /Votre message : sans le profil remis à Rédacteur/);
+    assert.match(kept(SAID_ONLY), /Votre message : sans le profil remis à Rédacteur/);
+    assert.match(kept(EVERYTHING, "user"), /Votre message : sans le profil remis à Rédacteur/);
   });
 
   it("names an agent once, with its role and the time it came in, for all it thinks, says and does in a row, its actions in a row folded under their count and time", () => {
@@ -363,7 +352,7 @@ describe("the thread of a session", () => {
       text,
       /Planificateur explore l’application et propose le plan 14:44:11 Réflexion I should open the application first\. I should open the application first\. 2 actions 940 ms A ouvert \/ dans customer-management \{"url":"http:\/\/localhost:3020\/"\} 900 ms A proposé un plan de 1 scénario The plan was accepted: search\. 40 ms /,
     );
-    assert.match(text, /Rédacteur écrit et joue les tests Playwright 14:44:19 I write the test now\. A joué le test Rédacteur travaille$/);
+    assert.match(text, /Rédacteur écrit et joue les tests Playwright 14:44:19 I write the test now\. A joué le test$/);
     assert.match(
       html,
       /<article class="turn"><span class="speaker-mark md tone-ai" aria-hidden="true">.*?<\/span><div class="turn-body"><header class="turn-head"><a class="turn-agent" [^>]*>Planificateur<\/a><span class="turn-role">explore l’application et propose le plan<\/span><span class="turn-at">14:44:11<\/span><\/header>/,
@@ -376,8 +365,20 @@ describe("the thread of a session", () => {
       new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?agent=planner" aria-label="Planificateur : ne voir que cet agent">Planificateur</a>`),
     );
     const { frame } = liveOf();
-    const talk = render(createElement(Thread, { ...UNREAD, path: PATH, frame, lookIndex: undefined, filter: "talk", query: { show: "talk" }, stage: "live" }));
-    assert.deepEqual(linksOf(talk), [`${ADDRESS}?show=talk&agent=planner`, `${ADDRESS}?show=talk&agent=writer`]);
+    const said = render(
+      createElement(Thread, {
+        ...UNREAD,
+        path: PATH,
+        frame,
+        lookIndex: undefined,
+        view: SAID_ONLY,
+        query: { verdicts: "off" },
+        stage: "live",
+        ending: "live",
+        sources: 0,
+      }),
+    );
+    assert.deepEqual(linksOf(said), [`${ADDRESS}?verdicts=off&agent=planner`, `${ADDRESS}?verdicts=off&agent=writer`]);
   });
 
   it("makes the name of the agent the thread follows the link that brings the others back", () => {
@@ -388,14 +389,16 @@ describe("the thread of a session", () => {
         path: PATH,
         frame,
         lookIndex: undefined,
-        filter: "talk",
+        view: SAID_ONLY,
         followed: "writer",
-        query: { show: "talk", agent: "writer" },
+        query: { verdicts: "off", agent: "writer" },
         stage: "live",
+        ending: "live",
+        sources: 0,
       }),
     );
-    assert.match(followed, new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?show=talk" aria-label="Rédacteur : voir tous les agents">Rédacteur</a>`));
-    assert.deepEqual(linksOf(followed), [`${ADDRESS}?show=talk`]);
+    assert.match(followed, new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?verdicts=off" aria-label="Rédacteur : voir tous les agents">Rédacteur</a>`));
+    assert.deepEqual(linksOf(followed), [`${ADDRESS}?verdicts=off`]);
   });
 
   it("makes the picture of an agent pulse while one of its steps is going", () => {
@@ -685,7 +688,10 @@ describe("the thread of a session", () => {
         path: PATH,
         frame: liveWith([refusal("search", "09:00:01"), { ...refusal("open", "09:00:02"), reason: "x".repeat(481) } as Step]).frame,
         lookIndex: undefined,
+        view: EVERYTHING,
         stage: "ended",
+        ending: "ended",
+        sources: 0,
         unfolded: [],
         onUnfold: (index) => pressed.push(index),
       }),
@@ -733,7 +739,10 @@ describe("the thread of a session", () => {
         path: PATH,
         frame: liveOf().frame,
         lookIndex: undefined,
+        view: EVERYTHING,
         stage: "live",
+        ending: "live",
+        sources: 0,
         unfolded: [],
         onUnfold: (index) => pressed.push(index),
       }),
@@ -751,7 +760,10 @@ describe("the thread of a session", () => {
         path: PATH,
         frame: liveWith([accepted]).frame,
         lookIndex: undefined,
+        view: EVERYTHING,
         stage: "ended",
+        ending: "ended",
+        sources: 0,
         unfolded: [],
         onUnfold: (key) => pressed.push(key),
       }),
@@ -943,20 +955,20 @@ describe("the thread of a session", () => {
   it("opens a pass with what it makes of the request when it says it, a part of a pass marked apart", () => {
     assert.match(
       thread(liveWith(REVIEWED)),
-      /<div class="pass" role="separator" aria-label="Plan · Vérification rapide · le chemin le plus court"><span class="pass-title">Plan · Vérification rapide<\/span><span class="pass-summary">le chemin le plus court<\/span><\/div>/,
+      /<b class="phase-title">Plan · Vérification rapide<\/b><span class="phase-result">le chemin le plus court · Interrompue<\/span>/,
     );
     assert.match(
       thread(),
       /<div class="pass minor" role="separator" aria-label="Écriture d’un test · search"><span class="pass-title">Écriture d’un test<\/span><span class="pass-summary">search<\/span><\/div>/,
     );
-    assert.match(thread(), /<div class="pass" role="separator" aria-label="Configuration"><span class="pass-title">Configuration<\/span><\/div>/);
+    assert.match(thread(), /<b class="phase-title">Configuration<\/b><\/span>/);
   });
 
-  it("opens, once the session ended, on the verdict of each test, counted: passed, failed, blocked, or as the harness wrote it, a raw reason folded", () => {
+  it("tells, once the session ended, the verdict of each test where it came, counted: passed, failed, blocked, or as the harness wrote it, a raw reason folded", () => {
     const html = thread(liveWith(REVIEWED));
     assert.match(
       textOf(html),
-      /^Verdict de l’exécution : 4 tests 1 réussi · 1 échoué · 2 sans verdict Réussi Search a customer Vérification rapide Échoué Open a customer Détails techniques The heading never showed\. Bloqué Delete a customer Ignoré Export the customers Plan · Vérification rapide/,
+      /Verdict de l’exécution : 4 tests 1 réussi · 1 échoué · 2 sans verdict Réussi Search a customer Vérification rapide Échoué Open a customer Détails techniques The heading never showed\. Bloqué Delete a customer Ignoré Export the customers/,
     );
     assert.match(
       html,
@@ -974,7 +986,7 @@ describe("the thread of a session", () => {
     assert.match(html, /<span class="badge warn">Ignoré<\/span>/);
     assert.match(
       textOf(thread(liveOf(COMPLETED))),
-      /^Verdict de l’exécution : 1 test 1 réussi Réussi Rechercher un client par son nom Chaque essai a réussi\. /,
+      /Verdict de l’exécution : 1 test 1 réussi Réussi Rechercher un client par son nom Chaque essai a réussi\.$/,
     );
   });
 
@@ -985,11 +997,27 @@ describe("the thread of a session", () => {
     assert.match(failed, /<span class="outcome-tally">1 échoué<\/span>/);
   });
 
-  it("leaves out a pass that holds nothing, but the one a session that goes on is at", () => {
-    const pass = (title: string): Step => ({ kind: "pass", at: "09:00:00", title, summary: "" });
-    const steps = [pass("Cartographie · sources"), pass("Cartographie · fiche"), note("The knowledge base is ready.", 1), pass("Plan")];
-    assert.doesNotMatch(textOf(thread(liveWith(steps))), /sources|Plan/);
-    assert.match(textOf(thread(liveWith(steps, RUNNING))), /^Cartographie · fiche The knowledge base is ready\. Plan Les agents travaillent$/);
+  it("leaves out a pass that holds nothing within a phase, but the one a session that goes on is at", () => {
+    const pass = (title: string, phase: SessionPhase, minor = false): Step => ({
+      kind: "pass",
+      at: "09:00:00",
+      phase,
+      title,
+      summary: "",
+      ...(minor ? { minor: true } : {}),
+    });
+    const steps = [
+      pass("Cartographie · sources", "survey"),
+      pass("Cartographie · fiche", "card"),
+      pass("Cartographie · domaines", "consolidation"),
+      note("The knowledge base is ready.", 1),
+      pass("Plan", "plan"),
+      pass("Écriture d’un test", "write", true),
+    ];
+    const ended = textOf(thread(liveWith(steps, COMPLETED)));
+    assert.doesNotMatch(ended, /fiche|Écriture/);
+    assert.match(ended, /Cartographie · domaines The knowledge base is ready\./);
+    assert.match(textOf(thread(liveWith(steps, RUNNING))), /Plan En cours 09:00:00 Écriture d’un test$/);
   });
 
   it("folds the work of the agents in a row under one line: who worked, how many actions and failures, the refusals and notes of the harness, and their time", () => {
@@ -1021,7 +1049,10 @@ describe("the thread of a session", () => {
         path: PATH,
         frame: liveWith(work).frame,
         lookIndex: undefined,
+        view: EVERYTHING,
         stage: "ended",
+        ending: "ended",
+        sources: 0,
         unfolded: [],
         onUnfold: (key) => pressed.push(key),
       }),
@@ -1043,7 +1074,7 @@ describe("the thread of a session", () => {
     assert.match(textOf(thread(liveWith([failed, failed, said]))), /2 actions 2 échecs 400 ms /);
   });
 
-  it("keeps a kind of step or an agent when asked, and its links keep what the address holds", () => {
+  it("shows the actions without the verdicts, or one agent, when asked, and its links keep what the address holds", () => {
     const { frame } = liveOf();
     const kept = render(
       createElement(Thread, {
@@ -1051,23 +1082,37 @@ describe("the thread of a session", () => {
         path: PATH,
         frame,
         lookIndex: undefined,
-        filter: "actions",
+        view: { verdicts: false, actions: true },
         followed: "planner",
-        query: { show: "actions", agent: "planner" },
+        query: { actions: "on", verdicts: "off", agent: "planner" },
         stage: "live",
+        ending: "live",
+        sources: 0,
       }),
     );
-    assert.deepEqual(linksOf(kept), [`${ADDRESS}?show=actions`, `${ADDRESS}?show=actions&agent=planner&look=${PAGE_TOOL}`]);
-    assert.doesNotMatch(kept, /act selected|class="turn-text"|class="thinking"|class="brief"|A joué le test/);
+    assert.deepEqual(linksOf(kept), [`${ADDRESS}?actions=on&verdicts=off`, `${ADDRESS}?actions=on&verdicts=off&agent=planner&look=${PAGE_TOOL}`]);
+    assert.doesNotMatch(kept, /act selected|class="brief"|A joué le test|class="verdict/);
     assert.equal(countOf(kept, /<article class="turn">/g), 1);
     assert.match(kept, /Écriture d’un test/);
   });
 
-  it("names an agent once for the steps a filter leaves in a row", () => {
-    const steps: readonly Step[] = [REVIEWED[4]!, note("The test ran.", 5), REVIEWED[5]!];
+  it("names an agent once for the steps a view leaves in a row", () => {
+    const refused: Step = { kind: "verdict", at: "09:00:04", accepted: false, about: "Plan", text: "No.", reason: "No." };
+    const steps: readonly Step[] = [REVIEWED[4]!, refused, REVIEWED[5]!];
     const { frame } = liveWith(steps);
     assert.equal(countOf(thread(liveWith(steps)), /<article class="turn">/g), 2);
-    const kept = render(createElement(Thread, { ...UNREAD, path: PATH, frame, lookIndex: undefined, filter: "actions", stage: "ended" }));
+    const kept = render(
+      createElement(Thread, {
+        ...UNREAD,
+        path: PATH,
+        frame,
+        lookIndex: undefined,
+        view: { verdicts: false, actions: true },
+        stage: "ended",
+        ending: "ended",
+        sources: 0,
+      }),
+    );
     assert.equal(countOf(kept, /<article class="turn">/g), 1);
   });
 });
@@ -1130,18 +1175,18 @@ describe("the composer of a session", () => {
     const html = composer();
     assert.match(
       html,
-      /^<form class="composer"><div class="composer-field"><label class="sr-only" for="composer-message">Dites aux agents ce qu’il faut corriger<\/label><textarea id="composer-message" name="message" rows="2" placeholder="Dites aux agents ce qu’il faut corriger…"><\/textarea><button type="submit" class="btn primary"><svg width="16" height="16" [^>]*><path d="M4 12l16-8-6 16-3-7z"\/><\/svg><span class="btn-label">Envoyer<\/span><\/button><\/div><\/form>$/,
+      /^<form class="composer"><div class="composer-field"><label class="sr-only" for="composer-message">Écrivez aux agents : préciser, corriger, ajouter un scénario<\/label><textarea id="composer-message" name="message" rows="2" placeholder="Écrivez aux agents : préciser, corriger, ajouter un scénario…"><\/textarea><button type="submit" class="btn primary"><svg width="16" height="16" [^>]*><path d="M4 12l16-8-6 16-3-7z"\/><\/svg><span class="btn-label">Envoyer<\/span><\/button><\/div><\/form>$/,
     );
     assert.doesNotMatch(html, /disabled|role="alert"/);
   });
 
-  it("asks, once the session ended, what the agents are to do next, and names its button « Poursuivre la session »", () => {
+  it("asks, once the session ended, what the agents are to do next, and names its button « Poursuivre »", () => {
     const html = composer({ state: "idle" }, true);
     assert.match(
       html,
       /<label class="sr-only" for="composer-message">Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…<\/label><textarea id="composer-message" name="message" rows="2" placeholder="Dites aux agents quoi faire ensuite : corriger un test, ajouter un scénario…">/,
     );
-    assert.match(html, /<span class="btn-label">Poursuivre la session<\/span>/);
+    assert.match(html, /<span class="btn-label">Poursuivre<\/span>/);
   });
 
   it("lets nothing be written nor sent while a message is on its way", () => {
@@ -1168,30 +1213,33 @@ describe("the stop of a session", () => {
   const STOP = "?stop=ask";
   const stoppedWith = (stopping: LiveSession["stopping"], query = STOP, session: Session = RUNNING) => screen(query, { ...liveOf(session), stopping });
 
-  it("is offered in the bar of a session that runs or waits its turn, by a link to its confirmation, and never once the session ended", () => {
+  it("is offered among the actions of a session that runs or waits its turn, replayed or not, by a link to its confirmation, and never once the session ended", () => {
     for (const session of [RUNNING, QUEUED]) {
       assert.deepEqual(
-        linksOf(screen("?show=talk", liveOf(session))).filter((href) => href.includes("stop=")),
-        [`${ADDRESS}?show=talk&stop=ask`],
+        linksOf(screen("?actions=on", liveOf(session))).filter((href) => href.includes("stop=")),
+        [`${ADDRESS}?actions=on&stop=ask`],
       );
     }
     for (const session of [COMPLETED, INTERRUPTED, STOPPED]) {
       for (const query of ["", STOP]) assert.doesNotMatch(screen(query, liveOf(session)), /Arrêter|session-stop/, session.state);
     }
-    assert.doesNotMatch(screen("", liveOf(RUNNING, { following: false, tick: 30 })), /id="session-stop"/);
+    assert.match(
+      screen("", liveOf(RUNNING, { following: false, tick: 30 })),
+      /<div class="actions"><a id="session-stop" class="btn danger" href="[^"]+\?stop=ask">/,
+    );
   });
 
   it("stops nothing by itself: the screen holds no button that stops until the address opens the confirmation", () => {
-    assert.doesNotMatch(screen(), /class="session-stop"|Arrêter la session/);
-    assert.deepEqual(pressed(), ["restart"]);
-    assert.deepEqual(pressed({}, STOP), ["restart", "stop"]);
+    assert.doesNotMatch(screen(), /class="session-stop"/);
+    assert.deepEqual(pressed(), []);
+    assert.deepEqual(pressed({}, STOP), ["stop"]);
   });
 
-  it("is confirmed under the bar: what stopping does, the way out first, then the button that stops", () => {
-    const html = screen(`?show=talk&stop=ask`);
+  it("is confirmed at the head of the session: what stopping does, the way out first, then the button that stops", () => {
+    const html = screen(`?actions=on&stop=ask`);
     assert.match(
       html,
-      /<\/div><section class="session-stop" aria-labelledby="session-stop-title"><h2 id="session-stop-title" class="session-stop-title">Arrêter cette session \?<\/h2><p class="session-stop-note">Ses agents s’arrêtent dès qu’ils rendent la main, et la session ne reprend pas\. Ce qu’ils ont écrit reste dans le dépôt de tests\.<\/p><div class="session-stop-actions"><a id="session-stop-cancel" class="btn" href="#\/agent\/sessions\/[^"?]+\?show=talk">Annuler<\/a><button type="button" class="btn danger">Arrêter la session<\/button><\/div><\/section><div class="pass-stepper"/,
+      /<div class="session"><section class="session-stop" aria-labelledby="session-stop-title"><h2 id="session-stop-title" class="session-stop-title">Arrêter cette session \?<\/h2><p class="session-stop-note">Ses agents s’arrêtent dès qu’ils rendent la main, et la session ne reprend pas\. Ce qu’ils ont écrit reste dans le dépôt de tests\.<\/p><div class="session-stop-actions"><a id="session-stop-cancel" class="btn" href="#\/agent\/sessions\/[^"?]+\?actions=on">Annuler<\/a><button type="button" class="btn danger">Arrêter la session<\/button><\/div><\/section><section class="summary live"/,
     );
     assert.doesNotMatch(html, /role="alert"/);
     assert.match(screen(STOP, liveOf(QUEUED, {}, ASKED)), /class="session-stop"/);
@@ -1207,14 +1255,10 @@ describe("the stop of a session", () => {
     );
   });
 
-  it("says in the bar that the stop was asked once the instance took it, the session still going on, and offers it no more", () => {
+  it("says among the actions that the stop was asked once the instance took it, the session still going on, and offers it no more", () => {
     for (const query of ["", STOP]) {
       const html = stoppedWith({ state: "asked" }, query);
-      assert.match(
-        html,
-        /<span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><button type="button" class="btn ghost sm">/,
-      );
-      assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 · 2 actions arrêt demandé… Rejouer/);
+      assert.match(html, /<div class="actions"><span id="session-stop" class="session-stopping" role="status" tabindex="-1">arrêt demandé…<\/span><\/div>/);
       assert.doesNotMatch(html, /class="session-stop"|Arrêter/);
     }
     assert.doesNotMatch(stoppedWith({ state: "asked" }, "", INTERRUPTED), /arrêt demandé|session-stop/);
@@ -1228,7 +1272,7 @@ describe("the screen of a session", () => {
     assert.match(screen("", liveOf(RUNNING, { following: false, tick: 30 })), /<form class="composer">/);
     for (const ended of [COMPLETED, INTERRUPTED, { ...RUNNING, state: "archived" as Session["state"] }]) {
       const html = screen("", liveOf(ended));
-      assert.match(html, /<\/section><form class="composer">.*Poursuivre la session.*<\/form><div class="session-end"><\/div><\/div>/);
+      assert.match(html, /<\/section><form class="composer">.*Poursuivre.*<\/form><div class="session-end"><\/div><\/div>/);
       assert.doesNotMatch(html, /Envoyer/);
     }
   });
@@ -1245,62 +1289,89 @@ describe("the screen of a session", () => {
     assert.deepEqual(calls, ["say", "sayOnEnter"]);
   });
 
-  it("is headed by its day, what was asked left to its bubble, and leads back to the sessions of the project", () => {
-    const html = screen();
-    assert.match(textOf(html), /^Agent lakeside-tests \/ Agent \/ Session du 15 nov\. Session du 15 nov\. /);
-    assert.equal(countOf(html, /tester la recherche d&#x27;un client/g), 1);
+  it("is headed by its day and its hour, its state and what was asked, and leads back to the sessions of the project", () => {
+    const html = screen("", liveOf(RUNNING, {}, ASKED));
+    assert.match(textOf(html), /^Agent lakeside-tests \/ Agent \/ Session du 15 nov\., 14:44 Session du 15 nov\., 14:44 En direct /);
+    assert.match(html, /<h1 tabindex="-1">Session du 15 nov\., 14:44 <span class="badge info">/);
+    assert.match(html, /<p class="page-hint"><span class="session-request">tester la recherche d&#x27;un client<\/span><\/p>/);
     assert.equal(linksOf(html)[0], "#/agent");
+    const { request: _asked, ...unasked } = RUNNING;
+    assert.doesNotMatch(screen("", liveOf(unasked)), /page-hint/);
   });
 
-  it("says in its facts what the session is kept to", () => {
-    const html = screen("", liveOf({ ...RUNNING, scope: { domains: ["quotes"], levels: ["business"] } }));
-    assert.match(html, /<span class="session-facts">15 nov. 2026, 14:44:06 · limitée à quotes, Parcours métier · 2 actions<\/span>/);
-  });
-
-  it("follows a session whose agents work: its state, its facts in a line, and the offer to replay it", () => {
+  it("sums up a session whose agents work: who works and on what, when it opened, its phase, its actions, and the state of its phases", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="session-bar"><span class="badge info">En direct<\/span><span class="session-facts">15 nov. 2026, 14:44:06 · 2 actions<\/span><a id="session-stop" class="btn ghost sm" href="#\/agent\/sessions\/[^"?]+\?stop=ask"><svg [^>]*><rect [^>]*\/><\/svg> Arrêter<\/a><button type="button" class="btn ghost sm"><svg [^>]*>.*?<\/svg> Rejouer<\/button><\/div>/,
+      /<div class="content"><div class="session"><section class="summary live" aria-label="Bilan de la session"><p class="summary-now" role="status">/,
     );
-    assert.match(textOf(html), /En direct 15 nov. 2026, 14:44:06 · 2 actions Arrêter Rejouer ✓ Configuration/);
-    assert.match(html, /<div class="content"><div class="session"><div class="session-bar">/);
-    assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay/);
-    assert.deepEqual(pressed(), ["restart"]);
+    assert.match(
+      textOf(html),
+      /Rédacteur travaille · A joué le test Ouverte à 14:44 Phase Plan · Vérification rapide Actions des agents 2 Configuration Plan · Vérification rapide Conversation/,
+    );
+    assert.match(html, /<ol class="phase-line" aria-label="État des phases"><li class="done"><span class="phase-mark done" role="img" aria-label="Terminée">/);
+    assert.match(html, /<li class="current"><span class="spinner" role="img" aria-label="En cours"><\/span>Plan · Vérification rapide<\/li>/);
+    assert.match(textOf(screen("", replayAt(REASONING, 2))), /Planificateur travaille Ouverte/);
+    assert.match(
+      textOf(screen("", liveWith([{ kind: "say", from: "user", at: "09:00:00", text: "tester la recherche" }], RUNNING))),
+      /Les agents travaillent Ouverte à 14:44 Phase — /,
+    );
+    assert.match(textOf(screen("", liveOf(QUEUED, {}, ASKED))), /en attente d’un agent Ouverte/);
+    assert.doesNotMatch(html, /disabled|role="progressbar"|session-bar replay|Rejouer/);
   });
 
-  it("says the stream of the events is reconnecting in place of the facts, whether the session goes on or not", () => {
-    for (const session of [RUNNING, COMPLETED]) {
-      const html = screen("", { ...liveOf(session), stream: "reconnecting" });
-      assert.match(html, /<span class="session-facts">connexion au flux interrompue, nouvelle tentative…<\/span>/);
-      assert.match(textOf(html), /connexion au flux interrompue, nouvelle tentative… (Arrêter )?Rejouer/);
-      assert.doesNotMatch(html, /14:44:06/);
-    }
+  it("says over the summary that the stream of the events is cut, while the session goes on", () => {
+    assert.match(
+      screen("", { ...liveOf(), stream: "reconnecting" }),
+      /<p class="summary-banner warn" role="status"><svg [^>]*>.*?<\/svg>connexion au flux interrompue, nouvelle tentative…<\/p>/,
+    );
     assert.doesNotMatch(screen("", { ...liveOf(), stream: "connecting" }), /connexion au flux interrompue/);
   });
 
-  it("adds what an ended session knows: its duration, its model requests and its branch", () => {
+  it("sums up an ended session: the tests the harness closed, its duration, the work of its agents and its branch, to copy", () => {
+    const html = screen("", liveOf(COMPLETED));
     assert.match(
-      textOf(screen("", liveOf(COMPLETED))),
-      /Réussi 15 nov. 2026, 14:44:06 · 1 min 54 s · 3 actions · 50 requêtes au modèle · oqas\/design-20261115T144408Z Rejouer/,
+      textOf(html),
+      /Tests clos par le harnais 1 1 \/ 1 test réussi Durée 1 min 54 s 14:44 → \d\d:\d\d Travail des agents 3 actions 50 requêtes au modèle Branche du dépôt de tests oqas\/design-20261115T144408Z/,
     );
-    assert.match(textOf(screen("", liveOf(STOPPED))), /Arrêté 15 nov. 2026, 14:44:06 · 42 s · 3 actions · 3 requêtes au modèle Rejouer/);
+    assert.match(html, /<button type="button" class="btn ghost sm copy-button" aria-label="Copier le nom de la branche">/);
+    assert.doesNotMatch(html, /summary-banner|summary live/);
+    const untold = textOf(screen("", liveOf({ ...RUNNING, state: "completed" })));
+    assert.match(untold, /Tests clos par le harnais 0 Travail des agents 3 actions Configuration/);
+    assert.match(textOf(screen("", liveOf(STOPPED))), /Durée 42 s .* 3 requêtes au modèle Configuration/);
   });
 
-  it("tells only the opening and the actions of a session that has no result", () => {
+  it("says why a session stopped without ending, and that what was closed before is kept", () => {
+    const html = screen("", liveOf(INTERRUPTED));
+    assert.match(
+      html,
+      /<div class="summary-banner warn"><svg [^>]*>.*?<\/svg><p><b>La session s’est arrêtée sans aller à son terme\.<\/b> Tout ce qui a été clos avant reste acquis\.<\/p><\/div>/,
+    );
+    assert.match(html, /<li class="interrupted"><span class="phase-mark interrupted" role="img" aria-label="Interrompue">/);
+  });
+
+  it("offers to replay an ended session, and to pick up one that stopped without ending, once nothing is on its way", () => {
+    assert.deepEqual(pressed({}, ""), []);
     const interrupted = screen("", liveOf(INTERRUPTED));
-    assert.match(textOf(interrupted), /Interrompue 15 nov. 2026, 14:44:06 · 3 actions Rejouer/);
-    assert.match(interrupted, /<div class="session-bar"><span class="badge warn">Interrompue<\/span>/);
-    const untold = screen("", liveOf({ ...RUNNING, state: "completed" }));
     assert.match(
-      untold,
-      /<div class="session-bar"><span class="badge neutral">Terminée<\/span><span class="session-facts">15 nov. 2026, 14:44:06 · 3 actions<\/span>/,
+      interrupted,
+      /<div class="actions"><button type="button" class="btn"><svg [^>]*>.*?<\/svg> Rejouer<\/button><button type="button" class="btn primary">Reprendre la session<\/button><\/div>/,
     );
+    assert.doesNotMatch(screen("", liveOf(COMPLETED)), /Reprendre la session/);
+    assert.match(
+      screen("", { ...liveOf(INTERRUPTED), saying: { state: "sending" } }),
+      /<button type="button" class="btn primary" disabled="">Reprendre la session/,
+    );
+    const calls: string[] = [];
+    const element = screenOf("", {
+      ...liveOf(INTERRUPTED),
+      controls: { ...NO_CONTROLS, restart: () => calls.push("restart"), pickUp: () => calls.push("pickUp") },
+    });
+    for (const button of elementsOf(element, "button").slice(0, 2)) (button["onClick"] as () => void)();
+    assert.deepEqual(calls, ["restart", "pickUp"]);
   });
 
-  it("counts the knowledge sources the agents read, each once, among the facts of a session that read some", () => {
-    const written = liveWith([{ kind: "say", from: "cartographer", at: "09:00:00", text: "Je lis les sources." }], INTERRUPTED, ["specification", "tickets"]);
-    assert.match(textOf(screen("", written)), /Interrompue 15 nov. 2026, 14:44:06 · 2 sources de connaissance lues · 0 action Rejouer/);
+  it("counts the knowledge sources its cartography read, each once", () => {
     const events = numbered([
       { type: "phase_started", phase: "survey" },
       { type: "phase_started", phase: "card", source: "orders-db" },
@@ -1308,17 +1379,16 @@ describe("the screen of a session", () => {
       { type: "phase_started", phase: "card", source: "orders-db" },
       { type: "agent_message", agent: "cartographer", text: "I read the sources.", reasoning: false },
     ]);
-    assert.match(textOf(screen("", liveOf(RUNNING, {}, events))), /:06 · 2 sources de connaissance lues · 0 action Arrêter Rejouer/);
-    assert.doesNotMatch(screen(), /de connaissance lue/);
+    assert.match(textOf(screen("", liveOf(COMPLETED, {}, events))), /Cartographie 2 sources de connaissance lues 14:44:06 → 14:44:10/);
   });
 
   it("offers no replay of a session that has no event", () => {
-    assert.match(screen("", liveWith([], RUNNING)), /<button type="button" class="btn ghost sm" disabled="">/);
+    assert.match(screen("", liveWith([], COMPLETED)), /<button type="button" class="btn" disabled=""><svg [^>]*>.*?<\/svg> Rejouer/);
   });
 
   it("replays a session at the pace asked: stopped or going, its speed, and how far it is", () => {
     const stopped = screen("", liveOf(RUNNING, { following: false, tick: endOf(fixtureScript()) / 4 }));
-    assert.match(textOf(stopped), /Reprendre Verdict suivant × 1 Revenir au direct ✓ Configuration/);
+    assert.match(textOf(stopped), /Reprendre Verdict suivant × 1 Revenir au direct Harnais travaille/);
     assert.match(stopped, /<div class="session-bar replay"><button type="button" class="btn primary sm">/);
     assert.match(
       stopped,
@@ -1337,53 +1407,70 @@ describe("the screen of a session", () => {
     assert.deepEqual(pressed({ following: false, tick: 30 }), ["toggle", "skip", "faster", "follow"]);
   });
 
-  it("says in its bar that a queued session waits for an agent, and names nobody at work under what was asked", () => {
-    const html = screen("", liveOf(QUEUED, {}, ASKED));
-    assert.match(html, /<span class="badge outline">En file<\/span>/);
-    assert.match(textOf(html), /En file 15 nov. 2026, 14:44:06 · en attente d’un agent · 0 action Arrêter Rejouer /);
-    assert.doesNotMatch(html, /class="working"|travaille/);
-    assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
-  });
-
   it("leads from a replay back to the live session, or to the whole of an ended one", () => {
     assert.match(textOf(screen("", liveOf(RUNNING, { following: false, tick: 30 }))), /× 1 Revenir au direct/);
-    assert.match(textOf(screen("", liveOf(COMPLETED, { following: false, tick: 30 }))), /× 1 Tout afficher ✓ Configuration/);
+    assert.match(textOf(screen("", liveOf(COMPLETED, { following: false, tick: 30 }))), /× 1 Tout afficher Tests clos/);
+    assert.match(textOf(screen("", liveOf(QUEUED, { following: false, tick: 30 }, ASKED))), /× 1 Tout afficher/);
     assert.doesNotMatch(screen("", liveOf(COMPLETED, { following: false, tick: 30 })), /Revenir au direct/);
   });
 
-  it("shows where the session is with its passes, each but the last tied to the next, the parts of a pass left out", () => {
-    assert.match(textOf(screen()), /✓ Configuration 2 Plan · Vérification rapide Tout Échanges Actions Verdicts/);
-    assert.match(textOf(screen("", liveOf(COMPLETED))), /✓ Configuration ✓ Plan · Vérification rapide Tout/);
-    assert.match(
-      screen("", replayAt(REASONING, 0)),
-      /<span class="s done"><span class="n">✓<\/span>Configuration<\/span><span class="sep"><\/span><\/span><span class="pass-step"><span class="s cur"><span class="n">2<\/span>Plan · Vérification rapide<\/span><\/span><\/div>/,
-    );
-    assert.match(
-      screen("", replayAt(0, 0)),
-      /<span class="s cur"><span class="n">1<\/span>Configuration<\/span><span class="sep"><\/span><\/span><span class="pass-step"><span class="s"><span class="n">2<\/span>Plan · Vérification rapide<\/span><\/span><\/div>/,
-    );
-  });
-
-  it("keeps of the thread what its address asks: a kind of step, an agent, or both, and its links keep them", () => {
-    const verdicts = screen("?show=verdicts");
-    assert.doesNotMatch(verdicts, /class="act-line/);
-    assert.match(verdicts, new RegExp(`<a class="chip on" href="${ADDRESS}\\?show=verdicts" aria-current="true">Verdicts</a>`));
-    assert.ok(linksOf(screen("?show=talk")).includes(`${ADDRESS}?show=talk&agent=planner`));
-    const followed = screen("?show=actions&agent=planner");
-    assert.doesNotMatch(followed, /A joué le test/);
-    assert.ok(linksOf(followed).includes(`${ADDRESS}?show=actions&agent=planner&look=${PAGE_TOOL}`));
-    assert.ok(linksOf(followed).includes(`${ADDRESS}?show=talk&agent=planner`));
-    assert.match(followed, new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?show=actions" aria-label="Planificateur : voir tous les agents">`));
+  it("shows the verdicts and hides the actions by default; two switches change it, and every link keeps what the address asks", () => {
+    const html = screen();
+    assert.match(html, /<div class="conversation-head"><h2>Conversation<\/h2><div class="conversation-view" role="group" aria-label="Afficher aussi">/);
+    assert.match(html, new RegExp(`<a class="chip on" href="${ADDRESS}\\?verdicts=off" role="switch" aria-checked="true"><svg [^>]*>.*?</svg>Verdicts</a>`));
+    assert.match(html, new RegExp(`<a class="chip" href="${ADDRESS}\\?actions=on" role="switch" aria-checked="false"><svg [^>]*>.*?</svg>Actions</a>`));
+    assert.match(html, new RegExp(`<a class="btn sm" href="${ADDRESS}\\?open=all">Tout déplier</a>`));
+    assert.doesNotMatch(html, /class="act-line/);
+    const both = screen("?verdicts=off&actions=on");
+    assert.match(both, /class="act-line/);
+    assert.doesNotMatch(both, /class="verdict/);
+    assert.ok(linksOf(both).includes(`${ADDRESS}?actions=on`));
+    assert.ok(linksOf(both).includes(`${ADDRESS}?verdicts=off`));
+    const followed = screen("?actions=on&agent=planner");
+    assert.doesNotMatch(followed.slice(followed.indexOf('class="thread"')), /A joué le test/);
+    assert.ok(linksOf(followed).includes(`${ADDRESS}?agent=planner&actions=on&look=${PAGE_TOOL}`));
+    assert.match(followed, new RegExp(`<a class="turn-agent" href="${ADDRESS}\\?actions=on" aria-label="Planificateur : voir tous les agents">`));
     assert.match(
       followed,
-      new RegExp(`<a class="chip on followed-chip" href="${ADDRESS}\\?show=actions" aria-label="Ne plus suivre Planificateur">Planificateur ×</a>`),
+      new RegExp(`<a class="chip on followed-chip" href="${ADDRESS}\\?actions=on" aria-label="Ne plus suivre Planificateur">Planificateur ×</a>`),
     );
   });
 
-  it("takes an unknown filter for none, and follows nobody for an unknown agent or for the person", () => {
-    const agentOnly = screen("?agent=writer&show=nothing");
-    assert.match(agentOnly, new RegExp(`<a class="chip on" href="${ADDRESS}\\?agent=writer" aria-current="true">Tout</a>`));
-    assert.match(agentOnly, new RegExp(`<a class="chip on followed-chip" href="${ADDRESS}" aria-label="Ne plus suivre Rédacteur">`));
+  it("opens every phase when asked, and offers to fold them back", () => {
+    const html = screen("?open=all");
+    assert.equal(countOf(html, /<details class="phase [a-z]+" open="">/g), 2);
+    assert.match(html, new RegExp(`<a class="btn sm" href="${ADDRESS}">Tout replier</a>`));
+    assert.ok(linksOf(html).includes(`${ADDRESS}?actions=on&open=all`));
+    assert.equal(countOf(screen(), /<details class="phase [a-z]+" open="">/g), 1);
+  });
+
+  it("folds or unfolds a phase as the person does, and only then", () => {
+    const pressed: string[] = [];
+    const element = screenOf("", { ...liveOf(), controls: { ...NO_CONTROLS, unfold: (key) => pressed.push(key) } });
+    const [done, current] = elementsOf(element, "details").filter((details) => String(details["className"]).startsWith("phase "));
+    const toggle = (details: Record<string, unknown>, open: boolean): void =>
+      (details["onToggle"] as (event: { currentTarget: { open: boolean } }) => void)({ currentTarget: { open } });
+    toggle(done!, false);
+    toggle(current!, true);
+    assert.deepEqual(pressed, []);
+    toggle(done!, true);
+    toggle(current!, false);
+    assert.equal(pressed.length, 2);
+    assert.match(screen("", { ...liveOf(), unfolded: pressed }), /<details class="phase done" open="">.*<details class="phase current">/);
+  });
+
+  it("tells what came of the summary, and gathers on the line of the phases those of one family in a row", () => {
+    const pass = (title: string, phase: SessionPhase): Step => ({ kind: "pass", at: "09:00:00", phase, title, summary: "" });
+    const outcome: Step = { kind: "outcome", at: "09:00:01", title: "Verdicts", tests: [{ title: "Open", level: "", verdict: "passed" }] };
+    const steps = [pass("Configuration", "configuration"), pass("Configuration", "configuration"), pass("Bilan", "summary"), outcome];
+    const html = screen("", liveWith(steps, COMPLETED));
+    assert.match(textOf(html), /Configuration × 2 Bilan Conversation/);
+    assert.match(html, /<b class="phase-title">Bilan<\/b><span class="phase-result">1 réussi<\/span>/);
+    assert.match(screen("?agent=writer&open=all"), new RegExp(`<a class="chip on followed-chip" href="${ADDRESS}\\?open=all"`));
+  });
+
+  it("follows nobody for an unknown agent or for the person", () => {
+    assert.match(screen("?agent=writer"), new RegExp(`<a class="chip on followed-chip" href="${ADDRESS}" aria-label="Ne plus suivre Rédacteur">`));
     assert.doesNotMatch(screen("?agent=nobody"), /followed-chip/);
     assert.doesNotMatch(screen("?agent=user"), /followed-chip/);
   });
@@ -1392,29 +1479,28 @@ describe("the screen of a session", () => {
     const html = screen();
     assert.doesNotMatch(html, /look-panel|role="dialog"|Page consultée|Fichier de test|act selected|aria-current="true"[^>]*class="act-look"/);
     assert.doesNotMatch(html, /Regard|Vues de la session|view=/);
-    assert.ok(linksOf(html).includes(`${ADDRESS}?look=${PAGE_TOOL}`));
+    assert.ok(linksOf(screen("?actions=on")).includes(`${ADDRESS}?actions=on&look=${PAGE_TOOL}`));
   });
 
   it("opens from the address the look of the action it names, marks that action, and closes by the same address without it", () => {
     const live = liveWith([...fixtureScript().steps, ...REVIEWED]);
-    const page = screen(`?look=${PAGE_TOOL}`, live);
+    const page = screen(`?actions=on&look=${PAGE_TOOL}`, live);
     assert.match(
       textOf(page),
       /Page consultée customer-management · http:\/\/localhost:3020\/ - heading "Customers" - textbox "Search\.\.\." A ouvert \/ dans customer-management/,
     );
     assert.match(page, new RegExp(`<div class="act selected"><details>.{0,900}<a id="look-eye-${PAGE_TOOL}" class="act-look"`));
     assert.equal(countOf(page, /class="act selected"/g), 1);
-    assert.match(page, new RegExp(`<a class="look-panel-close" href="${ADDRESS}" aria-label="Fermer">`));
+    assert.match(page, new RegExp(`<a class="look-panel-close" href="${ADDRESS}\\?actions=on" aria-label="Fermer">`));
     assert.match(page, /<\/section><form class="composer">.*<\/form><div class="session-end"><\/div><section class="look-panel" role="dialog"/);
-    const file = screen(`?look=${fixtureScript().steps.length + 5}`, live);
+    const file = screen(`?actions=on&look=${fixtureScript().steps.length + 5}`, live);
     assert.match(textOf(file), /Fichier de test search-customer\.spec\.ts test\('search', async \(\) => \{\}\); A remis le test$/);
   });
 
-  it("keeps the filter and the agent of the address in the eyes of the thread and in the link that closes the look", () => {
-    const links = linksOf(screen(`?show=actions&agent=planner&look=${PAGE_TOOL}`));
-    assert.ok(links.includes(`${ADDRESS}?show=actions&agent=planner&look=${PAGE_TOOL}`));
-    assert.equal(links.at(-1), `${ADDRESS}?show=actions&agent=planner`);
-    assert.ok(linksOf(screen("?show=actions")).includes(`${ADDRESS}?show=actions&look=${PAGE_TOOL}`));
+  it("keeps the view and the agent of the address in the eyes of the thread and in the link that closes the look", () => {
+    const links = linksOf(screen(`?actions=on&agent=planner&look=${PAGE_TOOL}`));
+    assert.ok(links.includes(`${ADDRESS}?agent=planner&actions=on&look=${PAGE_TOOL}`));
+    assert.equal(links.at(-1), `${ADDRESS}?actions=on&agent=planner`);
   });
 
   it("opens nothing for an address whose look names no action that looked at something", () => {
@@ -1425,10 +1511,10 @@ describe("the screen of a session", () => {
   });
 
   it("keeps open, while the session is replayed, the look of an action the replay has not reached yet", () => {
-    const early = screen(`?look=${PAGE_TOOL}`, replayAt(REASONING, 0));
+    const early = screen(`?actions=on&look=${PAGE_TOOL}`, replayAt(REASONING, 0));
     assert.match(textOf(early), /Page consultée customer-management · http:\/\/localhost:3020\//);
     assert.doesNotMatch(early, /act selected|look-eye/);
-    const running = screen(`?look=${PAGE_TOOL}`, replayAt(PAGE_TOOL, 1));
+    const running = screen(`?actions=on&look=${PAGE_TOOL}`, replayAt(PAGE_TOOL, 1));
     assert.match(running, /<div class="act selected"><div class="act-line"><span class="spinner"/);
     assert.doesNotMatch(running, /look-eye/);
   });
