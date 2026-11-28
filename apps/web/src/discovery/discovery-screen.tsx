@@ -1,11 +1,13 @@
 import type { ChangeEventHandler, FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { CartographyState, KnowledgeDomain, MappingState } from "@open-qa-stack/domain/sessions";
+import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { KnowledgeBaseLine, MAPPING_TONES } from "../knowledge/knowledge-screen.tsx";
 import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
 import { RenamePanel } from "./rename-panel.tsx";
 
@@ -22,6 +24,10 @@ export interface DomainChanging {
 export interface DiscoveryControls {
   /** Picks or leaves a domain, which its box names. */
   readonly toggle: ChangeEventHandler<HTMLInputElement>;
+  /** Picks every domain shown that can be, or none once all are. */
+  readonly chooseAll: MouseEventHandler<HTMLButtonElement>;
+  /** Narrows the domains to the words of the search form. */
+  readonly search: FormEventHandler<HTMLFormElement>;
   /** Excludes the domain the button names. */
   readonly exclude: MouseEventHandler<HTMLButtonElement>;
   /** Takes back the domain the button names. */
@@ -51,6 +57,23 @@ export interface DiscoveryScreenProps {
 }
 
 /** The states of a cartography, in the order a source goes through them. */
+/**
+ * The domains a person can pick that hold every word of a search, in their name or what they are about, case aside.
+ *
+ * @param domains - The domains the cartography found.
+ * @param search - The words of the search; every domain for none.
+ * @returns Those not excluded that match it, in their order.
+ */
+export function shownDomains(domains: readonly KnowledgeDomain[], search: string): readonly KnowledgeDomain[] {
+  const words = search
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word !== "");
+  return domains.filter(
+    ({ excluded, label, description }) => excluded !== true && words.every((word) => `${label} ${description}`.toLowerCase().includes(word)),
+  );
+}
+
 const STATES: readonly MappingState[] = ["mapped", "truncated", "mapping", "waiting"];
 
 /**
@@ -96,16 +119,10 @@ function Sources({ mapping }: { readonly mapping: CartographyState }): ReactNode
  */
 function DomainSources({ domain }: { readonly domain: KnowledgeDomain }): ReactNode {
   const reach = (applications: readonly string[]) => (applications.length === 0 ? [t("knowledge.project")] : applications);
-  const marks = [...new Set(domain.sources.flatMap((source) => reach(source.applications)))];
+  const applications = new Set(domain.sources.flatMap((source) => source.applications));
   return (
     <div className="domain-sources small">
-      <span className="domain-marks">
-        {marks.map((mark) => (
-          <Badge key={mark} tone="neutral" square>
-            {mark}
-          </Badge>
-        ))}
-      </span>
+      <span className="muted">{t("discovery.applications", { count: applications.size })}</span>
       <details>
         <summary>{t("discovery.domainSources", { count: domain.sources.length })}</summary>
         <ul>
@@ -120,7 +137,42 @@ function DomainSources({ domain }: { readonly domain: KnowledgeDomain }): ReactN
   );
 }
 
-/** The domains a person excluded, apart, each to take back. */
+/** What a person sets of a domain, in a list that unfolds at the foot of its card: its name, and whether it is excluded. */
+function DomainMore({
+  domain,
+  route,
+  changing,
+  exclude,
+}: {
+  readonly domain: KnowledgeDomain;
+  readonly route: Route;
+  readonly changing: DomainChanging;
+  readonly exclude: DiscoveryControls["exclude"];
+}): ReactNode {
+  return (
+    <details className="domain-more">
+      <summary aria-label={t("discovery.moreOne", { label: domain.label })} title={t("discovery.more")}>
+        <Icon name="more" />
+      </summary>
+      <div className="domain-more-items">
+        <a className="btn ghost sm" href={withPanel(route, `rename:${domain.id}`)} aria-label={t("discovery.renameOne", { label: domain.label })}>
+          {t("discovery.rename")}
+        </a>
+        <button
+          type="button"
+          className="btn ghost sm"
+          value={domain.id}
+          disabled={changing.pending}
+          onClick={exclude}
+          aria-label={t("discovery.excludeOne", { label: domain.label })}
+        >
+          {t("discovery.exclude")}
+        </button>
+      </div>
+    </details>
+  );
+}
+
 function Excluded({
   domains,
   changing,
@@ -167,6 +219,8 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
       </Page>
     );
   const kept = domains.filter(({ excluded }) => excluded !== true);
+  const search = route.query["q"] ?? "";
+  const shown = shownDomains(domains, search);
   const renamed = domains.find(({ id }) => `rename:${id}` === route.query["panel"]);
   return (
     <Page crumbs={crumbs} title={title} hint={t("discovery.lead")}>
@@ -184,58 +238,78 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
       ) : kept.length === 0 ? (
         <EmptyState title={t("discovery.allExcluded")} />
       ) : (
-        <form className="discovery-form" onSubmit={controls.generate}>
-          <fieldset className="tiles">
-            <legend className="sr-only">{t("discovery.domains")}</legend>
-            {kept.map((domain) => (
-              <div key={domain.id} className="tile">
-                <label className="tile-pick" htmlFor={`domain-${domain.id}`}>
-                  <span className="tile-head">
-                    <b>{domain.label}</b>
-                    <input
-                      id={`domain-${domain.id}`}
-                      type="checkbox"
-                      name="domain"
-                      value={domain.id}
-                      checked={chosen.has(domain.id)}
-                      onChange={controls.toggle}
-                    />
-                  </span>
-                  <span className="tile-text">{domain.description}</span>
-                </label>
-                <DomainSources domain={domain} />
-                <div className="domain-actions">
-                  <a className="btn sm" href={withPanel(route, `rename:${domain.id}`)} aria-label={t("discovery.renameOne", { label: domain.label })}>
-                    {t("discovery.rename")}
-                  </a>
-                  <button
-                    type="button"
-                    className="btn sm"
-                    value={domain.id}
-                    disabled={changing.pending}
-                    onClick={controls.exclude}
-                    aria-label={t("discovery.excludeOne", { label: domain.label })}
-                  >
-                    {t("discovery.exclude")}
-                  </button>
+        <>
+          <form id="discovery-search" role="search" onSubmit={controls.search} />
+          <form className="discovery-form" onSubmit={controls.generate}>
+            <div className="discovery-toolbar">
+              <input
+                type="search"
+                form="discovery-search"
+                name="q"
+                defaultValue={search}
+                aria-label={t("discovery.search")}
+                placeholder={t("discovery.search")}
+              />
+              <button type="button" className="chip" onClick={controls.chooseAll}>
+                {t(shown.length > 0 && shown.every(({ id }) => chosen.has(id)) ? "discovery.chooseNone" : "discovery.chooseAll")}
+              </button>
+              <span className="small muted">
+                {mapping.knowledgeBase === undefined
+                  ? t("discovery.overview", { count: kept.length, sources: mapping.sources.length })
+                  : t("discovery.overviewOn", { count: kept.length, sources: mapping.sources.length, date: dateText(mapping.knowledgeBase.producedAt) })}
+                {" · "}
+                <a href={hrefTo("/knowledge")}>{t("discovery.seeSources")}</a>
+              </span>
+            </div>
+            <fieldset className="tiles">
+              <legend className="sr-only">{t("discovery.domains")}</legend>
+              {shown.length === 0 && <EmptyState title={t("discovery.noMatch")}>{t("discovery.noMatchNote")}</EmptyState>}
+              {shown.map((domain) => (
+                <div key={domain.id} className={chosen.has(domain.id) ? "tile on" : "tile"}>
+                  <label className="tile-pick" htmlFor={`domain-${domain.id}`}>
+                    <span className="tile-head">
+                      <input
+                        id={`domain-${domain.id}`}
+                        type="checkbox"
+                        name="domain"
+                        value={domain.id}
+                        checked={chosen.has(domain.id)}
+                        onChange={controls.toggle}
+                      />
+                      <b>{domain.label}</b>
+                    </span>
+                    <span className="tile-text">{domain.description}</span>
+                  </label>
+                  <div className="domain-foot">
+                    <DomainSources domain={domain} />
+                    <DomainMore domain={domain} route={route} changing={changing} exclude={controls.exclude} />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </fieldset>
-          {opening.state === "refused" && (
-            <p className="config-note ko" role="alert">
-              {opening.text}
-            </p>
-          )}
-          <div className="action-bar">
-            <span className="small muted" role="status">
-              {t("discovery.picked", { count: chosen.size, total: kept.length })}
-            </span>
-            <button type="submit" className="btn primary" disabled={chosen.size === 0 || opening.state === "opening"}>
-              {opening.state === "opening" ? t("discovery.opening") : t("discovery.generate", { count: chosen.size })}
-            </button>
-          </div>
-        </form>
+              ))}
+            </fieldset>
+            {opening.state === "refused" && (
+              <p className="config-note ko" role="alert">
+                {opening.text}
+              </p>
+            )}
+            <div className="action-bar">
+              <span className="discovery-picked" role="status">
+                <b>{t("discovery.picked", { count: chosen.size, total: kept.length })}</b>
+                {chosen.size > 0 && (
+                  <span className="small muted">
+                    {kept
+                      .filter(({ id }) => chosen.has(id))
+                      .map(({ label }) => label)
+                      .join(", ")}
+                  </span>
+                )}
+              </span>
+              <button type="submit" className="btn primary" disabled={chosen.size === 0 || opening.state === "opening"}>
+                {opening.state === "opening" ? t("discovery.opening") : t("discovery.generate")}
+              </button>
+            </div>
+          </form>
+        </>
       )}
       {renamed === undefined && changing.refusal !== undefined && (
         <p className="config-note ko" role="alert">
@@ -244,8 +318,8 @@ export function DiscoveryScreen({ project, mapping, domains, unread, chosen, ope
       )}
       <Excluded domains={domains.filter(({ excluded }) => excluded === true)} changing={changing} restore={controls.restore} />
       {renamed !== undefined && <RenamePanel key={renamed.id} domain={renamed} close={withPanel(route)} changing={changing} onRename={controls.rename} />}
-      {/* What the person decides comes first; where each source stands follows, as what the domains come from. */}
-      <Sources mapping={mapping} />
+      {/* Before any domain, where each source stands tells what the cartography does. */}
+      {domains.length === 0 && <Sources mapping={mapping} />}
     </Page>
   );
 }

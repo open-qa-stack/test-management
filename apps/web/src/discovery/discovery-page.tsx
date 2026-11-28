@@ -5,7 +5,7 @@ import type { ApiError } from "../api/api-error.ts";
 import { usePolled } from "../api/use-polled.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo, withPanel, type Route } from "../routing/route.ts";
-import { DiscoveryScreen, type DiscoveryOpening, type DomainChanging } from "./discovery-screen.tsx";
+import { DiscoveryScreen, shownDomains, type DiscoveryOpening, type DomainChanging } from "./discovery-screen.tsx";
 
 /**
  * The discovery in a browser: it reads where the cartography stands and the domains it found, again and again, keeps
@@ -53,6 +53,17 @@ export function DiscoveryPage({ project, route }: { readonly project: string; re
           if (currentTarget.checked) next.add(currentTarget.value);
           else next.delete(currentTarget.value);
           setChosen(next);
+        },
+        chooseAll: () => {
+          // The button is drawn once the domains are told; it picks those the search shows, or lets them go once all are picked.
+          const shown = shownDomains(domains!, route.query["q"] ?? "").map(({ id }) => id);
+          const all = shown.every((id) => chosen.has(id));
+          setChosen(new Set(all ? [...chosen].filter((id) => !shown.includes(id)) : [...chosen, ...shown]));
+        },
+        search: (event) => {
+          event.preventDefault();
+          const words = (event.currentTarget.elements.namedItem("q") as HTMLInputElement).value.trim();
+          window.location.hash = hrefTo("/discovery", words === "" ? {} : { q: words });
         },
         exclude: ({ currentTarget }) => change(currentTarget.value, { excluded: true }),
         restore: ({ currentTarget }) => change(currentTarget.value, { excluded: false }),
