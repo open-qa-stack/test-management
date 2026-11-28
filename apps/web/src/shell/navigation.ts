@@ -68,16 +68,6 @@ export function isAt(route: Route, entry: NavigationEntry): boolean {
   return isUnder(route, entry.path) || (route.path.length === 0 && entry.path === HOME_PATH);
 }
 
-/**
- * Finds the entry of the navigation the console is at, which names the screen.
- *
- * @param route - Where the console is.
- * @returns The entry; none at an address that leads nowhere.
- */
-export function entryAt(route: Route): NavigationEntry | undefined {
-  return NAVIGATION.flatMap((group) => group.entries).find((entry) => isAt(route, entry));
-}
-
 /** The path of the screen that lists, on a phone, the entries its tabs leave out. */
 export const MORE_PATH = "/more";
 
