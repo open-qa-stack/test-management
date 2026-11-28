@@ -1787,13 +1787,13 @@
     "lead": "What the agents read before each task: your instructions, and what they noted while they worked. Reword, change the scope, set aside without deleting.",
     "reading": "Reading the memory",
     "readingNote": "It shows as soon as the instance answered.",
-    "add": "+ Instruction",
+    "add": "Add an instruction",
     "views": "Views of the memory",
     "view": {
       "active": "Active",
       "inactive": "Set aside"
     },
-    "typeFilter": "Types",
+    "typeFilter": "Type",
     "allTypes": "All types",
     "types": {
       "instruction": "Instruction",
@@ -1819,8 +1819,6 @@
       "vocabulary": "vocabulary"
     },
     "project": "Whole project",
-    "given": "{{where}} · {{target}} · {{date}}",
-    "noted": "Noted by an agent · {{domain}}, {{kind}} · {{date}}",
     "adjust": "Adjust",
     "adjustNamed": "Adjust “{{text}}”",
     "empty": {
@@ -1843,7 +1841,10 @@
       "save": "Save",
       "saving": "Saving…",
       "incomplete": "Write what the agents must keep in mind, in 600 characters at most."
-    }
+    },
+    "notedBy": "Noted by an agent · {{date}}",
+    "more_one": "Show the other one",
+    "more_other": "Show the {{count}} others"
   },
   "page": {
     "back": "Back to {{screen}}"

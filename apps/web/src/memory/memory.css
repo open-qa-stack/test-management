@@ -1,23 +1,98 @@
-/* The screen of the memory: the views and the types, then the lines, each with its type, what it says and where it comes from. */
+/* The screen of the memory: the views and the type, then a card a line, its type and scope over what it says, who wrote it and the link that adjusts it under. */
 .memory-views {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
 }
 
-.memory-row .grow {
+/* The views take the height of a thumb on every screen; the count of the chosen one reads lighter on its colour. */
+.memory-views .chip {
+  min-height: calc(var(--space-8) + var(--space-3));
+}
+
+.memory-views .chip.on .muted {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.memory-type {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: calc(var(--space-2) * -1);
+}
+
+.memory-type select {
+  min-height: calc(var(--space-8) + var(--space-3));
+  padding: 0 var(--space-4);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--type-reading);
+}
+
+.memory-lines {
   display: grid;
-  gap: var(--space-1);
-  justify-items: start;
+  gap: var(--space-3);
+}
+
+.memory-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--pad);
+}
+
+.memory-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.memory-card .badge::before {
+  display: none;
 }
 
 .memory-text {
+  max-width: var(--measure-wide);
+  margin: 0;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
   overflow-wrap: anywhere;
 }
 
-.memory-row .btn {
-  min-height: 44px;
+.memory-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.memory-adjust {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--primary);
+  font-weight: var(--weight-strong);
+  text-decoration: none;
+}
+
+@media (min-width: 720px) {
+  .memory-type select,
+  .memory-text {
+    font-size: var(--type-body);
+    line-height: var(--leading-body);
+  }
+}
+
+.memory-more {
+  justify-content: center;
+  width: 100%;
+  min-height: calc(var(--space-8) + var(--space-4));
+  margin-top: var(--space-3);
+  font-weight: var(--weight-strong);
 }
 
 .memory-form {

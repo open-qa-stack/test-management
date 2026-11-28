@@ -19,10 +19,15 @@ export interface MemoryPlace {
   readonly type?: MemoryItemType;
   /** `add` for the panel that adds an instruction; the identifier of a line for the one that adjusts it. */
   readonly panel?: string;
+  /** Whether every line of the view shows, beyond the first ones. */
+  readonly all?: boolean;
 }
 
+/** How many lines a view shows before it is asked for the others. */
+export const FIRST_LINES = 10;
+
 /**
- * Reads where the memory stands from the address: the lines active, of every type, without a panel, by default.
+ * Reads where the memory stands from the address: the first lines active, of every type, without a panel, by default.
  *
  * @param route - Where the console is.
  * @returns The place the address names.
@@ -34,6 +39,7 @@ export function memoryPlaceOf(route: Route): MemoryPlace {
     view: MEMORY_VIEWS.find((view) => view === route.query["view"]) ?? "active",
     ...(type === undefined ? {} : { type }),
     ...(panel === undefined || panel === "" ? {} : { panel }),
+    ...(route.query["shown"] === "all" ? { all: true } : {}),
   };
 }
 
@@ -43,6 +49,21 @@ export function memoryPlaceOf(route: Route): MemoryPlace {
  * @param place - The place.
  * @returns The fragment to put in an `href`.
  */
-export function memoryHref({ view, type, panel }: MemoryPlace): string {
-  return hrefTo(MEMORY_PATH, { ...(view === "active" ? {} : { view }), ...(type === undefined ? {} : { type }), ...(panel === undefined ? {} : { panel }) });
+export function memoryHref({ view, type, panel, all }: MemoryPlace): string {
+  return hrefTo(MEMORY_PATH, {
+    ...(view === "active" ? {} : { view }),
+    ...(type === undefined ? {} : { type }),
+    ...(all === true ? { shown: "all" } : {}),
+    ...(panel === undefined ? {} : { panel }),
+  });
+}
+
+/**
+ * The place a panel closes on: the same view, type and lines, without the panel.
+ *
+ * @param place - Where the memory stands.
+ * @returns The place without its panel.
+ */
+export function closedOf({ panel: _panel, ...place }: MemoryPlace): MemoryPlace {
+  return place;
 }

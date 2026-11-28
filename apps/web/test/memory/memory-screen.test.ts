@@ -4,7 +4,7 @@ import { describe, it } from "vitest";
 import type { MemoryList } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { applicationIds, nameApplications } from "../../src/applications/application-names.ts";
-import { memoryHref, memoryPlaceOf } from "../../src/memory/memory-paths.ts";
+import { closedOf, FIRST_LINES, memoryHref, memoryPlaceOf } from "../../src/memory/memory-paths.ts";
 import { MemoryScreen, type MemoryControls } from "../../src/memory/memory-screen.tsx";
 import { parseRoute } from "../../src/routing/route.ts";
 import { linksOf, render, textOf } from "../render.ts";
@@ -17,7 +17,7 @@ const screen = (hash: string, memory: PolledState<MemoryList> = { value: MEMORY 
   );
 
 /** What the person does on the screen, which a static rendering never calls. */
-const CONTROLS: MemoryControls = { save: () => assert.fail("nothing is saved"), pending: false };
+const CONTROLS: MemoryControls = { save: () => assert.fail("nothing is saved"), narrow: () => assert.fail("nothing is narrowed"), pending: false };
 
 describe("the place of the memory in the address", () => {
   it("is the active lines of every type without a panel by default, and is written back the same", () => {
@@ -27,6 +27,10 @@ describe("the place of the memory in the address", () => {
     assert.deepEqual(place, { view: "inactive", type: "correction", panel: "l2" });
     assert.equal(memoryHref(place), "#/memory?view=inactive&type=correction&panel=l2");
     assert.equal(memoryHref({ view: "active" }), "#/memory");
+    // Every line shows once asked, and closing a panel keeps it so.
+    const all = memoryPlaceOf(parseRoute("#/memory?type=inferred&shown=all&panel=m1"));
+    assert.deepEqual(all, { view: "active", type: "inferred", panel: "m1", all: true });
+    assert.equal(memoryHref(closedOf(all)), "#/memory?type=inferred&shown=all");
   });
 });
 
@@ -36,7 +40,7 @@ describe("the memory of the agents", () => {
     assert.match(textOf(screen("#/memory", { unread: "L’instance ne répond pas." })), /Lecture de la mémoire L’instance ne répond pas\.$/);
     assert.match(
       textOf(screen("#/memory", { value: MEMORY, unread: "L’instance ne répond pas." })),
-      /^Mémoire \+ Consigne Ce que les agents relisent .* sans supprimer\. L’instance ne répond pas\. Actives 2/,
+      /^Mémoire Ce que les agents relisent .* sans supprimer\. Ajouter une consigne L’instance ne répond pas\. Actives 2/,
     );
   });
 
@@ -45,14 +49,33 @@ describe("the memory of the agents", () => {
     const active = screen("#/memory");
     assert.match(
       textOf(active),
-      /Actives 2 Mises de côté 1 Tous les types Consignes Corrections Déduites Consigne Create the customers by the API, never by the screens\. Policy Management · Conception \(concepteur, relecteurs\) · .* Ajuster Déduite The quote screens bear data-testid in quote-\*\. Noté par un agent · quotes, repère d’écran · .* Ajuster$/,
+      /Actives 2 Mises de côté 1 Type Tous les types Consignes Corrections Déduites Consigne Policy Management · Conception \(concepteur, relecteurs\) Create the customers by the API, never by the screens\. \d+ \S+ \d{4}, \d\d:\d\d Ajuster Déduite quotes · repère d’écran The quote screens bear data-testid in quote-\*\. Noté par un agent · .* Ajuster$/,
     );
     assert.ok(linksOf(active).includes("#/memory?panel=l1"));
     assert.ok(linksOf(active).includes("#/memory?panel=add"));
-    assert.match(textOf(screen("#/memory?view=inactive")), /Correction Use the policy of Max Mustermann as reference data\. Tout le projet · Tout · /);
+    assert.match(textOf(screen("#/memory?view=inactive")), /Correction Tout le projet · Tout Use the policy of Max Mustermann as reference data\. /);
+    // The type is chosen in a list, which a rendering without gestures leaves untouched.
+    assert.match(screen("#/memory?type=inferred"), /<select disabled=""><option value="">Tous les types<\/option>/);
+    assert.match(screen("#/memory?type=inferred"), /<option value="inferred" selected="">Déduites<\/option>/);
     assert.doesNotMatch(textOf(screen("#/memory?type=inferred")), /Create the customers/);
     assert.match(textOf(screen("#/memory?type=correction")), /Aucune leçon active Les leçons viennent de vos consignes/);
     nameApplications([]);
+  });
+
+  it("shows the first lines of a view, then the others once asked", () => {
+    const many = {
+      ...MEMORY,
+      items: Array.from({ length: FIRST_LINES + 3 }, (_, index) => ({ ...MEMORY.items[0]!, id: `n${index}`, text: `Line ${index}.` })),
+    };
+    const first = screen("#/memory", { value: many });
+    assert.equal((first.match(/class="card memory-card"/g) ?? []).length, FIRST_LINES);
+    assert.match(textOf(first), /Afficher les 3 autres$/);
+    assert.ok(linksOf(first).includes("#/memory?shown=all"));
+    const all = screen("#/memory?shown=all", { value: many });
+    assert.equal((all.match(/class="card memory-card"/g) ?? []).length, FIRST_LINES + 3);
+    assert.doesNotMatch(textOf(all), /Afficher/);
+    const one = { ...many, items: many.items.slice(0, FIRST_LINES + 1) };
+    assert.match(textOf(screen("#/memory", { value: one })), /Afficher l’autre$/);
   });
 
   it("adds an instruction and adjusts a lesson in a panel, the scope, the work and the activity with it, and only the text and the activity of what an agent noted", () => {
