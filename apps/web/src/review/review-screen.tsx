@@ -1,11 +1,11 @@
 import type { FormEventHandler, ReactNode } from "react";
 import type { ReviewedTest, ReviewQueue, TestProposal } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
-import { applicationName } from "../applications/application-names.ts";
 import { t } from "../i18n/i18n.ts";
 import { levelName } from "../i18n/vocabulary.ts";
 import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
 import { ReviewCard, type ReviewGestures } from "./review-card.tsx";
 import { ReviewSetAside } from "./review-set-aside.tsx";
@@ -118,25 +118,35 @@ function Domains({ queue, place }: { readonly queue: ReviewQueue; readonly place
 }
 
 /** A test of the list, which shows it on the card: its title, then where it comes from and how it went. */
-function Row({ test, place, shown }: { readonly test: ReviewedTest; readonly place: ReviewPlace; readonly shown: boolean }): ReactNode {
-  const detail = [
-    `${applicationName(test.application)} › ${test.domain}`,
-    levelName(test.level),
-    t(`review.verdicts.${test.verdict === "passed" ? "passed" : "failed"}`),
-    t(test.reviewed ? "review.reviewed" : "review.notReviewed"),
-    ...(test.status === "in_correction" ? [t("review.status.in_correction")] : []),
-  ].join(" · ");
+function Row({
+  test,
+  place,
+  rank,
+  shown,
+}: {
+  readonly test: ReviewedTest;
+  readonly place: ReviewPlace;
+  readonly rank: number;
+  readonly shown: boolean;
+}): ReactNode {
+  const detail = [test.domain, levelName(test.level), ...(test.status === "in_correction" ? [t("review.status.in_correction")] : [])].join(" · ");
+  const sound = test.verdict === "passed" && test.reviewed;
   return (
     <a className={shown ? "row review-row on" : "row review-row"} href={reviewHref({ ...place, id: test.id })} aria-current={shown ? "true" : undefined}>
+      <span className="small muted review-row-rank">{rank}</span>
       <span className="grow">
         <b>{test.title}</b>
         <span className="small muted review-row-detail">{detail}</span>
       </span>
+      {sound && (
+        <span className="review-row-sound" role="img" aria-label={t("review.sound")}>
+          <Icon name="check" />
+        </span>
+      )}
     </a>
   );
 }
 
-/** The progress through the list and the links to the tests before and after the one shown, which a phone shows in place of the list. */
 function Steps({ tests, shown, place }: { readonly tests: readonly ReviewedTest[]; readonly shown: ReviewedTest; readonly place: ReviewPlace }): ReactNode {
   const at = tests.indexOf(shown);
   const before = tests[at - 1];
@@ -226,16 +236,18 @@ export function ReviewScreen({ project, route, place, queue, proposal, controls 
           {controls.told}
         </p>
       )}
-      <Views queue={queue.value} place={place} />
-      <Domains queue={queue.value} place={place} />
+      <div className="review-filters">
+        <Views queue={queue.value} place={place} />
+        <Domains queue={queue.value} place={place} />
+      </div>
       {shown === undefined ? (
         <Nothing place={place} />
       ) : (
         <div className="review-layout">
           <div className="card review-list" role="list" aria-label={t(`review.view.${place.view}`)}>
-            {tests.map((test) => (
+            {tests.map((test, rank) => (
               <div key={test.id} role="listitem">
-                <Row test={test} place={place} shown={test === shown} />
+                <Row test={test} place={place} rank={rank + 1} shown={test === shown} />
               </div>
             ))}
             <p className="small muted review-keys">{t("review.keys")}</p>

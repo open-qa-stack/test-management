@@ -8,7 +8,7 @@ import { t } from "../i18n/i18n.ts";
 import { hearShortcuts } from "../ui/shortcuts.ts";
 import { reviewHref, reviewPlaceOf } from "./review-paths.ts";
 import { hrefTo, withPanel, type Route } from "../routing/route.ts";
-import { CORRECT_PANEL, listedTests, ReviewScreen, shownTest, type ReviewControls } from "./review-screen.tsx";
+import { CORRECT_PANEL, listedTests, ReviewScreen, SET_ASIDE_PANEL, shownTest, type ReviewControls } from "./review-screen.tsx";
 
 /** Where a decision stands: under way, refused with why, or kept with what came of it. */
 interface Deciding {
@@ -93,15 +93,15 @@ export function ReviewPage({ project, route }: { readonly project: string; reado
       const test = tests[rank];
       if (test !== undefined) window.location.hash = reviewHref({ ...place, id: test.id });
     };
-    // V validates the test shown, and C opens the panel that asks for its correction, when it is one to review and no decision is under way.
+    // V validates the test shown, C opens the panel that asks for its correction and E the one that sets it aside, when it is one to review and no decision is under way.
     const reviewing = proposal.value?.status === "in_review" && !deciding.pending;
     const validate = () => {
       if (reviewing) controls.validate();
     };
-    const correct = () => {
-      if (reviewing) window.location.hash = withPanel(route, CORRECT_PANEL);
+    const open = (panel: string) => () => {
+      if (reviewing) window.location.hash = withPanel(route, panel);
     };
-    return hearShortcuts(document, { j: to(at + 1), k: to(at - 1), v: validate, c: correct });
+    return hearShortcuts(document, { j: to(at + 1), k: to(at - 1), v: validate, c: open(CORRECT_PANEL), e: open(SET_ASIDE_PANEL) });
   });
   return <ReviewScreen project={project} route={route} place={place} queue={queue} controls={controls} {...(shown === undefined ? {} : { proposal })} />;
 }

@@ -66,24 +66,35 @@ describe("the review of the tests the agents wrote", () => {
     assert.match(text, /Nouveaux tests 2 Mises à jour 0 Écartés 1 Tous les domaines quotes policies /);
     assert.match(
       text,
-      / A quote expires after thirty days Policy Management › quotes · Fonctionnel · joué ✔ · relu ✔ Edit the dates of a policy Policy Management › policies · Fonctionnel · joué ✗ · non relu Suivant : J · précédent : K /,
+      / 1 A quote expires after thirty days quotes · Fonctionnel 2 Edit the dates of a policy policies · Fonctionnel Suivant : J · précédent : K /,
     );
-    assert.match(text, / 1 \/ 2 Suivant › À relire Fonctionnel relu ✔ joué ✔ A quote expires after thirty days Policy Management › quotes › quote-expiry /);
+    assert.match(
+      text,
+      / 1 \/ 2 Suivant › Écrit par l’agent joué ✔ relu ✔ A quote expires after thirty days Niveau Fonctionnel Fonction quotes › quote-expiry Application Policy Management /,
+    );
+    // A test run with success and reviewed is ticked in the list; one that failed or no agent reviewed is not.
+    assert.equal(html.match(/<span class="review-row-sound" role="img" aria-label="Joué avec succès et relu">/g)?.length, 1);
     assert.match(
       text,
       / Pourquoi ce test IA Verify that a quote older than thirty days shows as expired\. Demandé : The expiry of the quotes\. Sources : policy-specs — Quotes, policy-management /,
     );
-    assert.match(text, / Ce que le test vérifie Open the quotes The quotes show Open the quote of 1 October It shows Expired Its price is no longer shown /);
+    assert.match(
+      text,
+      / Ce que le test vérifie 1 Open the quotes The quotes show 2 Open the quote of 1 October It shows Expired Its price is no longer shown /,
+    );
     assert.match(text, / Avis des relecteurs Code, line 12 : Use a role in place of the text\. PW-LOC-01 /);
     assert.match(
       text,
-      / Code — apps\/policy-management\/tests\/quotes\/quote-expiry\/quote-expiry\.spec\.ts \(\+42\) · apps\/policy-management\/pages\/quotes-page\.ts \(\+6\) /,
+      / Code ajouté apps\/policy-management\/tests\/quotes\/quote-expiry\/quote-expiry\.spec\.ts \+42 .* apps\/policy-management\/pages\/quotes-page\.ts \+6 /,
     );
-    assert.match(text, / 3 essais · Its last run passed\. Écarter Demander une correction Valider$/);
+    assert.match(text, / 3 essais · Its last run passed\. Écarter E Demander une correction C Valider et passer au suivant V$/);
     assert.deepEqual(linksOf(html).slice(0, 4), ["#/review", "#/review?view=updates", "#/review?view=set_aside", "#/review"]);
     assert.ok(linksOf(html).includes(`#/review?id=${POLICY.id}`));
-    // The code is folded, the gestures shown and inactive until the console can make them.
-    assert.match(html, /<details class="review-section review-code"><summary>/);
+    // The code is folded, file by file, the gestures shown and inactive until the console can make them.
+    assert.match(
+      html,
+      /<details class="review-file"><summary><span class="mono grow">apps\/policy-management\/tests\/quotes\/quote-expiry\/quote-expiry\.spec\.ts<\/span><span class="review-file-added">\+42<\/span><\/summary>/,
+    );
     assert.equal(html.match(/<button type="button" class="btn[^"]*" disabled=""/g)?.length, 3);
     assert.match(html, /aria-current="true"[^>]*>|<a class="row review-row on"/);
   });
@@ -100,7 +111,7 @@ describe("the review of the tests the agents wrote", () => {
 
   it("narrows the tests to a domain, and says when none of the view is of it", () => {
     const narrowed = screen("#/review?domain=policies", { value: QUEUE }, {});
-    assert.match(textOf(narrowed), /Tous les domaines quotes policies Edit the dates of a policy .* 1 \/ 1 Lecture du test…$/);
+    assert.match(textOf(narrowed), /Tous les domaines quotes policies 1 Edit the dates of a policy .* 1 \/ 1 Lecture du test…$/);
     assert.ok(linksOf(narrowed).includes(`#/review?domain=policies&id=${POLICY.id}`));
     assert.match(
       textOf(screen("#/review?view=set_aside&domain=policies")),
@@ -116,10 +127,10 @@ describe("the review of the tests the agents wrote", () => {
       decision: { id: ASIDE.id, status: "set_aside", at: "2026-11-27T10:00:00.000Z", reason: "covered", coveredBy: "apps/x.spec.ts", note: "Same steps." },
     } as const;
     const text = textOf(screen("#/review?view=set_aside", { value: QUEUE }, { value: aside }));
-    assert.match(text, /Écartés 1 List the quotes /);
+    assert.match(text, /Écartés 1 1 List the quotes /);
     assert.match(
       text,
-      / Écarté Fonctionnel relu ✔ joué ✔ List the quotes policy-management › quotes › quote-expiry Écarté : déjà couvert — apps\/x\.spec\.ts · Same steps\. Pourquoi/,
+      / Écrit par l’agent Écarté joué ✔ relu ✔ List the quotes Niveau Fonctionnel Fonction quotes › quote-expiry Application policy-management Écarté : déjà couvert — apps\/x\.spec\.ts · Same steps\. Pourquoi/,
     );
     const bare = { ...aside, decision: { id: ASIDE.id, status: "set_aside", at: "2026-11-27T10:00:00.000Z", reason: "wrong_level" } } as const;
     assert.match(textOf(screen("#/review?view=set_aside", { value: QUEUE }, { value: bare })), / Écarté : pas au bon niveau Pourquoi/);
@@ -144,26 +155,27 @@ describe("the review of the tests the agents wrote", () => {
   it("tells a visual test, and a test no agent reviewed, which has no remark", () => {
     const { brief: _, ...withoutBrief }: TestProposal = { ...PROPOSAL, ...POLICY, remarks: [] };
     const text = textOf(screen(`#/review?id=${POLICY.id}`, { value: QUEUE }, { value: withoutBrief }));
-    assert.match(text, / À relire Fonctionnel Visuel non relu joué ✗ Edit the dates of a policy /);
+    assert.match(text, / Écrit par l’agent Visuel joué ✗ non relu Edit the dates of a policy /);
     assert.match(text, / Avis des relecteurs Aucun agent ne l’a relu\. /);
     assert.doesNotMatch(text, /Demandé :/);
     const coherent = { ...PROPOSAL, remarks: [{ about: "coherence", where: "step 2", what: "It does not check the price." }] } as TestProposal;
     assert.match(
       textOf(screen("#/review", { value: QUEUE }, { value: coherent })),
-      / Avis des relecteurs Cohérence, step 2 : It does not check the price\. Code —/,
+      / Avis des relecteurs Cohérence, step 2 : It does not check the price\. Code ajouté/,
     );
     const quiet = { ...PROPOSAL, remarks: [] } as TestProposal;
     assert.match(textOf(screen("#/review", { value: QUEUE }, { value: quiet })), / Avis des relecteurs Aucune remarque des agents qui l’ont relu\. /);
     const bare = { ...PROPOSAL, steps: [{ action: "Open the quotes", expects: [] }], files: [] } as TestProposal;
-    assert.match(textOf(screen("#/review", { value: QUEUE }, { value: bare })), / Ce que le test vérifie Open the quotes Avis/);
+    assert.match(textOf(screen("#/review", { value: QUEUE }, { value: bare })), / Ce que le test vérifie 1 Open the quotes Avis/);
   });
 
   it("gives the gestures of a test to review, opens the panel that sets it aside, and tells what came of a decision", () => {
     const html = screen("#/review", { value: QUEUE }, { value: PROPOSAL }, CONTROLS);
     // Set aside and ask for a correction open their panels, validate is a button.
     assert.ok(linksOf(html).includes("#/review?panel=set-aside"));
-    assert.match(html, /<button type="button" class="btn primary" aria-keyshortcuts="V">Valider<\/button>/);
-    assert.match(html, /<a class="btn" href="#\/review\?panel=correct" aria-keyshortcuts="C">Demander une correction<\/a>/);
+    assert.match(html, /<button type="button" class="btn primary" aria-keyshortcuts="V">Valider et passer au suivant <kbd>V<\/kbd><\/button>/);
+    assert.match(html, /<a class="btn ghost" href="[^"]+" aria-keyshortcuts="E">Écarter <kbd>E<\/kbd><\/a>/);
+    assert.match(html, /<a class="btn" href="#\/review\?panel=correct" aria-keyshortcuts="C">Demander une correction <kbd>C<\/kbd><\/a>/);
     const panel = textOf(screen("#/review?panel=set-aside", { value: QUEUE }, { value: PROPOSAL }, CONTROLS));
     assert.match(
       panel,
@@ -171,12 +183,12 @@ describe("the review of the tests the agents wrote", () => {
     );
     // Under way, the gestures wait; refused, they say why; kept, the screen says what came of it.
     const pending = screen("#/review?panel=set-aside", { value: QUEUE }, { value: PROPOSAL }, { ...CONTROLS, pending: true });
-    assert.match(pending, /<button type="button" class="btn primary" disabled="" aria-keyshortcuts="V">Validation…<\/button>/);
+    assert.match(pending, /<button type="button" class="btn primary" disabled="" aria-keyshortcuts="V">Validation… <kbd>V<\/kbd><\/button>/);
     assert.match(pending, /<button type="submit" form="review-set-aside" class="btn primary" disabled="">/);
     const refused = { ...CONTROLS, refusal: "Ce test ne peut pas entrer dans le dépôt maintenant." };
     assert.match(
       textOf(screen("#/review", { value: QUEUE }, { value: PROPOSAL }, refused)),
-      / Ce test ne peut pas entrer dans le dépôt maintenant\. Écarter Demander une correction Valider$/,
+      / Ce test ne peut pas entrer dans le dépôt maintenant\. Écarter E Demander une correction C Valider et passer au suivant V$/,
     );
     assert.match(textOf(screen("#/review", { value: QUEUE }, { value: PROPOSAL }, { ...CONTROLS, told: "Écarté." })), /sans vous\. Écarté\. Nouveaux tests/);
     // Without what makes them, the panel cannot be submitted; a test set aside has no gesture, and opens no panel.
@@ -214,7 +226,7 @@ describe("the review of the tests the agents wrote", () => {
     const shown = screen("#/review?panel=correct", { value: queue }, { value: correcting }, CONTROLS);
     // A test in correction stays among the new tests, without gestures nor panel, and leads to the session that corrects it.
     assert.match(textOf(shown), / · En correction /);
-    assert.match(textOf(shown), / En correction Fonctionnel .* Correction demandée : « Use Max\. » Suivre la correction Pourquoi/);
+    assert.match(textOf(shown), / Écrit par l’agent En correction joué ✔ relu ✔ .* Correction demandée : « Use Max\. » Suivre la correction Pourquoi/);
     assert.ok(linksOf(shown).includes("#/agent/sessions/s1"));
     assert.doesNotMatch(textOf(shown), /Valider|Consigne/);
     // Back in review, it keeps what was asked.
