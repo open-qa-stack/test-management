@@ -355,3 +355,136 @@
 .test-tree-row[aria-current] {
   font-weight: var(--weight-strong);
 }
+
+/*
+ * The filters of the tests. On a phone what came of the tests takes the width in three equal parts, beside the button
+ * that opens the levels in a panel; from a tablet the levels stand in a row of their own, and the button goes.
+ */
+.tests-filters {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.tests-filters .tests-levels {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tests-filters .chip {
+  justify-content: center;
+  min-height: var(--tap);
+}
+
+.tests-filter-open {
+  flex: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
+.tests-levels-row {
+  display: none;
+}
+
+/* The levels in their panel: a row each, the one chosen marked by a filled round. */
+.tests-level-rows {
+  display: grid;
+}
+
+.tests-level-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tests-radio {
+  flex: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-pill);
+}
+
+.tests-level-row.on .tests-radio {
+  border: var(--space-1) solid var(--brand-navy);
+}
+
+/* A group of tests, the tests of an application, which folds under its name. */
+.tests-group {
+  padding: 0;
+}
+
+.tests-group > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-2) var(--inset);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tests-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tests-group > summary > svg {
+  color: var(--text-3);
+  transform: rotate(-90deg);
+}
+
+.tests-group[open] > summary {
+  border-bottom: var(--hairline) solid var(--line-soft);
+}
+
+.tests-group[open] > summary > svg {
+  transform: none;
+}
+
+/* A test on a phone: what came of it, its title over its facts, and the way to its card; from a tablet its facts stand at its right. */
+.tests-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tests-row > svg {
+  align-self: center;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+}
+
+.tests-row-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  grid-column: 2;
+  grid-row: 2;
+}
+
+@media (min-width: 720px) {
+  .tests-filter-open {
+    display: none;
+  }
+
+  .tests-filters .tests-levels {
+    display: flex;
+    flex: none;
+  }
+
+  .tests-levels-row {
+    display: flex;
+  }
+
+  .tests-row {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+  }
+
+  .tests-row-facts {
+    grid-column: 3;
+    grid-row: 1;
+    flex-wrap: nowrap;
+  }
+}

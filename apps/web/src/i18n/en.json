@@ -926,7 +926,9 @@
     },
     "relaunchFailures_one": "Replay the failure",
     "relaunchFailures_other": "Replay the {{count}} failures",
-    "relaunchFailuresNote": "Runs the files of the failing tests again, whole."
+    "relaunchFailuresNote": "Runs the files of the failing tests again, whole.",
+    "filterTitle": "Filter the tests",
+    "levelHeading": "Level"
   },
   "review": {
     "title": "To review",
