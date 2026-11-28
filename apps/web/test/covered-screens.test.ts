@@ -671,6 +671,14 @@ describe("the code of the console is covered in full", () => {
         // The search narrows the list: the test it does not match goes, the one it matches stays.
         await page.getByText("Display the detail of a policy").waitFor({ state: "detached" });
         await page.getByText("Compare the edit form of a policy").waitFor();
+        // What failed last is a filter away, and runs again from the head of the screen.
+        const [latest] = EXECUTIONS;
+        instance.executions = [{ ...latest!, results: [{ ...latest!.results[0]!, verdict: "failed" }] }];
+        await page.goto("http://console.test/#/tests");
+        await page.getByRole("link", { name: /^Échoués 1/ }).click();
+        await page.waitForURL(/#\/tests\?outcome=failed$/);
+        await page.locator(".tests-row.failed").first().waitFor();
+        await page.getByRole("button", { name: /^Rejouer/ }).waitFor();
       },
       instance.api,
     );

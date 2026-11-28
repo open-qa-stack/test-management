@@ -49,17 +49,17 @@ export function reportHref(path: string): string {
 }
 
 /** What the failed assertion expected and received, side by side, what it received in the tone of the failure; a sentence when its message does not say both. */
-export function Comparison({ view }: { readonly view: QaView }): ReactNode {
-  if (view.expected === undefined || view.received === undefined) return <p className="small muted run-compare-none">{t("test.noCompare")}</p>;
+export function Comparison({ expected, received }: { readonly expected: string | undefined; readonly received: string | undefined }): ReactNode {
+  if (expected === undefined || received === undefined) return <p className="small muted run-compare-none">{t("test.noCompare")}</p>;
   return (
     <dl className="run-compare">
       <div className="run-compare-part">
         <dt>{t("test.expected")}</dt>
-        <dd className="mono">{view.expected}</dd>
+        <dd className="mono">{expected}</dd>
       </div>
       <div className="run-compare-part ko">
         <dt>{t("test.received")}</dt>
-        <dd className="mono">{view.received}</dd>
+        <dd className="mono">{received}</dd>
       </div>
     </dl>
   );

@@ -82,19 +82,20 @@ describe("the card of a test", () => {
     nameApplications([]);
     assert.match(
       text,
-      /^Tests lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy Modifier le titre Fonctionnel policies › policy-detail Policy Management /,
+      /^Tests lakeside-tests \/ Tests \/ Display the detail of a policy Display the detail of a policy Niveau Fonctionnel Fonction policies › policy-detail Applications Policy Management /,
     );
     assert.match(
       text,
-      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Étapes · 2 étapes, telles qu’écrites 1\. Open the policy of the customer Modifier 2\. Read its amounts Modifier Code · Le fichier tel qu’il est dans le dépôt de tests\. Voir le code du test Lecture du fichier… Tests par domaine .* Détails techniques apps\/policy-management\/\S+\.spec\.ts$/,
+      /Pas encore exécuté Ses exécutions apparaissent ici dès qu’une session de l’agent, ou une exécution, l’a joué\. Étapes · 2 étapes, telles qu’écrites 1\. Open the policy of the customer 2\. Read its amounts Code · Le fichier tel qu’il est dans le dépôt de tests\. Voir le code du test Lecture du fichier… Tests par domaine .* Détails techniques apps\/policy-management\/\S+\.spec\.ts$/,
     );
     assert.match(textOf(screen({ value: [] }, { value: TESTS }, HANDMADE.path)), /Étapes · 0 étape, telle qu’écrite Le fichier ne déclare aucune étape\. Code/);
   });
 
-  it("says what came of it lately, then lists its executions, each leading to what came of it there", () => {
+  it("opens on its last failure, then lists its executions, each leading to what came of it there", () => {
     const html = screen({ value: EXECUTIONS });
     const text = textOf(html);
-    assert.match(text, / Échoué (Dernière exécution le \d+ nov\. 2026, \d\d:\d\d) 2 réussites sur les 3 dernières exécutions Voir le dernier résultat → /);
+    assert.match(text, / Échoué \d+ nov\. 2026, \d\d:\d\d · 2 s · Session de l’agent · v3 Voir le dernier résultat Lisez d’abord le résultat/);
+    assert.match(html, /<a class="test-title-edit" href="#\/tests\/view\?panel=title" aria-label="Modifier le titre" title="Modifier le titre">/);
     assert.match(
       text,
       /Exécutions · 3 exécutions, la plus récente d’abord Échoué \d+ nov\. 2026, \d\d:\d\d Session de l’agent · v3 · Version de travail 2 s Instable \d+ nov\. 2026, \d\d:\d\d Session de l’agent · v2 2 s Réussi \d+ nov\. 2026, \d\d:\d\d · Policies › Edit a policy Session de l’agent 2 s Code · /,
@@ -104,10 +105,14 @@ describe("the card of a test", () => {
     const uncommitted = { ...ran("e4", 8, "passed"), result: { ...ran("e4", 8, "passed").result, version: 1 } };
     assert.match(screen({ value: [uncommitted] }), /<span>v1<\/span>/, "a version run at no commit names none");
     assert.doesNotMatch(text, /4f2a9c0/);
-    // The dots tell the latest executions, the oldest on the left.
+    // The dots tell the latest executions, the oldest on the left, once the last did not fail.
     assert.match(
-      html,
-      /<span class="test-dots" role="img" aria-label="Les dernières exécutions, la plus ancienne à gauche"><span class="test-dot passed" title="Réussi"><\/span><span class="test-dot flaky" title="Instable"><\/span><span class="test-dot failed" title="Échoué"><\/span><\/span>/,
+      screen({ value: EXECUTIONS.slice(1) }),
+      /<span class="test-dots" role="img" aria-label="Les dernières exécutions, la plus ancienne à gauche"><span class="test-dot passed" title="Réussi"><\/span><span class="test-dot flaky" title="Instable"><\/span><\/span>/,
+    );
+    assert.match(
+      textOf(screen({ value: EXECUTIONS.slice(1) })),
+      / Instable Dernière exécution le \d+ nov\. 2026, \d\d:\d\d 2 réussites sur les 2 dernières exécutions Voir le dernier résultat → /,
     );
     const result = (id: string) => `#/executions/result?id=${id}&path=${encodeURIComponent(DETAIL.path)}`;
     const panel = (name: string) => `#/tests/view?panel=${encodeURIComponent(name)}`;
@@ -135,6 +140,47 @@ describe("the card of a test", () => {
       ...tree,
     ]);
     assert.doesNotMatch(textOf(screen({ value: EXECUTIONS.slice(0, 1) })), /sur la dernière exécution/, "one execution says no rate");
+  });
+
+  it("marks the step its last run failed at, with what was expected and received, and none once it passed", () => {
+    const failure = { step: { number: 2, title: "Read its amounts" }, expected: '"1500 CHF"', received: '"250 CHF"' };
+    const failed = { ...EXECUTIONS[0]!, result: { ...EXECUTIONS[0]!.result, failure } };
+    const html = screen({ value: [failed] });
+    assert.match(textOf(html), /Échoué à l’étape 2 sur 2 .* 2\. Read its amounts Échec ici · attendu "1500 CHF", obtenu "250 CHF"/);
+    assert.match(html, /<li class="row test-written-step failed"><span class="test-step-number failed">2\.<\/span>/);
+    assert.match(
+      textOf(screen({ value: [{ ...failed, result: { ...failed.result, failure: { step: failure.step } } }] })),
+      /2\. Read its amounts Échec ici (?!·)/,
+    );
+    assert.doesNotMatch(screen({ value: EXECUTIONS.slice(1) }), /test-written-step failed/);
+  });
+
+  it("goes from a test that failed last to the one before and the one after, in the order of the list", () => {
+    const failing = [SCREEN, DETAIL, SMOKE].map((test) => ({ path: test.path, title: test.title, verdict: "failed" as const }));
+    const card = (path: string, verdicts = failing): string =>
+      render(
+        createElement(TestScreen, {
+          project: "p",
+          path,
+          route: at("#/tests/view"),
+          tests: { value: TESTS },
+          executions: { value: [] },
+          verdicts,
+          versions: {},
+          source: {},
+          saving: { pending: false },
+          onChange: () => undefined,
+        }),
+      );
+    const order = TESTS.filter((test) => failing.some((verdict) => verdict.path === test.path)).map((test) => test.path);
+    const middle = card(order[1]!);
+    assert.match(textOf(middle), new RegExp(`Échec 2 sur ${order.length}`));
+    assert.ok(linksOf(middle).includes(testHref(order[0]!)) && linksOf(middle).includes(testHref(order[2]!)));
+    assert.match(middle, /<a class="btn sm" href="[^"]+" aria-label="Échec précédent">/);
+    const first = card(order[0]!);
+    assert.match(first, /<span class="btn sm" aria-disabled="true">/);
+    assert.match(card(order.at(-1)!), /<span class="btn sm test-failures-next" aria-disabled="true">/);
+    assert.doesNotMatch(card(HANDMADE.path), /test-failures/);
   });
 
   it("reports a defect of a test that failed in a panel, written from its failure, and says where the reporting stands", () => {
