@@ -3,7 +3,7 @@ import { describe, it } from "vitest";
 import type { ToolDefinition } from "@open-qa-stack/domain";
 import { ApplicationMap } from "../src/application-explorer/application-map.ts";
 import { applicationExplorerInstructions, explorationRequest } from "../src/application-explorer/application-explorer-prompt.ts";
-import { screenRoute, ScreenTrail, type ExplorationMode } from "../src/application-explorer/screen-trail.ts";
+import { ERROR_ROUTE, screenRoute, ScreenTrail, type ExplorationMode } from "../src/application-explorer/screen-trail.ts";
 import { Journal } from "../src/common/journal.ts";
 
 const BASE = "http://shop.test";
@@ -17,6 +17,9 @@ const PAGES: Readonly<Record<string, { title: string; page: string }>> = {
     page: '- heading "Customers"\n- textbox "Search"\n- link "Ada":\n  - /url: /customers/ab12cd34\n- link "Home":\n  - /url: /\n- text: 2 customers',
   },
   "/customers/ab12cd34": { title: "Ada", page: '- heading "Ada Lovelace"\n- text: No orders yet' },
+  "/old-links": { title: "Old links", page: '- heading "Old links"\n- link "Someone":\n  - /url: /customers/not-a-real-customer' },
+  "/customers/not-a-real-customer": { title: "Page not found", page: '- heading "Oops"\n- link "Home":\n  - /url: /' },
+  "/archive": { title: "Shop", page: '- heading "Cette page n’existe pas" [level=1]\n- text: Revenez à l’accueil.' },
 };
 
 type Told = string | { error: string };
@@ -52,6 +55,7 @@ function explored(mode: ExplorationMode = "read-only") {
     tool("select_option", () => "done"),
     tool("check", () => state()),
     tool("screenshot", () => null),
+    tool("title", () => state()),
   ];
   const trail = new ScreenTrail("shop", `${BASE}/`, mode);
   const journal = new Journal();
@@ -134,6 +138,29 @@ describe("what an agent saw of a user interface while it explored it", () => {
       ],
       ["/customers/:id", "/customers/:id", "/customers/:id", "/logout", undefined, undefined],
     );
+  });
+
+  it("names every page that says it does not exist after what it is, one screen of an error, whatever address was tried", async () => {
+    const { trail, call } = explored();
+    assert.equal(trail.route(ERROR_ROUTE), undefined, "no error before one is opened");
+    // A tool that tells where the page is without what it shows names it by its title alone.
+    await call("shop_goto", { url: "/old-links" });
+    await call("shop_title");
+    assert.deepEqual(trail.pending, ["/customers/not-a-real-customer"]);
+    // Its title says it, then a heading of another page does, in French.
+    await call("shop_goto", { url: "/customers/not-a-real-customer" });
+    await call("shop_goto", { url: "/archive" });
+    assert.deepEqual(
+      trail.visited.map(({ route, title }) => [route, title]),
+      [
+        ["/old-links", "Old links"],
+        [ERROR_ROUTE, "Shop"],
+      ],
+    );
+    // The address tried is no screen to open, and the agent names the error as the trail does.
+    assert.deepEqual(trail.pending, ["/"]);
+    assert.equal(trail.route(ERROR_ROUTE), ERROR_ROUTE);
+    assert.ok(trail.shows(ERROR_ROUTE, "Revenez à l’accueil."));
   });
 
   it("passes on a call that fails or tells no page, and what a tool that acts on nothing answers", async () => {

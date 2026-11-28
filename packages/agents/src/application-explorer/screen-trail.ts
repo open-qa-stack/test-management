@@ -6,6 +6,12 @@ import { observed } from "../designer/observed.ts";
 const LINK = /^\s*- \/url: (.+)$/;
 /** A segment of a path that names one record: a number, a UUID, or six characters or more with a digit. */
 const RECORD = /^(?:\d+|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{6,})$/i;
+/** What the title or a heading of a page says when the page does not exist. */
+const MISSING = /\b404\b|not found|introuvable|non trouvée|n['’]existe pas|does(?: not|n['’]t) exist|no longer exists/i;
+/** A heading line of a snapshot: `- heading "Not found" [level=1]`. */
+const HEADING = /^\s*- heading "/;
+/** The route of every screen of an application that says a page does not exist, named after what it is. */
+export const ERROR_ROUTE = "/:error";
 /** The tools that act on the page, after which the trail reads what it shows. */
 const ACTIONS = ["goto", "click", "fill", "select_option", "check"];
 
@@ -48,6 +54,17 @@ export function screenRoute(address: string, from: URL, base: URL): string | und
 }
 
 /**
+ * Whether a page says it does not exist, by its title or one of its headings: a 404, a page not found.
+ *
+ * @param title - The title of the page.
+ * @param page - Its snapshot.
+ * @returns `true` for the page of an error.
+ */
+function missingPage(title: string, page: string): boolean {
+  return [title, ...page.split("\n").filter((line) => HEADING.test(line))].some((text) => MISSING.test(text));
+}
+
+/**
  * What an agent saw of a user interface while it explored it, as the calls of its browser tools tell, and
  * what it may do there.
  *
@@ -56,7 +73,8 @@ export function screenRoute(address: string, from: URL, base: URL): string | und
  * trail reads what the page shows, and gives it back with the result of the action, so that the agent sees
  * where each step leads without asking. Each result names a screen by its route; the trail keeps what the
  * screen last showed, every line it ever showed, and the screens its links lead to. A link seen and never
- * opened is a screen still to visit.
+ * opened is a screen still to visit. A page that says it does not exist is one screen, `/:error`, named after
+ * what it is: the address tried is no screen to visit.
  *
  * An exploration never removes data: an element whose name says it removes some is not clicked. In an
  * environment explored `read-only`, one whose name says it creates or changes data is not clicked either:
@@ -68,6 +86,8 @@ export class ScreenTrail {
   private readonly mode: ExplorationMode;
   private readonly screens = new Map<string, { title: string; page: string; lines: Set<string>; links: Set<string> }>();
   private readonly seen = new Set<string>();
+  /** The routes an address of which led to the screen of an error, which are no screens to open. */
+  private readonly missing = new Set<string>();
 
   /**
    * @param applicationId - Identifier of the application, which names its tools.
@@ -122,7 +142,7 @@ export class ScreenTrail {
    * @returns Their routes, in the order the links were seen.
    */
   public get pending(): string[] {
-    return [...this.seen].filter((route) => !this.screens.has(route));
+    return [...this.seen].filter((route) => !this.screens.has(route) && !this.missing.has(route));
   }
 
   /**
@@ -133,6 +153,7 @@ export class ScreenTrail {
    * @returns The route of a screen visited or seen; `undefined` when the trail knows none such.
    */
   public route(written: string): string | undefined {
+    if (written === ERROR_ROUTE && this.screens.has(ERROR_ROUTE)) return ERROR_ROUTE;
     // A record is `:id` whatever the agent calls it: /customers/:customerId is /customers/:id.
     const named = written.replace(/(?<=\/):[A-Za-z_][A-Za-z0-9_]*/g, ":id");
     const route = this.known(named) ? named : screenRoute(named, this.base, this.base);
@@ -169,8 +190,11 @@ export class ScreenTrail {
   private recorded(result: unknown): unknown {
     const { url, title, page } = (result ?? {}) as { url?: unknown; title?: unknown; page?: unknown };
     if (typeof url !== "string" || typeof title !== "string") return result;
-    const route = screenRoute(url, this.base, this.base);
-    if (route === undefined) return result;
+    const reached = screenRoute(url, this.base, this.base);
+    if (reached === undefined) return result;
+    // A page that says it does not exist is the screen of an error, whatever address was tried.
+    const route = missingPage(title, typeof page === "string" ? page : "") ? ERROR_ROUTE : reached;
+    if (route === ERROR_ROUTE) this.missing.add(reached);
     const screen = this.screens.get(route) ?? { title, page: "", lines: new Set<string>(), links: new Set<string>() };
     screen.title = title;
     if (typeof page === "string") {
