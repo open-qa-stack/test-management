@@ -209,21 +209,43 @@
   gap: var(--space-3);
 }
 
-/* On a phone the gestures stay at hand, at the bottom of the screen. */
+/*
+ * On a phone the gestures stay at hand, at the bottom of the screen: validating on a line of its own, first, then
+ * the correction and setting aside side by side. From a tablet they stand in a row, validating last.
+ */
 .review-actions {
   position: sticky;
   bottom: 0;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
   padding: var(--space-2) 0;
   background: var(--sheet);
 }
 
-/* Each gesture fills its line, so that none is left alone at the start of one. */
 .review-actions .btn {
-  flex: 1 1 auto;
   min-height: 44px;
+}
+
+.review-actions .btn.primary {
+  grid-column: 1 / -1;
+  order: -1;
+}
+
+.review-actions .btn:only-child {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .review-actions .btn.primary {
+    order: 0;
+  }
 }
 
 .review-unread {

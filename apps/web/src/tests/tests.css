@@ -150,10 +150,14 @@
   line-height: var(--leading-small);
 }
 
+/* On a phone the facts of a test read as a table, a label beside each value; from a tablet they stand on a line. */
+.test-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
 .test-facts div {
-  display: flex;
-  gap: var(--space-2);
-  min-width: 0;
+  display: contents;
 }
 
 .test-facts dt {
@@ -197,18 +201,81 @@
   transform: rotate(180deg);
 }
 
-.test-failure .run-outcome-head .grow {
+/* On a phone when and where the test failed, and the way to that result, go under where it failed; from a tablet they follow it. */
+.test-failure .run-outcome-head .grow,
+.test-failure .run-outcome-head a {
+  flex-basis: 100%;
   min-width: 0;
+  padding-left: calc(var(--space-6) + var(--space-3));
+}
+
+@media (min-width: 720px) {
+  .test-failure .run-outcome-head .grow,
+  .test-failure .run-outcome-head a {
+    flex-basis: auto;
+    padding-left: 0;
+  }
 }
 
 .test-failure-note {
   margin: 0;
 }
 
+/*
+ * What to do with a failure: on a phone, a bar at the bottom of the screen — a screen under another has no tabs —,
+ * the agent to ask on a line of its own; from a tablet, a row in the card.
+ */
 .test-failure-actions {
-  display: flex;
-  flex-wrap: wrap;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
+  padding: var(--space-3) var(--gutter) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: var(--hairline) solid var(--line);
+  background: var(--surface);
+}
+
+.test-failure-actions .btn {
+  min-height: var(--tap);
+}
+
+.test-failure-actions .btn:only-child,
+.test-failure-actions .btn.primary {
+  grid-column: 1 / -1;
+}
+
+.shell-page:has(.test-failure-actions) {
+  padding-bottom: calc(var(--space-12) * 3);
+}
+
+@media (min-width: 720px) {
+  .test-facts {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .test-facts div {
+    display: flex;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .test-failure-actions {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .shell-page:has(.test-failure-actions) {
+    padding-bottom: var(--space-6);
+  }
 }
 
 /* The steps of a test, a row each: its number, its text, which wraps beside it, and what changes it. */
