@@ -23,7 +23,7 @@ describe("the shell on a narrow and on a wide screen", () => {
       assert.deepEqual([docked.x, docked.y + docked.height, docked.width], [0, 800, 390], "the tabs stay at the bottom of the screen");
       const named = await tabs.getByRole("link").evaluateAll((all) =>
         all.map((link) => {
-          const label = link.querySelector("span")!;
+          const label = link.querySelector(".tab-label")!;
           return { text: label.textContent, cut: label.scrollWidth > label.clientWidth, height: link.getBoundingClientRect().height };
         }),
       );
@@ -77,7 +77,7 @@ describe("the shell on a narrow and on a wide screen", () => {
       const page = await app().open(width, "", new PlayedInstance().api);
       try {
         await page.getByText("1 application · projet").waitFor();
-        assert.deepEqual(await page.locator(".shell-sidebar").boundingBox(), { x: 0, y: 0, width: 224, height: 800 }, `${width}`);
+        assert.deepEqual(await page.locator(".shell-sidebar").boundingBox(), { x: 0, y: 0, width: 248, height: 800 }, `${width}`);
         assert.equal(await page.locator(".top").isVisible(), false, `${width}`);
         assert.equal(await page.getByRole("navigation", { name: "Onglets" }).isVisible(), false, `${width}`);
         assert.ok(await page.getByRole("link", { name: "Raccourcis clavier" }).isVisible(), `${width}`);

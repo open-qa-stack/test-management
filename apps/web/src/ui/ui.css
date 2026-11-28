@@ -36,8 +36,27 @@
 }
 
 @media (min-width: 720px) {
+  /* From a tablet the title and what the page is for stand at the left, its actions at the right of both. */
   .ph {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
     padding-top: 0;
+  }
+
+  .ph > .crumb {
+    grid-column: 1 / -1;
+  }
+
+  .ph > h1,
+  .ph > .page-hint {
+    grid-column: 1;
+  }
+
+  .ph > .actions {
+    grid-column: 2;
+    grid-row: span 2;
+    margin-left: 0;
   }
 
   .crumb-back {
@@ -119,10 +138,11 @@
 /* What a page is for: a line under its title, as close to it as a line to the one above, as wide as reads well. */
 .page-hint {
   flex-basis: 100%;
+  max-width: var(--measure);
   margin: var(--gap-line) 0 0;
   color: var(--text-2);
-  font-size: var(--type-small);
-  line-height: var(--leading-small);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
 }
 
 .content {

@@ -46,7 +46,7 @@ describe("the components of the console", () => {
     );
   });
 
-  it("heads a page with its breadcrumb, a title that can take the focus and its actions, or with the header of an entity", () => {
+  it("heads a page under another with its breadcrumb, a title that can take the focus and its actions, or with the header of an entity", () => {
     const html = render(
       createElement(Page, {
         crumbs: [{ label: "Projet" }, { label: "Tests", href: "#/tests" }, { label: "Un test" }],
@@ -58,7 +58,8 @@ describe("the components of the console", () => {
     assert.equal(textOf(html), "Tests Projet / Tests / Un test Un test valider content");
     assert.match(html, /<span>Projet<\/span>.*<a href="#\/tests">Tests<\/a>.*<b>Un test<\/b>/);
     assert.match(html, /<h1 tabindex="-1">Un test<\/h1>/);
+    // A screen of the navigation opens on its title, without a breadcrumb.
     const entity = render(createElement(Page, { crumbs: [{ label: "Tests" }], entity: "entity", children: "content" }));
-    assert.equal(entity, '<div class="ph"><div class="crumb"><span class="crumb-step"><b>Tests</b></span></div></div>entity<div class="content">content</div>');
+    assert.equal(entity, '<div class="ph"></div>entity<div class="content">content</div>');
   });
 });

@@ -28,7 +28,7 @@ describe("the applications of the project", () => {
   it("says it reads the configuration until the instance told it, and why it could not", () => {
     assert.equal(
       textOf(screen("#/applications", INITIAL_CONFIGURATION)),
-      "shop-tests / Applications Applications Lecture de la configuration Elle apparaît dès que l’instance a répondu.",
+      "Applications Lecture de la configuration Elle apparaît dès que l’instance a répondu.",
     );
     assert.match(textOf(screen("#/applications", { ...INITIAL_CONFIGURATION, unread: "Down." })), /Lecture de la configuration Down\.$/);
   });
@@ -43,7 +43,7 @@ describe("the applications of the project", () => {
     const html = screen("#/applications");
     assert.match(
       textOf(html),
-      /^shop-tests \/ Applications Applications Ajouter une application Les applications que testent les agents, chacune avec ses environnements et ses API\. Shop Interface web et API · 1 environnement · 1 API · 1 compte de test 8 connaissances shop$/,
+      /^Applications Ajouter une application Les applications que testent les agents, chacune avec ses environnements et ses API\. Shop Interface web et API · 1 environnement · 1 API · 1 compte de test 8 connaissances shop$/,
     );
     assert.ok(linksOf(html).includes("#/applications/shop"));
     assert.ok(linksOf(html).includes("#/applications?add=application"));

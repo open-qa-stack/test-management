@@ -40,7 +40,7 @@ describe("the knowledge of the project", () => {
   it("says it reads the knowledge until the instance told it, and why it could not", () => {
     assert.equal(
       textOf(screen("#/knowledge", INITIAL_KNOWLEDGE, INITIAL_CONFIGURATION)),
-      "shop-tests / Connaissances Connaissances Configurer le projet Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
+      "Connaissances Configurer le projet Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
     );
     assert.match(
       textOf(screen("#/knowledge", { ...INITIAL_KNOWLEDGE, unread: "L’instance ne répond pas." })),

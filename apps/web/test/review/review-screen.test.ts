@@ -45,10 +45,7 @@ describe("the place of the review in the address", () => {
 
 describe("the review of the tests the agents wrote", () => {
   it("says it reads the queue until the instance told it, and why it could not", () => {
-    assert.equal(
-      textOf(screen("#/review", {})),
-      "lakeside-tests / À relire À relire Lecture des tests à relire Ils apparaissent dès que l’instance a répondu.",
-    );
+    assert.equal(textOf(screen("#/review", {})), "À relire Lecture des tests à relire Ils apparaissent dès que l’instance a répondu.");
     assert.match(textOf(screen("#/review", { unread: "L’instance ne répond pas." })), /Lecture des tests à relire L’instance ne répond pas\.$/);
     // Once told, the queue stays shown while the instance does not answer, with why.
     assert.match(textOf(screen("#/review", { value: QUEUE, unread: "L’instance ne répond pas." })), /sans vous\. L’instance ne répond pas\. Nouveaux tests 2/);
@@ -59,10 +56,7 @@ describe("the review of the tests the agents wrote", () => {
     const html = screen("#/review", { value: QUEUE }, { value: PROPOSAL });
     nameApplications([]);
     const text = textOf(html);
-    assert.match(
-      text,
-      /^lakeside-tests \/ À relire À relire Les tests que les agents ont écrits attendent votre décision : rien n’entre dans le dépôt sans vous\. /,
-    );
+    assert.match(text, /^À relire Les tests que les agents ont écrits attendent votre décision : rien n’entre dans le dépôt sans vous\. /);
     assert.match(text, /Nouveaux tests 2 Mises à jour 0 Écartés 1 Tous les domaines quotes policies /);
     assert.match(
       text,

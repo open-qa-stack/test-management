@@ -29,6 +29,7 @@ import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
 import { nameApplications } from "./applications/application-names.ts";
 import { Shell, type ShellMenu } from "./shell/shell.tsx";
+import type { MenuCounts } from "./shell/navigation.ts";
 import { EmptyState } from "./ui/empty-state.tsx";
 import { Page } from "./ui/page.tsx";
 
@@ -56,6 +57,8 @@ export interface ConsoleProps {
   readonly onConfigured?: () => void;
   /** The menu of a wide screen, which the person folds and unfolds. */
   readonly menu?: ShellMenu;
+  /** What the menu counts beside its entries, once the instance told it. */
+  readonly counts?: MenuCounts;
 }
 
 /**
@@ -304,7 +307,7 @@ function Screen(props: ConsoleProps): ReactNode {
  * @returns The console.
  */
 export function Console(props: ConsoleProps): ReactNode {
-  const { route, project, unreachable = false, menu } = props;
+  const { route, project, unreachable = false, menu, counts } = props;
   return (
     <Shell
       route={route}
@@ -312,6 +315,7 @@ export function Console(props: ConsoleProps): ReactNode {
       bare={isTrace(route)}
       {...(project === undefined ? {} : { project })}
       {...(menu === undefined ? {} : { menu })}
+      {...(counts === undefined ? {} : { counts })}
     >
       <Screen {...props} />
     </Shell>

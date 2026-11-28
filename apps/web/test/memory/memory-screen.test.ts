@@ -32,11 +32,11 @@ describe("the place of the memory in the address", () => {
 
 describe("the memory of the agents", () => {
   it("says it is read until the instance told it, and why it could not", () => {
-    assert.equal(textOf(screen("#/memory", {})), "lakeside-tests / Mémoire Mémoire Lecture de la mémoire Elle apparaît dès que l’instance a répondu.");
+    assert.equal(textOf(screen("#/memory", {})), "Mémoire Lecture de la mémoire Elle apparaît dès que l’instance a répondu.");
     assert.match(textOf(screen("#/memory", { unread: "L’instance ne répond pas." })), /Lecture de la mémoire L’instance ne répond pas\.$/);
     assert.match(
       textOf(screen("#/memory", { value: MEMORY, unread: "L’instance ne répond pas." })),
-      /^lakeside-tests \/ Mémoire Mémoire \+ Consigne Ce que les agents relisent .* sans supprimer\. L’instance ne répond pas\. Actives 2/,
+      /^Mémoire \+ Consigne Ce que les agents relisent .* sans supprimer\. L’instance ne répond pas\. Actives 2/,
     );
   });
 

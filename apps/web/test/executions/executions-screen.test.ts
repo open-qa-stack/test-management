@@ -29,7 +29,7 @@ const screen = (state: PolledState<ExecutionList> = { value: pageOf(EXECUTIONS) 
 
 describe("the executions of the tests", () => {
   it("says it reads the executions until the instance listed them, and why it could not", () => {
-    assert.equal(textOf(screen({})), "lakeside-tests / Exécutions Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.");
+    assert.equal(textOf(screen({})), "Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.");
     assert.match(textOf(screen({ unread: "L’instance ne répond pas." })), /Lecture des exécutions L’instance ne répond pas\.$/);
   });
 
@@ -55,7 +55,7 @@ describe("the executions of the tests", () => {
     const text = textOf(screen());
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Origine Toutes les origines Session de l’agent Lancement manuel Campagne Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Par page 25 50 100 Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
+      /^Exécutions Les exécutions des tests, la plus récente d’abord\. Résultat Toutes Avec un échec Sans échec Origine Toutes les origines Session de l’agent Lancement manuel Campagne Période Toutes les dates Dernières 24 heures 7 derniers jours 30 derniers jours Par page 25 50 100 Date Origine Contenu Résultat Durée 19 nov\. 2026, \d\d:\d\d Session de l’agent /,
     );
     assert.match(text, / Session de l’agent Session « Test the policies » 1 échoué 1 instable 9 s Échoué /);
     assert.doesNotMatch(text, /4f2a9c0/);

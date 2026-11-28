@@ -60,7 +60,7 @@ const REFERENCE_TOKENS = {
   "--picture-sm": "20px",
   "--row-line": "calc(var(--row) - 2 * var(--hairline))",
   "--keyline": "calc(var(--picture) + var(--space-3))",
-  "--sidebar": "224px",
+  "--sidebar": "248px",
   "--column": "848px",
   "--column-narrow": "768px",
   "--drawer": "clamp(420px, 38vw, 560px)",

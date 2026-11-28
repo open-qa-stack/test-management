@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import type { Route } from "../routing/route.ts";
 import { t } from "../i18n/i18n.ts";
-import { NAVIGATION } from "./navigation.ts";
+import { countOf, NAVIGATION, type MenuCounts } from "./navigation.ts";
 import { NavigationItem } from "./navigation-item.tsx";
 
 /** What the navigation is drawn from. */
@@ -11,6 +11,8 @@ export interface NavigationListProps {
   readonly route: Route;
   /** The project of the instance, once the API described it. */
   readonly project?: Project | undefined;
+  /** What the menu counts beside its entries, once the instance told it. */
+  readonly counts?: MenuCounts | undefined;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface NavigationListProps {
  * @param props - Where the console is and the project.
  * @returns The navigation.
  */
-export function NavigationList({ route, project }: NavigationListProps): ReactNode {
+export function NavigationList({ route, project, counts }: NavigationListProps): ReactNode {
   const name = project?.name;
   return (
     <nav className="nav" aria-label={t("shell.navigation")}>
@@ -36,7 +38,7 @@ export function NavigationList({ route, project }: NavigationListProps): ReactNo
         <div key={group.key} className="nav-group">
           <div className="grp">{t(`shell.groups.${group.key}`)}</div>
           {group.entries.map((entry) => (
-            <NavigationItem key={entry.key} entry={entry} route={route} />
+            <NavigationItem key={entry.key} entry={entry} route={route} count={countOf(entry.key, counts)} />
           ))}
         </div>
       ))}

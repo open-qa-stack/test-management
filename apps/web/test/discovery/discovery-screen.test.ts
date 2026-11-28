@@ -79,7 +79,7 @@ describe("the discovery of the project", () => {
           }),
         ),
       ),
-      "shop-tests / Découverte Découverte Lecture de la cartographie Elle apparaît dès que l’instance a répondu.",
+      "Découverte Lecture de la cartographie Elle apparaît dès que l’instance a répondu.",
     );
     assert.match(
       textOf(

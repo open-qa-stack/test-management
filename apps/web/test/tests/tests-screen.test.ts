@@ -33,7 +33,7 @@ const screen = (hash: string, state: TestsState = { tests: TESTS }, verdicts?: r
 
 describe("the tests of the repository", () => {
   it("says it reads the tests until the instance listed them, and why it could not", () => {
-    assert.equal(textOf(screen("#/tests", INITIAL_TESTS)), "lakeside-tests / Tests Tests Lecture des tests Ils apparaissent dès que l’instance a répondu.");
+    assert.equal(textOf(screen("#/tests", INITIAL_TESTS)), "Tests Lecture des tests Ils apparaissent dès que l’instance a répondu.");
     assert.match(textOf(screen("#/tests", { unread: "L’instance ne répond pas." })), /Lecture des tests L’instance ne répond pas\.$/);
   });
 
@@ -48,7 +48,7 @@ describe("the tests of the repository", () => {
     nameApplications([{ id: "policy-management", name: "Policy Management" }]);
     const text = textOf(screen("#/tests"));
     nameApplications([]);
-    assert.match(text, /^lakeside-tests \/ Tests Tests 4 tests du dépôt de tests, tels que leurs fichiers sont maintenant\./);
+    assert.match(text, /^Tests 4 tests du dépôt de tests, tels que leurs fichiers sont maintenant\./);
     assert.match(text, /customer-management · 1 test Customer Management answers Vérification rapide 1 étape Pas encore exécuté/);
     assert.match(
       text,

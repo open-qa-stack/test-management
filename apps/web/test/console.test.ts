@@ -90,7 +90,7 @@ describe("the console", () => {
   it("opens on the entry of the agent, at the home and at its own address", () => {
     for (const hash of ["", "#/", "#/agent", "#/agent?show=talk"]) {
       const html = consoleAt(hash);
-      assert.match(pageOf(html), /^Projet \/ Agent Qu’est-ce qu’on teste \? .* Démarrer une session .* Lecture des sessions…$/, hash);
+      assert.match(pageOf(html), /^Qu’est-ce qu’on teste \? .* Démarrer une session .* Lecture des sessions…$/, hash);
       assert.match(html, /^<div class="shell"><header class="top">/, hash);
     }
   });
@@ -98,7 +98,7 @@ describe("the console", () => {
   it("gives the entry of the agent the project and the sessions the API told", () => {
     const html = consoleAt("#/agent", { project: PROJECT, sessions: [COMPLETED] });
     assert.match(textOf(html), /^✓ Open QA Stack lakeside-tests ✓ Open QA Stack LA lakeside-tests 1 application · projet/);
-    assert.match(pageOf(html), /^lakeside-tests \/ Agent Qu’est-ce qu’on teste \?/);
+    assert.match(pageOf(html), /^Qu’est-ce qu’on teste \?/);
     assert.ok(linksOf(html).includes(SESSION));
     assert.match(pageOf(consoleAt("#/", { sessions: [] })), /Aucune session pour l’instant/);
   });
@@ -130,7 +130,7 @@ describe("the console", () => {
   });
 
   it("names the project by a word of its own while the instance has none", () => {
-    assert.match(pageOf(consoleAt("#/agent", { project: { applications: [] } })), /^Projet \/ Agent /);
+    assert.match(pageOf(consoleAt("#/agent", { project: { applications: [] } })), /^/);
   });
 
   it("says it opens a session until the API told it, whatever the project lists", () => {
@@ -154,14 +154,14 @@ describe("the console", () => {
   it("says a session is not found only once the instance said it keeps none of that name", () => {
     assert.equal(
       pageOf(consoleAt(SESSION, { missing: true, sessions: [RUNNING], project: { name: "lakeside-tests", applications: [] } })),
-      "lakeside-tests / Session introuvable Session introuvable Le projet ne garde aucune session de ce nom Elle a peut-être été supprimée. Revenir aux sessions",
+      "Session introuvable Le projet ne garde aucune session de ce nom Elle a peut-être été supprimée. Revenir aux sessions",
     );
   });
 
   it("shows the knowledge and its sources at their addresses, which read them from the instance", () => {
     assert.equal(
       pageOf(consoleAt("#/knowledge", { project: PROJECT })),
-      "lakeside-tests / Connaissances Connaissances Configurer le projet Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
+      "Connaissances Configurer le projet Lecture des connaissances Elles apparaissent dès que l’instance a répondu.",
     );
     assert.match(
       pageOf(consoleAt("#/knowledge/manuals", { project: PROJECT })),
@@ -172,10 +172,7 @@ describe("the console", () => {
   });
 
   it("shows the tests at their address, which lists them from the instance", () => {
-    assert.equal(
-      pageOf(consoleAt("#/tests", { project: PROJECT })),
-      "lakeside-tests / Tests Tests Lecture des tests Ils apparaissent dès que l’instance a répondu.",
-    );
+    assert.equal(pageOf(consoleAt("#/tests", { project: PROJECT })), "Tests Lecture des tests Ils apparaissent dès que l’instance a répondu.");
     assert.equal(documentTitleOf({ route: at("#/tests?level=smoke") }), "Tests · Open QA Stack");
     assert.match(pageOf(consoleAt("#/tests/more")), /Page introuvable/);
     // A test is opened by its path; without one, the address leads nowhere.
@@ -188,10 +185,7 @@ describe("the console", () => {
   });
 
   it("shows the executions at their address, which lists them from the instance", () => {
-    assert.equal(
-      pageOf(consoleAt("#/executions", { project: PROJECT })),
-      "lakeside-tests / Exécutions Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.",
-    );
+    assert.equal(pageOf(consoleAt("#/executions", { project: PROJECT })), "Exécutions Lecture des exécutions Elles apparaissent dès que l’instance a répondu.");
     assert.equal(documentTitleOf({ route: at("#/executions") }), "Exécutions · Open QA Stack");
     // A page is narrowed to an outcome and a period the console knows, and starts after the execution the address names.
     for (const query of [
@@ -231,10 +225,7 @@ describe("the console", () => {
   });
 
   it("shows the campaigns and one campaign at their addresses, which read them from the instance", () => {
-    assert.match(
-      pageOf(consoleAt("#/campaigns", { project: PROJECT })),
-      /^lakeside-tests \/ Campagnes Campagnes .* Planifier une campagne .* Lecture des campagnes/,
-    );
+    assert.match(pageOf(consoleAt("#/campaigns", { project: PROJECT })), /^Campagnes .* Planifier une campagne .* Lecture des campagnes/);
     assert.equal(documentTitleOf({ route: at("#/campaigns") }), "Campagnes · Open QA Stack");
     assert.equal(
       pageOf(consoleAt("#/campaigns/view?id=c1", { project: PROJECT })),
@@ -281,13 +272,13 @@ describe("the console", () => {
 
   it("shows the configuration at its address, which reads it from the instance", () => {
     const html = consoleAt("#/configuration", { project: PROJECT });
-    assert.equal(pageOf(html), "lakeside-tests / Configuration Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");
+    assert.equal(pageOf(html), "Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");
     assert.equal(documentTitleOf({ route: at("#/configuration") }), "Configuration · Open QA Stack");
     assert.match(pageOf(consoleAt("#/configuration/more")), /Page introuvable/);
     assert.match(pageOf(consoleAt("#/configuration/applications")), /Page introuvable/);
-    assert.match(pageOf(consoleAt("#/discovery", { project: PROJECT })), /^lakeside-tests \/ Découverte Découverte Lecture de la cartographie/);
+    assert.match(pageOf(consoleAt("#/discovery", { project: PROJECT })), /^Découverte Lecture de la cartographie/);
     assert.equal(documentTitleOf({ route: at("#/discovery") }), "Découverte · Open QA Stack");
-    assert.match(pageOf(consoleAt("#/applications", { project: PROJECT })), /^lakeside-tests \/ Applications Applications Lecture de la configuration/);
+    assert.match(pageOf(consoleAt("#/applications", { project: PROJECT })), /^Applications Lecture de la configuration/);
     assert.equal(documentTitleOf({ route: at("#/applications/shop") }), "Applications · Open QA Stack");
     assert.match(
       pageOf(consoleAt("#/applications/shop", { project: PROJECT, onConfigured: () => undefined })),
@@ -298,8 +289,12 @@ describe("the console", () => {
     assert.equal(pageOf(consoleAt("#/configuration", { project: PROJECT, onConfigured: () => undefined })), pageOf(html));
   });
 
+  it("gives the menu what it counts, once the application read it", () => {
+    assert.match(consoleAt("#/agent", { counts: { review: 2, tests: 5 } }), /<span class="nav-count ai">2<\/span>.*<span class="nav-count ko">5<\/span>/s);
+  });
+
   it("shows the other entries at their address, which the tabs of a phone lead to", () => {
-    assert.match(pageOf(consoleAt("#/more", { project: PROJECT })), /^lakeside-tests \/ Plus Plus Référentiel Découverte /);
+    assert.match(pageOf(consoleAt("#/more", { project: PROJECT })), /^Plus Référentiel Découverte /);
     assert.equal(documentTitleOf({ route: at("#/more") }), "Plus · Open QA Stack");
     assert.match(pageOf(consoleAt("#/more/nowhere")), /Page introuvable/);
   });
@@ -309,7 +304,7 @@ describe("the console", () => {
       const html = consoleAt(hash, { sessions: [RUNNING] });
       assert.equal(
         pageOf(html),
-        "Projet / Page introuvable Page introuvable Cette adresse ne mène à aucun écran Le lien est peut-être ancien, ou l’écran n’existe pas encore. Revenir aux sessions",
+        "Page introuvable Cette adresse ne mène à aucun écran Le lien est peut-être ancien, ou l’écran n’existe pas encore. Revenir aux sessions",
         hash,
       );
       assert.equal(linksOf(html.split("</main>")[0]!).at(-1), "#/agent", hash);

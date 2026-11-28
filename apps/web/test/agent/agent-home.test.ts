@@ -46,7 +46,7 @@ function home(sessions?: readonly Session[], props: Partial<AgentHomeScreenProps
 describe("the entry of the agent", () => {
   it("is headed by the name of the project, and asks what to test", () => {
     const html = home();
-    assert.match(textOf(html), /^lakeside-tests \/ Agent Qu’est-ce qu’on teste \? Dites aux agents quoi tester Démarrer une session Sessions /);
+    assert.match(textOf(html), /^Qu’est-ce qu’on teste \? Dites aux agents quoi tester Démarrer une session Sessions /);
     assert.match(html, /<h1 class="agent-home-title" tabindex="-1">Qu’est-ce qu’on teste \?<\/h1><form class="agent-home-prompt">/);
   });
 
