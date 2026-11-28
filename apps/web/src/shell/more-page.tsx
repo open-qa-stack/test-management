@@ -1,36 +1,32 @@
 import type { ReactNode } from "react";
-import { hrefTo } from "../routing/route.ts";
-import { t } from "../i18n/i18n.ts";
-import { Icon } from "../ui/icon.tsx";
-import { Page } from "../ui/page.tsx";
-import { MORE } from "./navigation.ts";
+import { api } from "../api/instance-api.ts";
+import { usePolled } from "../api/use-polled.ts";
+import type { MoreFacts } from "./more-facts.ts";
+import { MoreScreen } from "./more-screen.tsx";
+
+/** The value an answer gave, none when the instance could not give it. */
+function valueOf<T>(answer: PromiseSettledResult<T>): T | undefined {
+  return answer.status === "fulfilled" ? answer.value : undefined;
+}
 
 /**
- * The screen of the entries the tabs of a phone leave out: each of them under the heading of its group, a row that
- * opens it.
+ * The screen of the other entries in a browser: it reads where each stands, each from its own answer, so that what
+ * the instance cannot tell leaves only its entry without a sentence.
  *
  * @param props - The name of the project.
  * @returns The screen.
  */
 export function MorePage({ project }: { readonly project: string }): ReactNode {
-  return (
-    <Page crumbs={[{ label: project }, { label: t("shell.more") }]} title={t("shell.more")}>
-      {MORE.map((group) => (
-        <section key={group.key} className="more-group" aria-labelledby={`more-${group.key}`}>
-          <h2 id={`more-${group.key}`} className="grp">
-            {t(`shell.groups.${group.key}`)}
-          </h2>
-          <div className="more-list">
-            {group.entries.map((entry) => (
-              <a key={entry.key} className="more-link" href={hrefTo(entry.path)}>
-                <Icon name={entry.icon} />
-                <span>{t(`shell.entries.${entry.key}`)}</span>
-                <Icon name="chevron" />
-              </a>
-            ))}
-          </div>
-        </section>
-      ))}
-    </Page>
-  );
+  const facts = usePolled(async (): Promise<MoreFacts> => {
+    const answers = await Promise.allSettled([api.domains(), api.campaigns(), api.defects(), api.configuration()]);
+    const [domains, campaigns, defects, view] = [valueOf(answers[0]), valueOf(answers[1]), valueOf(answers[2]), valueOf(answers[3])];
+    const document = view?.revision?.document;
+    return {
+      ...(domains === undefined ? {} : { domains: domains.length }),
+      ...(campaigns === undefined ? {} : { plannedCampaigns: campaigns.items.filter(({ status }) => status === "planned").length }),
+      ...(defects === undefined ? {} : { openDefects: defects.counts.open }),
+      ...(document === undefined ? {} : { applications: document.applications.length, sources: document.knowledge.length }),
+    };
+  }, "more");
+  return <MoreScreen project={project} facts={facts.value ?? {}} />;
 }

@@ -30,6 +30,23 @@
       "configuration": "Configuration",
       "applications": "Applications",
       "memory": "Mémoire"
+    },
+    "summaries": {
+      "domains_zero": "Aucun domaine cartographié",
+      "domains_one": "{{count}} domaine cartographié",
+      "domains_other": "{{count}} domaines cartographiés",
+      "plannedCampaigns_zero": "Aucune campagne planifiée",
+      "plannedCampaigns_one": "{{count}} campagne planifiée",
+      "plannedCampaigns_other": "{{count}} campagnes planifiées",
+      "openDefects_zero": "Aucune anomalie ouverte",
+      "openDefects_one": "{{count}} anomalie ouverte",
+      "openDefects_other": "{{count}} anomalies ouvertes",
+      "applications_zero": "Aucune application",
+      "applications_one": "{{count}} application",
+      "applications_other": "{{count}} applications",
+      "sources_zero": "Aucune source",
+      "sources_one": "{{count}} source",
+      "sources_other": "{{count}} sources"
     }
   },
   "console": {

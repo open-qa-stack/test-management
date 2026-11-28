@@ -138,6 +138,7 @@ export default defineConfig({
         "**/src/agent/scope-picker.tsx",
         "**/src/agent/request-form.tsx",
         "**/src/campaigns/campaigns-page.tsx",
+        "**/src/shell/more-page.tsx",
         "**/src/campaigns/campaign-page.tsx",
         "**/src/api/use-polled.ts",
         "**/src/source-code/search-worker.ts",

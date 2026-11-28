@@ -294,7 +294,7 @@ describe("the console", () => {
   });
 
   it("shows the other entries at their address, which the tabs of a phone lead to", () => {
-    assert.match(pageOf(consoleAt("#/more", { project: PROJECT })), /^Plus Référentiel Découverte /);
+    assert.match(pageOf(consoleAt("#/more", { project: PROJECT })), /^Plus \S+ Référentiel Découverte /);
     assert.equal(documentTitleOf({ route: at("#/more") }), "Plus · Open QA Stack");
     assert.match(pageOf(consoleAt("#/more/nowhere")), /Page introuvable/);
   });

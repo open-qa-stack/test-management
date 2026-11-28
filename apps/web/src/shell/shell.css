@@ -433,8 +433,18 @@
   background: var(--neutral-soft);
 }
 
-.more-link span {
+/* The name of an entry over where it stands, in a sentence. */
+.more-text {
+  display: grid;
   flex: 1;
+  min-width: 0;
+}
+
+.more-text small {
+  color: var(--text-3);
+  font-size: var(--type-small);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-small);
 }
 
 .more-link svg {
