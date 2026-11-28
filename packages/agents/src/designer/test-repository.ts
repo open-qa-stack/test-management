@@ -95,7 +95,7 @@ export class TestRepository {
   }
 
   /**
-   * Commits files on the branch checked out; those git ignores are left out.
+   * Commits files on the branch checked out; those git ignores are left out, and nothing is committed when none of the others changed.
    *
    * @param paths - The files, relative to the root.
    * @param message - The commit message.
@@ -106,7 +106,8 @@ export class TestRepository {
     const ignored = new Set((await this.git("check-ignore", "--no-index", "--", ...paths).catch(() => "")).split("\n"));
     const kept = paths.filter((path) => !ignored.has(path));
     await this.git("add", "--", ...kept);
-    await this.git("commit", "--quiet", "--message", message, "--", ...kept);
+    // A repair that left its test as it was, with its state out of git, has nothing to commit.
+    if (!(await this.succeeds("diff", "--cached", "--quiet", "--", ...kept))) await this.git("commit", "--quiet", "--message", message, "--", ...kept);
     return kept;
   }
 

@@ -3,9 +3,25 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "vitest";
 import type { AgentRuntime, TaskLimits, TraceLine } from "@open-qa-stack/domain";
-import { answer, closedPort, scriptedServer, KeptMemories } from "@open-qa-stack/testing";
+import { answer, closedPort, scriptedServer, toolCalls, KeptMemories } from "@open-qa-stack/testing";
 import { liveRuntime, Run } from "../src/index.ts";
-import { MODEL, WITNESS, siteUrl, configText, repository, FakeRunner, ended, written, chain, later, plugged, ran, stateOf, journalOf } from "./run-support.ts";
+import {
+  MODEL,
+  WITNESS,
+  siteUrl,
+  configText,
+  repository,
+  FakeRunner,
+  ended,
+  written,
+  chain,
+  later,
+  plugged,
+  ran,
+  stateOf,
+  journalOf,
+  submit,
+} from "./run-support.ts";
 
 describe("the edges of a run", () => {
   it("names the whole document for an error of syntax, and checks npm with the machine's runner by default", async () => {
@@ -94,6 +110,24 @@ describe("the edges of a run", () => {
       /\[design\] apps\/shop\/tests\/orders\/listing\/stray\.spec\.ts was under trial when a run was stopped: it was put back as the repository had it, and its scenario is written again\./,
     );
     assert.equal(existsSync(join(run.root, stray)), false);
+  });
+
+  it("repairs once the tests that passed alone and failed in the suite, then runs the suite again", async () => {
+    // The test of test-2 fails at the first run of the suite, as after tests that changed its data, and passes after its repair.
+    let calls = 0;
+    const final = (file: string) => (file.endsWith("test-2.spec.ts") && ++calls === 1 ? "unexpected" : "expected");
+    const coupled = "apps/shop/tests/orders/listing/test-2.spec.ts";
+    const repairing = [{ body: toolCalls(MODEL, [submit("repair_tests", { paths: [coupled] }, "fix")]) }, ended, ended];
+    // The rounds of the batch end on spare answers: the repair comes in their place.
+    const run = await ran([...chain().slice(0, -4), ...repairing, ...chain().slice(-4)], { environment: "local", script: { final } });
+    assert.equal(run.code, 0, run.err);
+    assert.match(
+      run.err,
+      /\[execution\] 1 of the 3 tests designed passed alone and failed in the suite, depending on data other tests change: they are repaired, then the suite runs again: apps\/shop\/tests\/orders\/listing\/test-2\.spec\.ts\./,
+    );
+    assert.match(run.err, /\[execution\] The tests to repair: apps\/shop\/tests\/orders\/listing\/test-2\.spec\.ts\./);
+    assert.match(run.err, /\[execution\] 1 of the 1 tests repaired pass in the suite now\./);
+    assert.equal(run.runner.finalRuns, 2);
   });
 
   it("stops with 5 on an unexpected error in a step, closes the step, and keeps what the steps before produced", async () => {

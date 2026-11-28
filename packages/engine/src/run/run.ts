@@ -58,6 +58,7 @@ import { TeamRuntime } from "../runtime/team-runtime.ts";
 import { exitCodeOf } from "./exit-code.ts";
 import { missingPrerequisites } from "./prerequisites.ts";
 import { RunJournal } from "./run-journal.ts";
+import { coupledBrief, coupledTests } from "./coupled-tests.ts";
 import { runnableTests } from "./runnable-tests.ts";
 import { writeStoredDocuments } from "./stored-documents.ts";
 
@@ -308,6 +309,8 @@ export class Run {
       found = { knowledgeBase: this.inRepository(mapped.value.knowledgeBasePath!) };
       if (this.options.purpose === "map") return ExitCode.passed;
       const trials = new TrialRunner({ config, environment, repositoryRoot: this.options.repositoryRoot, runner, env: this.options.env });
+      // Repairs the tests the suite found coupled to the data, as the design would, once it gave its tests.
+      let repair: ((options: Partial<DesignerOptions>) => Promise<DesignOutcome>) | undefined;
       const designed = await unlessStopped("design", async () => {
         // A run stopped during a trial may have ended before the trial put its test back: the design starts from the repository as it was.
         const recovered = await trials.recover();
@@ -349,6 +352,7 @@ export class Run {
           ...(this.options.branch === undefined ? {} : { continuedBranch: this.options.branch }),
         };
         const design = (options: DesignerOptions) => new Designer(options).run();
+        repair = (changes) => design({ ...designing, ...changes });
         const { batch, guardrailMinutes } = config.autonomy.limits;
         // The design is made by rounds, each one the passes of the levels asked, until the batch wrote what it may or brings nothing new.
         const outcome = await new DesignRounds(
@@ -402,15 +406,36 @@ export class Run {
             `${earlier.length === 1 ? "1 test the repository already had is" : `${earlier.length} tests the repository already had are`} run again${run.length === 0 ? "" : " after them"}.`,
           );
         // The dependencies the design installed serve the execution as well.
-        const outcome = await new PinnedRun({
-          config,
-          environment,
-          repositoryRoot: this.options.repositoryRoot,
-          tests: [...run, ...earlier],
-          runner,
-          env: this.options.env,
-          preparation: trials.prepare(),
-        }).run();
+        const suite = () =>
+          new PinnedRun({
+            config,
+            environment,
+            repositoryRoot: this.options.repositoryRoot,
+            tests: [...run, ...earlier],
+            runner,
+            env: this.options.env,
+            preparation: trials.prepare(),
+          }).run();
+        let outcome = await suite();
+        // A test that passed alone and fails in the suite depends on data the others change: the agent repairs it once, and the suite runs again.
+        const coupled = coupledTests(designed.value.tests, outcome.result.tests);
+        if (coupled.length > 0 && repair !== undefined && this.options.stop?.aborted !== true) {
+          journal.record(
+            "execution",
+            "info",
+            `${coupled.length} of the ${run.length} tests designed passed alone and failed in the suite, depending on data other tests change: they are repaired, then the suite runs again: ${coupled.map(({ path }) => path).join(", ")}.`,
+          );
+          const repaired = await repair({
+            brief: coupledBrief(coupled),
+            suiteFailures: new Map(coupled.map(({ path, reason }) => [path, reason])),
+            // A design that gave a test that passed committed it on its branch: the repair goes on with it.
+            continuedBranch: branch!,
+          });
+          this.relay(journal, "execution", repaired.journal);
+          outcome = await suite();
+          const still = coupledTests(designed.value.tests, outcome.result.tests).length;
+          journal.record("execution", "info", `${coupled.length - still} of the ${coupled.length} tests repaired pass in the suite now.`);
+        }
         for (const test of outcome.result.tests)
           journal.record(
             "execution",

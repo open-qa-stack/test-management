@@ -140,6 +140,8 @@ export interface DesignerOptions {
   readonly now?: () => Date;
   /** Gives the identifier of each new test, written as its tag `@oqas-id-…`; a random UUID by default. */
   readonly newId?: () => string;
+  /** How tests that passed alone failed when the whole suite ran, by their path: the agent that repairs one is told it. None by default. */
+  readonly suiteFailures?: ReadonlyMap<string, string>;
 }
 
 /** What a design produced. */
@@ -418,7 +420,7 @@ export class Designer {
       // The scenarios of a repair are those of the plans that wrote its tests, as they were accepted then.
       const repairing = repairs.chosen;
       const accepted = repairing === undefined ? plan.accepted : { scenarios: repairing.map((repair) => repair.scenario) };
-      const repaired = repairing === undefined ? undefined : repairedTests(repairing, present);
+      const repaired = repairing === undefined ? undefined : repairedTests(repairing, present, this.options.suiteFailures);
       if (accepted === undefined)
         return failed(
           `No test was written: ${obtained(0)}, one per scenario of the plan is expected.`,
@@ -710,9 +712,19 @@ function endedWithPlan(tool: ToolDefinition, plan: PlanProposal, repairs: TestRe
 }
 
 /** The tests a design repairs, with their text now, by the identifier of their scenario. */
-function repairedTests(repairing: readonly TestRepair[], present: readonly ExistingTest[]): ReadonlyMap<string, RepairedTest> {
+function repairedTests(
+  repairing: readonly TestRepair[],
+  present: readonly ExistingTest[],
+  suiteFailures: ReadonlyMap<string, string> = new Map(),
+): ReadonlyMap<string, RepairedTest> {
   // A repair is only accepted for tests the repository has.
-  return new Map(repairing.map((repair) => [repair.scenario.id, { path: repair.path, content: present.find((test) => test.path === repair.path)!.content }]));
+  return new Map(
+    repairing.map(({ scenario, path }) => {
+      const suiteFailure = suiteFailures.get(path);
+      const content = present.find((test) => test.path === path)!.content;
+      return [scenario.id, { path, content, ...(suiteFailure === undefined ? {} : { suiteFailure }) }];
+    }),
+  );
 }
 
 /** Where a test kept failing failed, in words: the number of its step, when the title of the step gives it. */

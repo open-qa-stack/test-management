@@ -371,7 +371,7 @@ export interface Setup {
   /** The language of the tests, when it is not as the configuration says by default. */
   readonly testLanguage?: Language;
   /** Where the design stands in a batch, when it is a round of one: its round, the scenarios its plan may hold, and those planned before it. */
-  readonly batch?: Pick<DesignerOptions, "round" | "maxScenarios" | "planned">;
+  readonly batch?: Pick<DesignerOptions, "round" | "maxScenarios" | "planned" | "suiteFailures">;
 }
 
 export interface Run {

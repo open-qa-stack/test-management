@@ -75,6 +75,8 @@ export interface RepairedTest {
   readonly path: string;
   /** Its text, as the file holds it. */
   readonly content: string;
+  /** How it failed when the whole suite ran, after the other tests, when it passed alone: it then depends on data they change. */
+  readonly suiteFailure?: string;
 }
 
 /**
@@ -123,10 +125,25 @@ function signIn(application: Application, accounts: readonly Account[], environm
 }
 
 /** What a session that repairs a test is asked first: to run the test as it is, then to fix what fails, in its own file. */
-function repairText({ path, content }: RepairedTest, environment: string): string {
+function repairText({ path, content, suiteFailure }: RepairedTest, environment: string): string {
+  return [
+    suiteFailure === undefined ? personRepair(path, environment) : suiteRepair(path, environment, suiteFailure),
+    `Its text now:\n\`\`\`ts\n${content.trimEnd()}\n\`\`\``,
+  ].join("\n");
+}
+
+/** What a session is asked of a test the person says fails: to run it as it is, then to fix what fails. */
+function personRepair(path: string, environment: string): string {
   return [
     `Repair the test of this scenario for the environment ${environment}: the repository has it in ${path}, and the person says it fails.`,
     `First call ${RUN_TOOL} with its text as it is, then look at the page where it fails. When the test is at fault, fix it and keep to the scenario below; when the application is, keep the test, and say why when you call ${PROPOSE_TOOL}.`,
-    `Its text now:\n\`\`\`ts\n${content.trimEnd()}\n\`\`\``,
+  ].join("\n");
+}
+
+/** What a session is asked of a test that passes alone and fails in the suite: to make it hold whatever data the other tests leave. */
+function suiteRepair(path: string, environment: string, failure: string): string {
+  return [
+    `Repair the test of this scenario for the environment ${environment}: the repository has it in ${path}. It passes alone, but failed when the whole suite ran, after the tests that change the data: ${failure}`,
+    `It depends on data the other tests change. First call ${RUN_TOOL} with its text as it is; then make it hold whatever they leave: verify what the test itself identified, such as the row it searched for or the record it created, never a total, a count of rows, a pagination text or which row comes first. A test that changes data creates its own, and leaves those of the others as they were. Run it again once fixed, and keep to the scenario below.`,
   ].join("\n");
 }
