@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { MorePage } from "../src/shell/more-page.tsx";
+import { MoreScreen } from "../src/shell/more-screen.tsx";
 import { Shell, type ShellMenu } from "../src/shell/shell.tsx";
 import { at, linksOf, render, textOf } from "./render.ts";
 import { speaking } from "./i18n/in-language.ts";
@@ -192,12 +192,34 @@ describe("the counts of the menu", () => {
 
 describe("the screen of the other entries", () => {
   it("lists, under the heading of their group, the entries the tabs of a phone leave out, each a row that opens it", () => {
-    const html = render(createElement(MorePage, { project: "lakeside-tests" }));
-    assert.equal(textOf(html), "Plus Référentiel Découverte Exécution Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration");
+    const html = render(createElement(MoreScreen, { project: "lakeside-tests", facts: {} }));
+    // Before the instance told anything, no entry says where it stands.
+    assert.equal(
+      textOf(html),
+      "Plus lakeside-tests Référentiel Découverte Exécution Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration",
+    );
     assert.deepEqual(linksOf(html), ["#/discovery", "#/campaigns", "#/defects", "#/applications", "#/knowledge", "#/memory", "#/configuration"]);
     assert.match(
       html,
       /<section class="more-group" aria-labelledby="more-repository"><h2 id="more-repository" class="grp">Référentiel<\/h2><div class="more-list"><a class="more-link" href="#\/discovery">/,
     );
+  });
+
+  it("says where each entry stands in a sentence, as much as the instance told, and nothing for the memory and the settings", () => {
+    const told = (facts: Parameters<typeof MoreScreen>[0]["facts"]) => textOf(render(createElement(MoreScreen, { project: "lakeside-tests", facts })));
+    assert.equal(
+      told({ domains: 11, plannedCampaigns: 0, openDefects: 0, applications: 4, sources: 19 }),
+      "Plus lakeside-tests · 4 applications Référentiel Découverte 11 domaines cartographiés Exécution Campagnes Aucune campagne planifiée Anomalies Aucune anomalie ouverte Projet Applications 4 applications Connaissances 19 sources Mémoire Configuration",
+    );
+    assert.match(
+      told({ domains: 1, plannedCampaigns: 1, openDefects: 1, applications: 1, sources: 1 }),
+      /1 domaine cartographié .* 1 campagne planifiée .* 1 anomalie ouverte .* 1 application .* 1 source /,
+    );
+    assert.match(
+      told({ domains: 0, plannedCampaigns: 2, openDefects: 3, applications: 0, sources: 0 }),
+      /Aucun domaine cartographié .* 2 campagnes planifiées .* 3 anomalies ouvertes .* Aucune application .* Aucune source /,
+    );
+    // What the instance did not tell leaves its entry without a sentence.
+    assert.match(told({ openDefects: 2 }), /^Plus lakeside-tests Référentiel Découverte Exécution Campagnes Anomalies 2 anomalies ouvertes Projet/);
   });
 });

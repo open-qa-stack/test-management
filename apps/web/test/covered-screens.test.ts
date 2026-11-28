@@ -3,6 +3,7 @@ import { describe, it } from "vitest";
 import { ConfiguredInstance } from "./configuration/configured-instance.ts";
 import { DocumentedInstance } from "./knowledge/documented-instance.ts";
 import { DETAIL, EXECUTIONS } from "./executions/executions-fixture.ts";
+import type { Api } from "./built-console.ts";
 import { builtConsole, overflowOf, settled, tooSmallOf } from "./in-browser.ts";
 import { ListedInstance } from "./tests/listed-instance.ts";
 import { ReviewedInstance } from "./review/reviewed-instance.ts";
@@ -14,6 +15,36 @@ import { DETAIL as DETAIL_TEST } from "./tests/tests-fixture.ts";
 const app = builtConsole();
 
 describe("the code of the console is covered in full", () => {
+  it("runs every line of the screen of the other entries in the browser: what the instance tells, and what it cannot", async () => {
+    const listed = new ListedInstance();
+    const configured = new ConfiguredInstance();
+    const read = ["/api/knowledge/domains", "/api/campaigns", "/api/defects", "/api/configuration"];
+    // The instance cannot tell where the entries stand, then it tells it: the domains, the campaigns, the defects and the configuration.
+    let down = true;
+    const api: Api = (request) => {
+      if (down && read.includes(request.path)) return { status: 503, body: JSON.stringify({ code: "unavailable" }) };
+      if (request.path === "/api/knowledge/domains") return { status: 200, body: JSON.stringify({ items: [] }) };
+      return request.path === "/api/configuration" ? configured.api(request) : listed.api(request);
+    };
+    const [screen] = await app().measure(
+      ["src/shell/more-page.tsx"],
+      async (page) => {
+        const refused = page.waitForResponse((response) => response.url().endsWith("/api/configuration") && response.status() === 503);
+        await page.goto("http://console.test/#/more");
+        await refused;
+        assert.equal(await page.locator(".more-link small").count(), 0);
+        down = false;
+        await page.getByText("Aucun domaine cartographié").waitFor();
+        await page.getByText(/campagnes? planifiées?$/).waitFor();
+        await page.getByText(/anomalies? ouvertes?$/).waitFor();
+        await page.locator(".more-link", { hasText: "Connaissances" }).locator("small").waitFor();
+      },
+      api,
+    );
+    assert.ok(screen!.lines.length > 0, "the module is in the build");
+    assert.deepEqual(screen!.uncovered, []);
+  });
+
   it("runs every line of the screen of the defects in the browser, from the menu, and moves a defect as the person asks", async () => {
     const instance = new ListedInstance();
     instance.defects = [...DEFECTS.items];

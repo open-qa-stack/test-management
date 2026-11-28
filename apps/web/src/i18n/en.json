@@ -30,6 +30,23 @@
       "configuration": "Configuration",
       "applications": "Applications",
       "memory": "Memory"
+    },
+    "summaries": {
+      "domains_zero": "No domain mapped",
+      "domains_one": "{{count}} domain mapped",
+      "domains_other": "{{count}} domains mapped",
+      "plannedCampaigns_zero": "No campaign planned",
+      "plannedCampaigns_one": "{{count}} campaign planned",
+      "plannedCampaigns_other": "{{count}} campaigns planned",
+      "openDefects_zero": "No open defect",
+      "openDefects_one": "{{count}} open defect",
+      "openDefects_other": "{{count}} open defects",
+      "applications_zero": "No application",
+      "applications_one": "{{count}} application",
+      "applications_other": "{{count}} applications",
+      "sources_zero": "No source",
+      "sources_one": "{{count}} source",
+      "sources_other": "{{count}} sources"
     }
   },
   "console": {
