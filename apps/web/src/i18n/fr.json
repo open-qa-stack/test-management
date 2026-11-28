@@ -1366,8 +1366,6 @@
     "lead": "Une campagne est faite des tests que vous choisissez, figés quand elle est prête, puis suit ce qu’a donné chacun à chaque lancement.",
     "reading": "Lecture des campagnes",
     "readingNote": "Elles apparaissent dès que l’instance a répondu.",
-    "none": "Aucune campagne",
-    "noneNote": "Planifiez-en une : un nom et un environnement, puis choisissez ses tests.",
     "statuses": {
       "planned": "Planifiée",
       "ready": "Prête",
@@ -1379,9 +1377,10 @@
       "name": "Nom",
       "namePlaceholder": "Recette 4.2",
       "environment": "Environnement",
-      "submit": "Planifier",
+      "submit": "Planifier, puis choisir les tests",
       "pending": "Planification…",
-      "more": "En dire plus (facultatif)"
+      "more": "En dire plus (facultatif)",
+      "none": "Aucune campagne pour l’instant."
     },
     "chosen_one": "{{count}} test choisi",
     "chosen_other": "{{count}} tests choisis",
@@ -1397,6 +1396,23 @@
       "both": "du {{from}} au {{until}}",
       "from": "à partir du {{from}}",
       "until": "jusqu’au {{until}}"
+    },
+    "steps": {
+      "label": "Comment se fait une campagne",
+      "form": {
+        "title": "Un nom et un environnement",
+        "note": "C’est ce formulaire."
+      },
+      "tests": {
+        "title": "Vous choisissez ses tests",
+        "note": "Parmi les tests du dépôt.",
+        "count_one": "Parmi le test du dépôt.",
+        "count_other": "Parmi les {{count}} du dépôt."
+      },
+      "ready": {
+        "title": "Elle est figée, puis lancée",
+        "note": "Chaque lancement garde le résultat de chaque test."
+      }
     }
   },
   "campaign": {

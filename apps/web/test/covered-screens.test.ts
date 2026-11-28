@@ -382,17 +382,19 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/agent");
         await page.getByRole("heading", { name: "Qu’est-ce qu’on teste ?" }).waitFor();
         instance.unconfigured = true;
+        instance.untested = true;
         await page.evaluate(() => (window.location.hash = "#/campaigns"));
         await page.getByRole("link", { name: /Recette 4\.2/ }).waitFor();
+        instance.untested = false;
         await page.getByRole("textbox", { name: "Nom" }).fill("Recette 4.3");
         await page.getByRole("textbox", { name: "Environnement" }).fill("local");
         await page.getByText("En dire plus").click();
         await page.getByLabel("Version visée").fill("4.3");
         await page.getByLabel("Dernier jour").fill("2026-12-05");
         instance.refusal = "invalid_request";
-        await page.getByRole("button", { name: "Planifier" }).click();
+        await page.getByRole("button", { name: "Planifier, puis choisir les tests" }).click();
         await page.getByRole("alert").waitFor();
-        await page.getByRole("button", { name: "Planifier" }).click();
+        await page.getByRole("button", { name: "Planifier, puis choisir les tests" }).click();
         await page.waitForURL(/#\/campaigns\/view\?id=c2/);
         // Its tests are chosen among those of the repository, narrowed, then kept: once refused, then taken.
         await page.getByRole("searchbox", { name: "Filtrer par mots" }).fill("zzz");

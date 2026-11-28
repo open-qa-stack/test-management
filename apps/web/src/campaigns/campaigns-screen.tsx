@@ -5,6 +5,7 @@ import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { statusCount } from "../i18n/vocabulary.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
 import { CampaignBar, ranOf } from "./campaign-progress.tsx";
 import { campaignDays, campaignEnvironment } from "./campaign-text.ts";
@@ -24,16 +25,24 @@ export interface CampaignsScreenProps {
   readonly state: PolledState<CampaignList>;
   /** The environments the configuration in force declares, which a campaign runs against. */
   readonly environments: readonly string[];
+  /** How many tests the repository holds, which a campaign is chosen among; `undefined` until the instance said. */
+  readonly tests: number | undefined;
   readonly planning: PlanningState;
   /** Plans the campaign the form describes. */
   readonly onPlan: FormEventHandler<HTMLFormElement>;
 }
 
+/** What the form that plans a campaign needs, and whether the project has none yet. */
+type PlanFormProps = Pick<CampaignsScreenProps, "environments" | "planning" | "onPlan"> & { readonly first: boolean };
+
 /** The form that plans a campaign: its name and its environment, and what may be said of it, folded; its tests are chosen next. */
-function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps, "environments" | "planning" | "onPlan">): ReactNode {
+function PlanForm({ environments, planning, onPlan, first }: PlanFormProps): ReactNode {
   return (
     <form className="card campaign-plan" onSubmit={onPlan}>
-      <h2 className="campaign-plan-title">{t("campaigns.plan.title")}</h2>
+      <div className="campaign-plan-head">
+        <h2 className="campaign-plan-title">{t("campaigns.plan.title")}</h2>
+        {first && <p className="small muted">{t("campaigns.plan.none")}</p>}
+      </div>
       <label className="campaign-field">
         <span>{t("campaigns.plan.name")}</span>
         <input name="name" required maxLength={200} placeholder={t("campaigns.plan.namePlaceholder")} />
@@ -53,7 +62,10 @@ function PlanForm({ environments, planning, onPlan }: Pick<CampaignsScreenProps,
         )}
       </label>
       <details className="campaign-more">
-        <summary>{t("campaigns.plan.more")}</summary>
+        <summary>
+          <Icon name="chevron" size={12} />
+          {t("campaigns.plan.more")}
+        </summary>
         <label className="campaign-field">
           <span>{t("campaigns.details.objective")}</span>
           <input name="objective" maxLength={500} />
@@ -114,20 +126,42 @@ function CampaignRow({ campaign }: { readonly campaign: CampaignOverview }): Rea
   );
 }
 
-/** The campaigns of the project, the latest planned first, beside the form that plans another. */
-export function CampaignsScreen({ project, state, environments, planning, onPlan }: CampaignsScreenProps): ReactNode {
+/** How a campaign is made, in three steps, beside the form that plans the first. */
+function PlanSteps({ tests }: Pick<CampaignsScreenProps, "tests">): ReactNode {
+  const steps = [
+    ["form", t("campaigns.steps.form.note")],
+    ["tests", tests === undefined ? t("campaigns.steps.tests.note") : t("campaigns.steps.tests.count", { count: tests })],
+    ["ready", t("campaigns.steps.ready.note")],
+  ] as const;
+  return (
+    <ol className="campaign-steps" aria-label={t("campaigns.steps.label")}>
+      {steps.map(([step, note], index) => (
+        <li key={step} aria-current={index === 0 ? "step" : undefined}>
+          <span className="campaign-step-number">{index + 1}</span>
+          <span className="campaign-step-text">
+            <b>{t(`campaigns.steps.${step}.title`)}</b>
+            <span>{note}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** The campaigns of the project, the latest planned first, beside the form that plans another; the steps of one before the first. */
+export function CampaignsScreen({ project, state, environments, tests, planning, onPlan }: CampaignsScreenProps): ReactNode {
   const title = t("campaigns.title");
   const list = state.value;
   return (
     <Page crumbs={[{ label: project }, { label: title }]} title={title} hint={t("campaigns.lead")}>
       <div className="campaigns-layout">
-        <PlanForm environments={environments} planning={planning} onPlan={onPlan} />
+        <PlanForm environments={environments} planning={planning} onPlan={onPlan} first={list?.items.length === 0} />
         {list === undefined ? (
           <EmptyState title={t("campaigns.reading")}>
             <span role="status">{state.unread ?? t("campaigns.readingNote")}</span>
           </EmptyState>
         ) : list.items.length === 0 ? (
-          <EmptyState title={t("campaigns.none")}>{t("campaigns.noneNote")}</EmptyState>
+          <PlanSteps tests={tests} />
         ) : (
           <section className="card campaign-list" aria-label={title}>
             {list.items.map((campaign) => (
