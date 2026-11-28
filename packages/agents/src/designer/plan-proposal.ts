@@ -80,6 +80,8 @@ const SAME_PLAN =
 
 /** The code of an action that typed the credential of an account, which a test reads from the environment. */
 const SIGNING_IN = /\.fill\(process\.env\.[A-Za-z_][A-Za-z0-9_]*!\)/;
+/** The name of an element that signs in: log in, sign in, se connecter, connexion. */
+const SIGN_IN_NAME = /\b(?:log|sign)[ -]?in\b|se connecter|\bconnexion\b/i;
 /** The words that join another action to the one that types, such as the click that sends a form: the step does more than type. */
 const JOINED = /\b(?:and|then)\b/i;
 
@@ -1241,7 +1243,7 @@ export class PlanProposal {
       return [
         {
           code: "PLAN-SIGNIN",
-          message: `scenario ${scenario.id} acts on ${application} after the actions ${numbers} signed in to it, and none of its steps cites them: a test starts signed out. Cite ${numbers} first in the actions of the first step that acts on ${application}; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.`,
+          message: `scenario ${scenario.id} acts on ${application} after the actions ${numbers} signed in to it, and none of its steps cites them: a test starts signed out. Cite them first in the actions of the first step that acts on ${application}, such as "actions": [${numbers}, …]; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.`,
         },
       ];
     });
@@ -1353,7 +1355,7 @@ export class PlanProposal {
     const writing = this.cited(
       scenario,
       scenario.steps.flatMap((step) => step.actions),
-    ).find((action) => action.changes !== undefined);
+    ).find((action) => action.changes !== undefined && !this.signsIn(action, action.changes));
     if (writing === undefined) return [];
     return [
       {
@@ -1361,6 +1363,16 @@ export class PlanProposal {
         message: `scenario ${scenario.id} is said to only read the data of the environment, and it cites the action ${writing.number} (${writing.code}), a click on "${writing.changes}", which may create, change or remove some. Give it the effect write, and make it pass again once it passed: with data of its own, or a last step that puts back what it changed. If this click changes nothing, leave the action out or say so in the intent and give the effect write all the same.`,
       },
     ];
+  }
+
+  /**
+   * Whether a click signs in, which changes no data although its page sends a request: the one that sends credentials
+   * typed just before it, or one on an element whose name says it signs in.
+   */
+  private signsIn(action: WatchedAction, name: string): boolean {
+    const done = this.rules.screens.actions(action.application);
+    const before = done.findLast((other) => other.number < action.number);
+    return (before !== undefined && SIGNING_IN.test(before.code)) || SIGN_IN_NAME.test(name);
   }
 
   /**
@@ -1694,7 +1706,8 @@ function planText(scenario: SubmittedScenario): string[] {
 
 /**
  * The actions that signed in to an application last before an action: the address opened before the credentials were
- * typed, the credentials, and the action that sent them.
+ * typed, the credentials, and the action that sent them. Credentials that no action sent, an address opened after
+ * them instead, signed nobody in.
  *
  * @param done - The actions done on the application, in order.
  * @param before - The number of the action.
@@ -1704,6 +1717,9 @@ function signInBefore(done: readonly WatchedAction[], before: number): WatchedAc
   const earlier = done.filter((action) => action.number < before);
   const last = earlier.findLastIndex((action) => SIGNING_IN.test(action.code));
   if (last === -1) return [];
+  // Credentials typed sign in only once an action sends them: an address opened after them, or nothing, leaves them unsent.
+  const sender = done.find((action) => action.number > earlier[last]!.number);
+  if (sender === undefined || sender.tool === "goto") return [];
   let start = last;
   while (start > 0 && SIGNING_IN.test(earlier[start - 1]!.code)) start -= 1;
   if (start > 0 && earlier[start - 1]!.tool === "goto") start -= 1;
