@@ -97,7 +97,6 @@
     "start": "Start a session",
     "sessions": "Sessions",
     "live": "{{count}} live",
-    "hint": "each request opens a session",
     "reading": "Reading the sessions…",
     "emptyTitle": "No session yet",
     "emptyBody": "The first one will show here as soon as a request is made.",
@@ -1445,7 +1444,11 @@
     "noDomain": "not mapped yet",
     "noLevel": "none asked for",
     "chosen_one": "{{count}} chosen",
-    "chosen_other": "{{count}} chosen"
+    "chosen_other": "{{count}} chosen",
+    "title": "Scope",
+    "whole": "The whole project",
+    "edit": "Change",
+    "close": "Close"
   },
   "relaunch": {
     "button": "Run this test again",

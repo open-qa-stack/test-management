@@ -77,7 +77,7 @@ describe("the entry of the agent", () => {
     const html = home([], { choices });
     assert.match(
       textOf(html),
-      /Environnement : local Applications : toutes toutes Shop Domaines : tous tous Devis — Les demandes de devis\. Niveaux : tous tous Fonctionnel/,
+      /Périmètre Tout le projet · local Modifier Environnement local Applications toutes toutes Shop Domaines tous tous Devis — Les demandes de devis\. Niveaux tous tous Fonctionnel/,
     );
     assert.match(html, /<input type="hidden" name="environment" value="local"\/>/);
   });
@@ -100,25 +100,22 @@ describe("the entry of the agent", () => {
 
   it("says why the API could not list the sessions, in place of saying it reads them, until they are listed", () => {
     const html = home(undefined, { unlisted: "The folder of the sessions cannot be read." });
-    assert.match(html, /<div class="row small muted" role="status">The folder of the sessions cannot be read\.<\/div><\/section>/);
+    assert.match(html, /<div class="card row small muted" role="status">The folder of the sessions cannot be read\.<\/div><\/section>/);
     assert.doesNotMatch(html, /Lecture des sessions/);
     assert.doesNotMatch(home([COMPLETED], { unlisted: "The folder of the sessions cannot be read." }), /cannot be read|role="status"/);
   });
 
   it("says it reads the sessions before they are listed, as a status a screen reader announces", () => {
     const html = home();
-    assert.match(textOf(html), /Sessions · chaque demande ouvre une session Lecture des sessions…$/);
-    assert.match(html, /<div class="row small muted" role="status">Lecture des sessions…<\/div>/);
+    assert.match(textOf(html), /Sessions Lecture des sessions…$/);
+    assert.match(html, /<div class="card row small muted" role="status">Lecture des sessions…<\/div>/);
     assert.deepEqual(linksOf(html), []);
     assert.doesNotMatch(html, /class="state"/);
   });
 
   it("says a project has no session yet, and when the first will show", () => {
     const html = home([]);
-    assert.match(
-      textOf(html),
-      /Sessions · chaque demande ouvre une session Aucune session pour l’instant La première apparaîtra ici dès qu’une demande sera faite\.$/,
-    );
+    assert.match(textOf(html), /Sessions Aucune session pour l’instant La première apparaîtra ici dès qu’une demande sera faite\.$/);
     assert.doesNotMatch(html, /Lecture des sessions/);
   });
 
@@ -136,7 +133,7 @@ describe("the entry of the agent", () => {
 
   it("lists a session per row, with what was asked, its facts and its state", () => {
     const text = textOf(home([RUNNING, COMPLETED, INTERRUPTED]));
-    assert.match(text, /Sessions · 1 en direct tester la recherche d'un client En direct 15 nov. 2026, 14:44:06 /);
+    assert.match(text, /Sessions · 3 · 1 en direct tester la recherche d'un client En direct 15 nov. 2026, 14:44:06 /);
     assert.match(text, /tester la recherche d'un client Réussi 15 nov. 2026, 14:44:06 · local · 1 min 54 s 1 \/ 1 test réussi /);
     assert.match(text, /Session sans demande Interrompue 14 nov. 2026, 09:12:00$/);
     assert.doesNotMatch(text, /Lecture des sessions|Aucune session/);
@@ -144,11 +141,8 @@ describe("the entry of the agent", () => {
 
   it("says a queued session waits for an agent, where its facts go, without marking it as live", () => {
     const html = home([QUEUED, COMPLETED]);
-    assert.match(
-      textOf(html),
-      /Sessions · chaque demande ouvre une session tester la recherche d'un client En file 15 nov. 2026, 14:44:06 · en attente d’un agent/,
-    );
-    assert.match(html, new RegExp(`<a class="row run-row" href="#/agent/sessions/${SESSION_ID}">`));
+    assert.match(textOf(html), /Sessions · 2 tester la recherche d'un client En file 15 nov. 2026, 14:44:06 · en attente d’un agent/);
+    assert.match(html, new RegExp(`<a class="card row run-row" href="#/agent/sessions/${SESSION_ID}">`));
     assert.match(html, /<span class="badge outline">En file<\/span>/);
     assert.match(textOf(home([{ ...UNASKED, state: "queued" }])), /Session sans demande En file 16 nov. 2026, 08:00:00 · en attente d’un agent$/);
   });
@@ -173,11 +167,11 @@ describe("the entry of the agent", () => {
 
   it("marks the session whose agents work, and counts the live ones in the header of the list", () => {
     const html = home([RUNNING, UNASKED, INTERRUPTED, { ...COMPLETED, id: "oqas-2026-11-13T10-00-00-000Z" }]);
-    assert.match(html, new RegExp(`<a class="row run-row live" href="#/agent/sessions/${SESSION_ID}">`));
-    assert.match(html, new RegExp(`<a class="row run-row" href="#/agent/sessions/${INTERRUPTED.id}">`));
-    assert.match(html, /<a class="row run-row" href="#\/agent\/sessions\/oqas-2026-11-13T10-00-00-000Z">/);
+    assert.match(html, new RegExp(`<a class="card row run-row live" href="#/agent/sessions/${SESSION_ID}">`));
+    assert.match(html, new RegExp(`<a class="card row run-row" href="#/agent/sessions/${INTERRUPTED.id}">`));
+    assert.match(html, /<a class="card row run-row" href="#\/agent\/sessions\/oqas-2026-11-13T10-00-00-000Z">/);
     assert.match(html, /<span class="badge info">En direct<\/span>/);
-    assert.match(textOf(html), /Sessions · 2 en direct /);
-    assert.match(textOf(home([COMPLETED])), /Sessions · chaque demande ouvre une session tester la recherche/);
+    assert.match(textOf(html), /Sessions · 4 · 2 en direct /);
+    assert.match(textOf(home([COMPLETED])), /Sessions · 1 tester la recherche/);
   });
 });

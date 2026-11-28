@@ -5,7 +5,7 @@
   flex-direction: column;
   gap: var(--space-6);
   width: 100%;
-  max-width: var(--column-narrow);
+  max-width: var(--column);
   margin: 0 auto;
 }
 
@@ -15,7 +15,6 @@
   font-size: var(--type-display);
   font-weight: var(--weight-strong);
   line-height: var(--leading-display);
-  text-align: center;
 }
 
 /* The frame of the request: a panel, whose button takes the radius its padding leaves. */
@@ -54,12 +53,18 @@
   opacity: 1;
 }
 
+/* The button that starts a session takes the width of a phone, and stands at the right from a tablet. */
 .agent-home-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+.agent-home-actions .btn {
+  flex: 1 1 100%;
+  min-height: var(--tap);
 }
 
 .agent-home-refused {
@@ -123,19 +128,50 @@
 .agent-home-ways {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14em), 1fr));
-  gap: var(--space-3);
-}
-
-.agent-home-way {
-  display: grid;
-  gap: var(--space-1);
-  min-height: var(--tap);
-  padding: var(--space-3) var(--pad);
+  overflow: hidden;
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--surface);
+}
+
+/* On a phone the ways to start from are the rows of one card, each with the way to it at its end. */
+.agent-home-way {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--pad);
+  border-bottom: var(--hairline) solid var(--line-soft);
+  background: var(--surface);
   color: var(--text);
   text-decoration: none;
+}
+
+.agent-home-way:last-child {
+  border-bottom: 0;
+}
+
+.agent-home-way-text {
+  display: grid;
+  flex: 1;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.agent-home-way > svg {
+  flex: none;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+}
+
+/* The sessions: under their label, a card each. */
+.agent-home-sessions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.agent-home-sessions .grp {
+  margin: 0;
 }
 
 .agent-home-way b::before {
@@ -161,13 +197,110 @@
   .agent-home {
     padding-top: var(--space-12);
   }
+
+  .scope-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .scope-picker .scope-head {
+    display: block;
+    flex: none;
+  }
+
+  .scope-label {
+    font-size: var(--type-caption);
+    font-weight: var(--weight-strong);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+  }
+
+  .scope-picker .scope-summary,
+  .scope-picker .scope-edit {
+    display: none;
+  }
+
+  .scope-picker .scope-parts {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .agent-home-actions .btn.primary {
+    flex: none;
+  }
+
+  /* From a tablet the ways to start from stand side by side, each a card of its own. */
+  .agent-home .agent-home-ways {
+    gap: var(--space-3);
+    border: 0;
+    background: none;
+  }
+
+  .agent-home-ways .agent-home-way {
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-card);
+  }
+
+  .agent-home-ways .agent-home-way > svg {
+    display: none;
+  }
 }
 
-/* What of the project a session is kept to: a chip each, which opens on a list to tick. */
+/*
+ * What of the project a session is kept to: a chip each, which opens on a list to tick. A phone folds them under the
+ * scope in a few words, which « Modifier » unfolds; from a tablet they stand in a row after their label.
+ */
 .scope-picker {
-  display: flex;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--inset-panel));
+  padding: var(--space-3) var(--inset-panel) 0;
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+.scope-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.scope-label {
+  color: var(--text-3);
+  font-size: var(--type-small);
+}
+
+.scope-summary {
+  grid-row: 2;
+  font-weight: var(--weight-medium);
+}
+
+.scope-edit {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: var(--tap);
+  border: 0;
+  background: none;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--weight-medium);
+}
+
+.scope-parts {
+  display: none;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+.scope-parts.open {
+  display: flex;
+}
+
+.scope-chip b {
+  color: var(--text);
 }
 
 /* An open menu takes the whole line under the chips, and covers nothing. */
@@ -185,14 +318,13 @@
   display: none;
 }
 
-.scope-menu > summary::after {
-  content: " ▾";
+.scope-menu > summary svg {
   color: var(--text-3);
 }
 
 /* A part of the scope reads as a control: outlined, on the surface, its value in bold. */
 .scope-chip {
-  min-height: var(--tap);
+  min-height: calc(var(--space-8) + var(--space-3));
   border: var(--hairline) solid var(--field-line);
   background: var(--surface);
   color: var(--text-2);

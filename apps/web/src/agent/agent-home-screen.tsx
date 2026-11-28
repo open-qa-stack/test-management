@@ -4,8 +4,8 @@ import { durationText, momentText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { hrefTo } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
-import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
 import { testsHref } from "../tests/tests-screen.tsx";
 import type { Opening } from "./console-state.ts";
@@ -61,8 +61,11 @@ function StartFrom({ existing }: { readonly existing: Existing }): ReactNode {
       <div className="agent-home-ways">
         {shown.map(({ count, key, tone, href }) => (
           <a key={key} className={`agent-home-way ${tone}`} href={href}>
-            <b>{t(`home.ways.${key}.title`, { count })}</b>
-            <span className="small muted">{t(`home.ways.${key}.note`, { count })}</span>
+            <span className="agent-home-way-text">
+              <b>{t(`home.ways.${key}.title`, { count })}</b>
+              <span className="small muted">{t(`home.ways.${key}.note`, { count })}</span>
+            </span>
+            <Icon name="chevron" />
           </a>
         ))}
       </div>
@@ -82,7 +85,7 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
     session.result === undefined ? undefined : durationText(session.result.durationMs),
   ].filter((fact) => fact !== undefined);
   return (
-    <a className={live ? "row run-row live" : "row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
+    <a className={live ? "card row run-row live" : "card row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
       <div className="grow">
         <div className="agent-home-session">
           <span className="agent-home-request">
@@ -120,17 +123,26 @@ export function AgentHomeScreen({ project, sessions, unlisted, opening, request,
           {...(choices === undefined ? {} : { choices })}
         />
         {existing !== undefined && <StartFrom existing={existing} />}
-        <Card className="agent-home-sessions" title={t("home.sessions")} hint={live.length > 0 ? t("home.live", { count: live.length }) : t("home.hint")}>
+        <section className="agent-home-sessions" aria-labelledby="agent-home-sessions">
+          <h2 id="agent-home-sessions" className="grp">
+            {t("home.sessions")}
+            {sessions !== undefined && sessions.length > 0 && ` · ${sessions.length}`}
+            {live.length > 0 && <span className="agent-home-live"> · {t("home.live", { count: live.length })}</span>}
+          </h2>
           {sessions === undefined && (
-            <div className="row small muted" role="status">
+            <div className="card row small muted" role="status">
               {unlisted ?? t("home.reading")}
             </div>
           )}
-          {sessions?.length === 0 && <EmptyState title={t("home.emptyTitle")}>{t("home.emptyBody")}</EmptyState>}
+          {sessions?.length === 0 && (
+            <div className="card">
+              <EmptyState title={t("home.emptyTitle")}>{t("home.emptyBody")}</EmptyState>
+            </div>
+          )}
           {sessions?.map((session) => (
             <SessionRow key={session.id} session={session} />
           ))}
-        </Card>
+        </section>
       </div>
     </Page>
   );
