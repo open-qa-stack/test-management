@@ -4,6 +4,7 @@ import type { PolledState } from "../api/polled-state.ts";
 import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
 import { testHref } from "../tests/tests-paths.ts";
+import { testsHref } from "../tests/tests-screen.tsx";
 import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
@@ -35,6 +36,33 @@ export interface DefectsScreenProps {
   /** What the instance told of the defects. */
   readonly defects: PolledState<DefectList>;
   readonly controls?: DefectsControls;
+  /** The tests that failed the last time they ran, and when the latest execution ran, once the instance told of some. */
+  readonly failing?: FailingTests;
+}
+
+/** How many tests failed the last time they ran, and when the latest execution ran. */
+export interface FailingTests {
+  readonly count: number;
+  readonly ranAt: string;
+}
+
+/** What a view says when it holds no defect; the open one leads to the tests that failed, which a defect is reported from. */
+function NoDefect({ view, failing }: { readonly view: DefectView; readonly failing: FailingTests | undefined }): ReactNode {
+  const leads = view === "open" && failing !== undefined;
+  return (
+    <div className="card defects-empty">
+      <h2>{t(`defects.empty.${view}`)}</h2>
+      <p>
+        {t(`defects.emptyNote.${view}`)}
+        {leads && <> {t("defects.failing", { count: failing.count, date: dateText(failing.ranAt) })}</>}
+      </p>
+      {leads && (
+        <a className="btn primary" href={testsHref({ outcome: "failed" })}>
+          {t("defects.seeFailing", { count: failing.count })}
+        </a>
+      )}
+    </div>
+  );
 }
 
 /** A defect of the table: its reference, its title, its severity, where it stands, its test, when it was reported, and what can be done of it. */
@@ -78,7 +106,7 @@ function Row({ defect, controls }: { readonly defect: ListedDefect; readonly con
  * @param props - The name of the project, the view, what the instance told, and what the gestures do.
  * @returns The screen.
  */
-export function DefectsScreen({ project, view, defects, controls }: DefectsScreenProps): ReactNode {
+export function DefectsScreen({ project, view, defects, controls, failing }: DefectsScreenProps): ReactNode {
   const title = t("defects.title");
   const crumbs = [{ label: project }, { label: title }];
   if (defects.value === undefined)
@@ -107,7 +135,7 @@ export function DefectsScreen({ project, view, defects, controls }: DefectsScree
         ))}
       </nav>
       {shown.length === 0 ? (
-        <EmptyState title={t(`defects.empty.${view}`)}>{t(`defects.emptyNote.${view}`)}</EmptyState>
+        <NoDefect view={view} failing={failing} />
       ) : (
         <div className="card defects-table">
           <table>

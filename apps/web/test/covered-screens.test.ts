@@ -17,15 +17,22 @@ describe("the code of the console is covered in full", () => {
   it("runs every line of the screen of the defects in the browser, from the menu, and moves a defect as the person asks", async () => {
     const instance = new ListedInstance();
     instance.defects = [...DEFECTS.items];
+    // No test failed until the instance kept an execution.
+    const executions = instance.executions;
+    instance.executions = [];
     const [screen] = await app().measure(
       ["src/defects/defects-page.tsx"],
       async (page) => {
         await page.goto("http://console.test/#/agent");
+        const latest = page.waitForResponse((response) => response.url().endsWith("/api/executions?limit=1"));
         await page.getByRole("link", { name: "Anomalies" }).first().click();
         await page.waitForURL(/#\/defects$/);
         await page.getByText("The premium shows 0").waitFor();
+        await latest;
+        instance.executions = executions;
         await page.getByRole("button", { name: "Marquer corrigée" }).click();
         await page.getByText("Aucune anomalie ouverte").waitFor();
+        await page.getByRole("link", { name: /^Voir (le test échoué|les \d+ tests échoués)$/ }).waitFor();
         assert.deepEqual(instance.defects.find(({ id }) => id === "D-3")?.status, "fixed");
         // A move the instance refuses says why, and leaves the defect where it is.
         await page.getByRole("link", { name: /À rejouer/ }).click();

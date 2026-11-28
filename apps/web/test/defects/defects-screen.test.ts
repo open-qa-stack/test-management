@@ -4,15 +4,21 @@ import { describe, it } from "vitest";
 import type { DefectList } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../../src/api/polled-state.ts";
 import { defectsHref, defectViewOf } from "../../src/defects/defects-paths.ts";
-import { DefectsScreen, type DefectsControls } from "../../src/defects/defects-screen.tsx";
+import { DefectsScreen, type DefectsControls, type FailingTests } from "../../src/defects/defects-screen.tsx";
 import { parseRoute } from "../../src/routing/route.ts";
 import { elementsOf, linksOf, render, textOf } from "../render.ts";
 import { DEFECTS } from "./defects-fixture.ts";
 
 /** The screen of an address, with what the instance told, as HTML. */
-const screen = (hash: string, defects: PolledState<DefectList> = { value: DEFECTS }, controls?: DefectsControls): string =>
+const screen = (hash: string, defects: PolledState<DefectList> = { value: DEFECTS }, controls?: DefectsControls, failing?: FailingTests): string =>
   render(
-    createElement(DefectsScreen, { project: "lakeside-tests", view: defectViewOf(parseRoute(hash)), defects, ...(controls === undefined ? {} : { controls }) }),
+    createElement(DefectsScreen, {
+      project: "lakeside-tests",
+      view: defectViewOf(parseRoute(hash)),
+      defects,
+      ...(controls === undefined ? {} : { controls }),
+      ...(failing === undefined ? {} : { failing }),
+    }),
   );
 
 /** What the person does on the screen, which a static rendering never calls. */
@@ -67,6 +73,20 @@ describe("the defects reported from tests that failed", () => {
     assert.match(textOf(screen("#/defects", { value: none })), /Aucune anomalie ouverte Une anomalie se signale depuis la fiche d’un test en échec\.$/);
     assert.match(textOf(screen("#/defects?view=to_replay", { value: none })), /Rien à rejouer /);
     assert.match(textOf(screen("#/defects?view=closed", { value: none })), /Aucune anomalie fermée /);
+  });
+
+  it("lead from the open view without a defect to the tests that failed, as of the latest execution", () => {
+    const none = { items: [], counts: { open: 0, toReplay: 0, closed: 0 } };
+    const failing = { count: 12, ranAt: "2026-11-27T19:42:00.000Z" };
+    const html = screen("#/defects", { value: none }, CONTROLS, failing);
+    assert.match(
+      textOf(html),
+      /Aucune anomalie ouverte Une anomalie se signale depuis la fiche d’un test en échec\. 12 tests ont échoué, depuis l’exécution du 27 nov\. 2026, 19:42\. Voir les 12 tests échoués$/,
+    );
+    assert.deepEqual(linksOf(html).at(-1), "#/tests?outcome=failed");
+    assert.match(textOf(screen("#/defects", { value: none }, CONTROLS, { ...failing, count: 1 })), /Un test a échoué, .* Voir le test échoué$/);
+    // The other views say nothing of the tests that failed.
+    assert.doesNotMatch(textOf(screen("#/defects?view=closed", { value: none }, CONTROLS, failing)), /échoué/);
   });
 
   it("moves the defect a gesture is of, to where the gesture says", () => {

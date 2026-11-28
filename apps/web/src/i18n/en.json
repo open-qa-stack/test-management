@@ -1125,7 +1125,11 @@
       "cancel": "Cancel",
       "confirm": "Create the defect",
       "incomplete": "Give the defect a title."
-    }
+    },
+    "failing_one": "One test failed, as of the execution of {{date}}.",
+    "failing_other": "{{count}} tests failed, as of the execution of {{date}}.",
+    "seeFailing_one": "See the failed test",
+    "seeFailing_other": "See the {{count}} failed tests"
   },
   "test": {
     "reading": "Reading the test",
