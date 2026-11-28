@@ -6,7 +6,8 @@ import { Card } from "../ui/card.tsx";
 import { SidePanel } from "../ui/side-panel.tsx";
 import { AgentPromptFields, type ReadPrompts } from "./agent-prompt-fields.tsx";
 import { TextField } from "./configuration-fields.tsx";
-import { PartRow } from "./part-row.tsx";
+import { Badge } from "../ui/badge.tsx";
+import { Icon } from "../ui/icon.tsx";
 
 /** What the card of the agents is drawn from. */
 export interface AgentsCardProps {
@@ -50,15 +51,25 @@ function askedOf(agent: AgentKey, agents: OqasConfig["agents"], prompts: ReadPro
 export function AgentsCard({ agents, prompts, route, wrong, footer }: AgentsCardProps): ReactNode {
   const opened = openedOn(route);
   return (
-    <Card id="config-agents" title={t("configuration.agents.title")} hint={t("configuration.agents.hint")}>
+    <Card
+      id="config-agents"
+      title={t("configuration.agents.title")}
+      hint={`${t("configuration.agents.hint")} · ${t("configuration.agents.roles", { count: AGENT_KEYS.length })}`}
+    >
       {AGENT_KEYS.map((agent) => (
-        <PartRow
+        <a
           key={agent}
-          name={t(`configuration.agents.names.${agent}`)}
-          facts={askedOf(agent, agents, prompts)}
-          wrong={wrong(`/agents/${agent}`)}
+          className="row agent-row"
           href={withPanel(route, `agent:${agent}`)}
-        />
+          aria-label={t("configuration.application.editPart", { name: t(`configuration.agents.names.${agent}`) })}
+        >
+          <span className="grow">{t(`configuration.agents.names.${agent}`)}</span>
+          {wrong(`/agents/${agent}`) && <Badge tone="ko">{t("configuration.application.toFix")}</Badge>}
+          <span className="small muted">{askedOf(agent, agents, prompts)}</span>
+          <span className="agent-row-go" aria-hidden="true">
+            <Icon name="chevron" size={16} />
+          </span>
+        </a>
       ))}
       {opened !== undefined && (
         <SidePanel key={opened} id="agent-panel-title" title={t(`configuration.agents.names.${opened}`)} close={withPanel(route)} footer={footer}>

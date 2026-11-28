@@ -118,8 +118,8 @@ export function TextField({ pointer, label, hint, value, max }: FieldBase & { re
 /** What a list of choices shows. */
 export interface ChoiceFieldProps extends FieldBase {
   readonly value: string | undefined;
-  /** The choices, each its value and its label. */
-  readonly options: readonly { readonly value: string; readonly label: string }[];
+  /** The choices, each its value and its label, and what a choice of a group of buttons means, under its label. */
+  readonly options: readonly { readonly value: string; readonly label: string; readonly hint?: string }[];
   /** The label of the choice that leaves the key out, for a key that has a default; none for a key the configuration requires. */
   readonly none?: string;
   /** How the choice is read: a level of autonomy, or a value by default. */
@@ -192,7 +192,10 @@ export function RadioField({
             checked={option.value === value}
             onChange={change}
           />
-          <span>{option.label}</span>
+          <span className="check-text">
+            <span>{option.label}</span>
+            {option.hint !== undefined && <span className="field-hint">{option.hint}</span>}
+          </span>
         </label>
       ))}
       <FieldNotes pointer={pointer} hint={hint} texts={texts} />
@@ -230,9 +233,9 @@ export function CheckField({ pointer, label, hint, checked, member, defaults = [
         checked={checked}
         onChange={change}
       />
-      <span>
-        {label}
-        {hint !== undefined && <span className="field-hint"> — {hint}</span>}
+      <span className="check-text">
+        <span>{label}</span>
+        {hint !== undefined && <span className="field-hint">{hint}</span>}
       </span>
     </label>
   );

@@ -24,7 +24,7 @@ describe("the card of the model", () => {
     const providers = MODEL_PROVIDERS.map(({ name }) => name).join(" ");
     assert.ok(
       textOf(html).includes(
-        `Connexion au modèle Compte GitHub de cette machine (Copilot) ${providers} Autre serveur (adresse à saisir) L’outil utilise le compte GitHub`,
+        `Connexion au modèle Compte GitHub de cette machine (Copilot) ${providers} Autre serveur (adresse à saisir) Modèle Son nom, tel que le serveur le donne, par exemple gpt-4.1. L’outil utilise le compte GitHub`,
       ),
       textOf(html),
     );
@@ -43,10 +43,10 @@ describe("the card of the model", () => {
   it("says a test runs, and does not take another until it ends, then says why one could not be made", () => {
     const testing = card(LOCAL, { model: LOCAL });
     assert.match(textOf(testing), /Test en cours…/);
-    assert.match(testing, /<button type="button" class="btn sm" disabled="">Tester la connexion<\/button>/);
+    assert.match(testing, /<button type="button" class="btn" disabled="">Tester la connexion<\/button>/);
     const failed = card(LOCAL, { model: LOCAL, failure: "L’instance ne répond pas." });
     assert.match(textOf(failed), /Le test n’a pas pu être fait : L’instance ne répond pas\./);
-    assert.match(failed, /<button type="button" class="btn sm">Tester la connexion<\/button>/);
+    assert.match(failed, /<button type="button" class="btn">Tester la connexion<\/button>/);
   });
 
   it("forgets a test made for another way to reach the model", () => {

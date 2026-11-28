@@ -462,8 +462,8 @@
       "command": "Commande"
     },
     "settings": {
-      "autonomous": "Autonome : aucune limite par tâche, deux heures au plus par session",
-      "bounded": "Encadré (recommandé) : dix minutes par tâche, deux heures au plus par session",
+      "autonomous": "Autonome",
+      "bounded": "Encadré (recommandé)",
       "autonomy": {
         "title": "Autonomie",
         "hint": "jusqu’où vont les agents seuls",
@@ -499,7 +499,9 @@
         "journeysDir": "Dossier des parcours",
         "stateDir": "Dossier d’état",
         "knowledgeDir": "Dossier de la base de connaissance"
-      }
+      },
+      "boundedHint": "Dix minutes par tâche, deux heures au plus par session",
+      "autonomousHint": "Aucune limite par tâche, deux heures au plus par session"
     },
     "model": {
       "title": "Modèle",
@@ -536,7 +538,7 @@
       "visionHint": "les agents voient les captures des écrans",
       "visionTold": "la liste indique que ce modèle lit les images",
       "roles": {
-        "title": "Un modèle par rôle",
+        "title": "Avancé : un modèle par rôle",
         "hint": "Par la même connexion. Un rôle laissé tel quel utilise le modèle ci-dessus.",
         "same": "Même modèle que ci-dessus",
         "cartographer": "Cartographie",
@@ -826,7 +828,9 @@
         "writer": "Rédacteur d’un test",
         "coherence-reviewer": "Relecteur de cohérence",
         "code-reviewer": "Relecteur du code"
-      }
+      },
+      "roles_one": "{{count}} rôle",
+      "roles_other": "{{count}} rôles"
     }
   },
   "knowledge": {

@@ -29,16 +29,18 @@ const writer = (agents = AGENTS, ...given: [ReadPrompts?]): string => card("#/co
 describe("what the team asks of the agents", () => {
   it("lists each agent, what the team asks of it, and whether it is wrong, each leading to its panel", () => {
     const html = card();
-    assert.match(textOf(html), /Consignes des agents · ce que l’équipe demande à chacun Lecteur d’une source Son prompt seul Modifier/);
-    assert.match(textOf(html), /Planificateur des tests Son prompt seul Modifier/);
-    assert.match(textOf(html), /Rédacteur d’un test Suit des consignes de l’équipe À corriger Modifier/);
+    assert.match(textOf(html), /Consignes des agents · ce que l’équipe demande à chacun · 11 rôles Lecteur d’une source Son prompt seul Regroupement/);
+    assert.match(textOf(html), /Planificateur des tests Son prompt seul Relecteur/);
+    assert.match(textOf(html), /Rédacteur d’un test À corriger Suit des consignes de l’équipe Relecteur/);
+    // A row leads to the panel of its agent, named for a screen reader.
+    assert.match(html, /<a class="row agent-row" href="[^"]+" aria-label="Modifier Lecteur d’une source">/);
     assert.deepEqual(
       linksOf(html),
       AGENT_KEYS.map((agent) => `#/configuration?panel=${encodeURIComponent(`agent:${agent}`)}`),
     );
     const replaced = (basedOn: string) => textOf(card("#/configuration", { writer: { prompt: { text: "Write.", basedOn }, instructions: "Say policy." } }));
-    assert.match(replaced(WRITER.digest), /Rédacteur d’un test Suit un prompt de l’équipe · Suit des consignes de l’équipe/);
-    assert.match(replaced("c".repeat(64)), /Rédacteur d’un test Suit un prompt de l’équipe écrit sur un ancien prompt · /);
+    assert.match(replaced(WRITER.digest), /Rédacteur d’un test À corriger Suit un prompt de l’équipe · Suit des consignes de l’équipe/);
+    assert.match(replaced("c".repeat(64)), /Rédacteur d’un test À corriger Suit un prompt de l’équipe écrit sur un ancien prompt · /);
   });
 
   it("opens the panel of an agent on its instructions, empty for one the team asks nothing of, and none for an agent there is not", () => {

@@ -49,7 +49,7 @@ describe("the screen of the configuration", () => {
     assert.match(text, /ont leurs propres écrans\. Modèle Autonomie Niveaux Langues Consignes Dépôt de tests Modèle · /);
     for (const part of ["model", "autonomy", "design", "languages", "agents", "repository"] as const) {
       assert.ok(linksOf(html).includes(partHref(part)), part);
-      assert.match(html, new RegExp(`<section class="card" id="config-${part}">`));
+      assert.match(html, new RegExp(`<section class="card[^"]*" id="config-${part}">`));
     }
     assert.equal(partHref("history"), "#/configuration?part=history");
     assert.match(html, /<details id="config-history" class="config-section config-advanced"><summary><h2>Historique et copies des réglages<\/h2><\/summary>/);
@@ -77,7 +77,7 @@ describe("the screen of the configuration", () => {
     assert.ok(bears(html, "/model/capabilities", 'data-kind="member"', 'checked=""', 'data-member="vision"', 'data-defaults=""'));
     assert.match(
       html,
-      /<legend>Niveau<\/legend><label class="check"><input type="radio" id="config-autonomy-level-bounded" data-kind="level" name="\/autonomy\/level" checked="" value="bounded"\/><span>Encadré \(recommandé\)/,
+      /<legend>Niveau<\/legend><label class="check"><input type="radio" id="config-autonomy-level-bounded" data-kind="level" name="\/autonomy\/level" checked="" value="bounded"\/><span class="check-text"><span>Encadré \(recommandé\)<\/span><span class="field-hint">Dix minutes par tâche, deux heures au plus par session<\/span>/,
     );
     assert.match(html, /<input type="radio" id="config-autonomy-level-autonomous" data-kind="level" name="\/autonomy\/level" value="autonomous"\/>/);
     assert.ok(bears(html, "/autonomy/task/maxMinutes", 'value="10"'));
