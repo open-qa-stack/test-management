@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, posix, relative, resolve } from "node:path";
 import { byCodeUnits, type ProposedTest, type ReportedTest, type TestReference, type TestRunner, type TestTrial, type TriedTest } from "@open-qa-stack/domain";
+import { OpenTrial } from "./open-trial.ts";
 import { PinnedRun, type PinnedRunOptions, type Preparation } from "./pinned-run.ts";
 
 /** Folder of the trials, in the state folder of the test repository. */
@@ -23,10 +24,13 @@ const PAGE_BLOCK = /^```yaml\n([\s\S]*?)\n```$/m;
  * a time. The references a visual comparison lacks are made at the first run, then the file runs again
  * against them; they are given with the trial, to be kept with the test, and removed from the folder. The verdicts are those of `PinnedRun`, with, for a test that did not pass, every error of its
  * last attempt, the step that failed, its trace and the snapshot of the page at its failure, which the runner writes in the context of its error.
+ * A trial under way is marked in the folder of the trials, so that a stop that ends the process before the file is put back leaves
+ * what {@link TrialRunner.recover} needs to put it back.
  */
 export class TrialRunner implements TestRunner {
   private readonly options: Omit<PinnedRunOptions, "tests">;
   private readonly pinned: PinnedRun;
+  private readonly open: OpenTrial;
   private count = 0;
   /** The trials run one at a time: two never share a file, nor the runner. */
   private queue: Promise<unknown> = Promise.resolve();
@@ -35,6 +39,17 @@ export class TrialRunner implements TestRunner {
   public constructor(options: Omit<PinnedRunOptions, "tests">) {
     this.options = options;
     this.pinned = new PinnedRun({ ...options, tests: [] });
+    this.open = new OpenTrial(options.repositoryRoot, posix.join(options.config.repository.stateDir, TRIALS_FOLDER));
+  }
+
+  /**
+   * Puts back the test a trial left in the repository, when a stop ended the process that ran it before the
+   * trial was over.
+   *
+   * @returns The path of the test taken out or put back, if a trial was left open.
+   */
+  public recover(): Promise<string | undefined> {
+    return this.open.recover();
   }
 
   /**
@@ -69,6 +84,7 @@ export class TrialRunner implements TestRunner {
     // The references of the visual comparisons of a test go next to it, as the runner names them.
     const snapshots = `${file}-snapshots`;
     const hadSnapshots = existsSync(snapshots);
+    await this.open.open(test.path, kept, hadSnapshots);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, test.content);
     try {
@@ -83,6 +99,7 @@ export class TrialRunner implements TestRunner {
       // A test the trial repairs is put back as the repository has it.
       await (kept === undefined ? rm(file, { force: true }) : writeFile(file, kept));
       if (!hadSnapshots) await rm(snapshots, { recursive: true, force: true });
+      await this.open.close();
     }
   }
 }

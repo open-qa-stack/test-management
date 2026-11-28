@@ -309,6 +309,14 @@ export class Run {
       if (this.options.purpose === "map") return ExitCode.passed;
       const trials = new TrialRunner({ config, environment, repositoryRoot: this.options.repositoryRoot, runner, env: this.options.env });
       const designed = await unlessStopped("design", async () => {
+        // A run stopped during a trial may have ended before the trial put its test back: the design starts from the repository as it was.
+        const recovered = await trials.recover();
+        if (recovered !== undefined)
+          journal.record(
+            "design",
+            "info",
+            `${recovered} was under trial when a run was stopped: it was put back as the repository had it, and its scenario is written again.`,
+          );
         // The tests are checked against the dependencies of the test repository: they are installed first.
         const prepared = await trials.prepare();
         if (!prepared.ok) {
