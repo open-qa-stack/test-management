@@ -30,7 +30,7 @@ function Context({ view, place }: { readonly view: QaView; readonly place: Place
       {view.failedStep !== undefined && (
         <section className="trace-context-part">
           <h2>{t("trace.expectation")}</h2>
-          <Comparison view={view} />
+          <Comparison expected={view.expected} received={view.received} />
         </section>
       )}
       <section className="trace-context-part trace-context-steps">

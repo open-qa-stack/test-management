@@ -896,7 +896,16 @@
     "count_other": "{{count}} tests",
     "noApplication": "No application",
     "noMatch": "No test matches",
-    "noMatchNote": "Search other words, or choose another level."
+    "noMatchNote": "Search other words, or choose another level.",
+    "allOutcomes": "All",
+    "outcomeFilter": "Last result",
+    "outcomes": {
+      "failed": "Failed",
+      "passed": "Passed"
+    },
+    "relaunchFailures_one": "Replay the failure",
+    "relaunchFailures_other": "Replay the {{count}} failures",
+    "relaunchFailuresNote": "Runs the files of the failing tests again, whole."
   },
   "review": {
     "title": "To review",
@@ -1126,7 +1135,6 @@
     "titlePanel": "Title of the test",
     "titleLabel": "Title",
     "titleHint": "What the test checks, in one sentence. It keeps its results and its history.",
-    "editStep": "Change",
     "editStepNamed": "Change step {{number}}",
     "stepPanel": "Step {{number}}",
     "stepLabel": "What the step does",
@@ -1164,14 +1172,30 @@
       "noDomain": "Without a domain"
     },
     "todo": {
-      "title": "What to do?",
       "note": "Read the result first: the failure may come from the application as from the test. The agent then looks for the cause, and repairs the test when it is the one at fault.",
       "ask": "Ask the agent…",
       "atStep": " at step {{number}} ({{title}})",
       "request": "The test “{{title}}” ({{path}}) fails{{step}}. Find why. If the test is at fault, repair it; if the application is, say so and leave the test as it is.",
       "report": "Report the defect"
     },
-    "compared": "expected {{expected}}, received {{received}}"
+    "compared": "expected {{expected}}, received {{received}}",
+    "failure": {
+      "label": "Last failure",
+      "failed": "Failed",
+      "atStep": "Failed at step {{step}} of {{count}}"
+    },
+    "facts": {
+      "level": "Level",
+      "feature": "Feature",
+      "applications": "Applications"
+    },
+    "failures": {
+      "label": "Failing tests",
+      "rank": "Failure {{rank}} of {{count}}",
+      "before": "Previous failure",
+      "after": "Next failure"
+    },
+    "failedHere": "Failed here"
   },
   "executions": {
     "title": "Executions",

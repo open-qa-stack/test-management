@@ -5,6 +5,48 @@
   gap: var(--space-2);
 }
 
+/* A test in the list: what came of it last, in a round sign before its title; one that failed in the tone of the failure. */
+.tests-row.failed {
+  background: var(--ko-faint);
+}
+
+.tests-mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: var(--hairline) dashed var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.tests-mark.passed,
+.tests-mark.flaky {
+  border: 0;
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.tests-mark.failed {
+  border: 0;
+  background: var(--ko);
+  color: var(--on-brand);
+}
+
+.tests-verdict {
+  white-space: nowrap;
+}
+
+.tests-verdict.ko {
+  color: var(--ko);
+  font-weight: var(--weight-medium);
+}
+
+.chip.ko {
+  color: var(--ko);
+}
+
 .test-step.failed {
   background: var(--ko-faint);
 }
@@ -99,7 +141,71 @@
 }
 
 /* The card of a test: what its tags say, its steps as written, and the dots of its latest executions. */
-.test-tags {
+.test-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-6);
+  margin: 0;
+  font-size: var(--type-small);
+  line-height: var(--leading-small);
+}
+
+.test-facts div {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.test-facts dt {
+  color: var(--text-3);
+}
+
+.test-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The pencil beside the title of a test, which opens the panel that changes it. */
+.test-title-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin: calc(-1 * var(--space-3)) 0;
+  color: var(--text-3);
+  vertical-align: middle;
+}
+
+/* Where the test stands among those that failed, and the ways to the one before and after. */
+.test-failures {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.test-failures .btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
+.test-failures [aria-disabled="true"] {
+  opacity: 0.4;
+}
+
+.test-failures-next svg {
+  transform: rotate(180deg);
+}
+
+.test-failure .run-outcome-head .grow {
+  min-width: 0;
+}
+
+.test-failure-note {
+  margin: 0;
+}
+
+.test-failure-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -116,19 +222,27 @@
   align-items: baseline;
 }
 
+.test-written-step.failed {
+  background: var(--ko-faint);
+}
+
+.test-written-step > .grow {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.test-step-number.failed {
+  color: var(--ko);
+  font-weight: var(--weight-strong);
+}
+
+.test-step-edit {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
 .test-written-step > .grow {
   flex-basis: 0;
-  overflow-wrap: anywhere;
-}
-
-/* The path of a test, and what changes its title. */
-.test-head {
-  padding: 0;
-  border-bottom: 0;
-}
-
-.test-head > .grow {
-  margin: 0;
   overflow-wrap: anywhere;
 }
 

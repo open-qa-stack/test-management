@@ -74,7 +74,7 @@ function Outcome({ view, place, traced }: { readonly view: QaView; readonly plac
         <Badge tone={tone}>{statusName(STATUSES[view.status])}</Badge>
         <b>{outcomeText(view)}</b>
       </header>
-      {view.failedStep !== undefined && <Comparison view={view} />}
+      {view.failedStep !== undefined && <Comparison expected={view.expected} received={view.received} />}
       {(traced || failed) && (
         <div className="run-outcome-actions">
           {traced && (

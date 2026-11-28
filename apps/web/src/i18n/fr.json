@@ -896,7 +896,16 @@
     "count_other": "{{count}} tests",
     "noApplication": "Sans application",
     "noMatch": "Aucun test ne correspond",
-    "noMatchNote": "Cherchez d’autres mots, ou choisissez un autre niveau."
+    "noMatchNote": "Cherchez d’autres mots, ou choisissez un autre niveau.",
+    "allOutcomes": "Tous",
+    "outcomeFilter": "Dernier résultat",
+    "outcomes": {
+      "failed": "Échoués",
+      "passed": "Réussis"
+    },
+    "relaunchFailures_one": "Rejouer l’échec",
+    "relaunchFailures_other": "Rejouer les {{count}} échecs",
+    "relaunchFailuresNote": "Relance les fichiers des tests en échec, en entier."
   },
   "review": {
     "title": "À relire",
@@ -1126,7 +1135,6 @@
     "titlePanel": "Titre du test",
     "titleLabel": "Titre",
     "titleHint": "Ce que le test vérifie, en une phrase. Il le garde dans ses résultats et son historique.",
-    "editStep": "Modifier",
     "editStepNamed": "Modifier l’étape {{number}}",
     "stepPanel": "Étape {{number}}",
     "stepLabel": "Ce que fait l’étape",
@@ -1164,14 +1172,30 @@
       "noDomain": "Sans domaine"
     },
     "todo": {
-      "title": "Que faire ?",
       "note": "Lisez d’abord le résultat : l’échec peut venir de l’application comme du test. L’agent cherche ensuite la cause, et répare le test quand c’est lui qui est en tort.",
       "ask": "Demander à l’agent…",
       "atStep": " à l’étape {{number}} ({{title}})",
       "request": "Le test « {{title}} » ({{path}}) échoue{{step}}. Cherche pourquoi. Si le test est en tort, répare-le ; si c’est l’application, dis-le et laisse le test tel quel.",
       "report": "Signaler l’anomalie"
     },
-    "compared": "attendu {{expected}}, obtenu {{received}}"
+    "compared": "attendu {{expected}}, obtenu {{received}}",
+    "failure": {
+      "label": "Dernier échec",
+      "failed": "Échoué",
+      "atStep": "Échoué à l’étape {{step}} sur {{count}}"
+    },
+    "facts": {
+      "level": "Niveau",
+      "feature": "Fonction",
+      "applications": "Applications"
+    },
+    "failures": {
+      "label": "Tests en échec",
+      "rank": "Échec {{rank}} sur {{count}}",
+      "before": "Échec précédent",
+      "after": "Échec suivant"
+    },
+    "failedHere": "Échec ici"
   },
   "executions": {
     "title": "Exécutions",

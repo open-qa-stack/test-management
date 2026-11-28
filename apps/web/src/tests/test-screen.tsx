@@ -12,12 +12,13 @@ import { hrefTo, withPanel, type Route } from "../routing/route.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
-import { REPORT_PANEL, TESTS_PATH } from "./tests-paths.ts";
+import { REPORT_PANEL, TESTS_PATH, testHref } from "./tests-paths.ts";
 import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 import { TestCode } from "./test-code.tsx";
 import { TestTree } from "./test-tree.tsx";
-import { WhatToDo } from "./what-to-do.tsx";
+import { TestFailure } from "./test-failure.tsx";
 import { DefectReportPanel, type DefectReporting } from "../defects/defect-report-panel.tsx";
 import { TestSteps } from "./test-steps.tsx";
 import { TestEditPanel } from "./test-edit-panel.tsx";
@@ -58,19 +59,79 @@ export interface TestScreenProps {
   readonly onReport?: FormEventHandler<HTMLFormElement>;
 }
 
-/** What the tags of the test say of it: its level, its domain and functionality, its applications. */
-function Tags({ test }: { readonly test: RepositoryTest }): ReactNode {
+/** What the tags of the test say of it, on a line of facts: its level, its domain and functionality, the applications it goes through. */
+function Facts({ test }: { readonly test: RepositoryTest }): ReactNode {
   const where = [test.domain, test.feature].filter((part) => part !== undefined).join(" › ");
   return (
-    <div className="test-tags">
-      {test.level !== undefined && <Badge tone="outline">{levelName(test.level)}</Badge>}
-      {where !== "" && <Badge tone="outline">{where}</Badge>}
-      {test.applications.map((application) => (
-        <Badge key={application} tone="outline">
-          {applicationName(application)}
-        </Badge>
-      ))}
-    </div>
+    <dl className="test-facts">
+      {test.level !== undefined && (
+        <div>
+          <dt>{t("test.facts.level")}</dt>
+          <dd>{levelName(test.level)}</dd>
+        </div>
+      )}
+      {where !== "" && (
+        <div>
+          <dt>{t("test.facts.feature")}</dt>
+          <dd className="mono">{where}</dd>
+        </div>
+      )}
+      {test.applications.length > 0 && (
+        <div>
+          <dt>{t("test.facts.applications")}</dt>
+          <dd>{test.applications.map(applicationName).join(" → ")}</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
+/**
+ * Where the test stands among those that failed last, in the order of the list of the tests, and the links to the one
+ * before and the one after: none for a test that did not fail last.
+ */
+function FailureNavigation({
+  path,
+  tests,
+  verdicts,
+}: {
+  readonly path: string;
+  readonly tests: readonly RepositoryTest[];
+  readonly verdicts: readonly LastVerdict[];
+}): ReactNode {
+  const failing = [
+    ...new Set(
+      tests
+        .filter((test) => verdicts.some((verdict) => verdict.verdict === "failed" && verdict.path === test.path && verdict.title === test.title))
+        .map((test) => test.path),
+    ),
+  ];
+  const rank = failing.indexOf(path);
+  if (rank < 0) return null;
+  const before = failing[rank - 1];
+  const after = failing[rank + 1];
+  return (
+    <nav className="test-failures" aria-label={t("test.failures.label")}>
+      <span className="small muted">{t("test.failures.rank", { rank: rank + 1, count: failing.length })}</span>
+      {before === undefined ? (
+        <span className="btn sm" aria-disabled="true">
+          <Icon name="collapse" />
+        </span>
+      ) : (
+        <a className="btn sm" href={testHref(before)} aria-label={t("test.failures.before")}>
+          <Icon name="collapse" />
+        </a>
+      )}
+      {after === undefined ? (
+        <span className="btn sm test-failures-next" aria-disabled="true">
+          <Icon name="collapse" />
+        </span>
+      ) : (
+        <a className="btn sm test-failures-next" href={testHref(after)} aria-label={t("test.failures.after")}>
+          <Icon name="collapse" />
+        </a>
+      )}
+    </nav>
   );
 }
 
@@ -194,29 +255,50 @@ export function TestScreen({
   return (
     <Page
       crumbs={[{ label: project }, { label: t("tests.title"), href: hrefTo(TESTS_PATH) }, { label: title }]}
-      title={title}
-      {...(relaunch === undefined || onRelaunch === undefined ? {} : { actions: <TestRelaunch state={relaunch} onLaunch={onRelaunch} /> })}
+      title={
+        <>
+          {title}
+          {test !== undefined && (
+            <a className="test-title-edit" href={withPanel(route, "title")} aria-label={t("test.editTitle")} title={t("test.editTitle")}>
+              <Icon name="pen" />
+            </a>
+          )}
+        </>
+      }
+      actions={
+        <>
+          <FailureNavigation path={path} tests={tests.value ?? []} verdicts={verdicts} />
+          {relaunch !== undefined && onRelaunch !== undefined && <TestRelaunch state={relaunch} onLaunch={onRelaunch} />}
+        </>
+      }
     >
-      {test !== undefined && (
-        <div className="row test-head">
-          <a className="btn sm" href={withPanel(route, "title")}>
-            {t("test.editTitle")}
-          </a>
-        </div>
-      )}
-      {test !== undefined && <Tags test={test} />}
+      {test !== undefined && <Facts test={test} />}
       {tests.value === undefined || ran === undefined ? (
         <EmptyState title={t("test.reading")}>
           <span role="status">{tests.unread ?? executions.unread ?? t("test.readingNote")}</span>
         </EmptyState>
       ) : (
         <>
-          <Summary path={path} executions={ran} />
-          <WhatToDo path={path} latest={ran[0]} {...(test === undefined ? {} : { report: withPanel(route, REPORT_PANEL) })} />
+          {ran[0]?.result.verdict === "failed" ? (
+            <TestFailure
+              path={path}
+              steps={test?.steps.length ?? 0}
+              latest={ran[0]}
+              {...(test === undefined ? {} : { report: withPanel(route, REPORT_PANEL) })}
+            />
+          ) : (
+            <Summary path={path} executions={ran} />
+          )}
           {test === undefined && <EmptyState title={t("test.unknown")}>{t("test.unknownNote")}</EmptyState>}
           <div className="test-reading">
             <div className="test-column">
-              {test !== undefined && <TestSteps test={test} editHref={(number) => withPanel(route, `step:${number}`)} />}
+              {test !== undefined && (
+                <TestSteps
+                  test={test}
+                  editHref={(number) => withPanel(route, `step:${number}`)}
+                  {...(ran[0]?.result.failure === undefined ? {} : { failure: ran[0].result.failure })}
+                />
+              )}
               <Versions title={title} versions={versions.value ?? []} />
             </div>
             <div className="test-column">
