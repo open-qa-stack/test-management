@@ -89,10 +89,72 @@
   gap: var(--space-2);
 }
 
+/* A session of the list: what was asked, on two lines at most, beside its state. */
 .agent-home-session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1) var(--space-2);
   margin-bottom: var(--gap-line);
   font-weight: var(--weight-medium);
   overflow-wrap: anywhere;
+}
+
+.agent-home-request {
+  display: -webkit-box;
+  flex: 1 1 16em;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/* Where to start from what the project holds: a card a way, side by side as far as the width goes. */
+.agent-home-start {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.agent-home-start .grp {
+  margin: 0;
+}
+
+.agent-home-ways {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14em), 1fr));
+  gap: var(--space-3);
+}
+
+.agent-home-way {
+  display: grid;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--pad);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.agent-home-way b::before {
+  content: "";
+  display: inline-block;
+  width: var(--space-2);
+  height: var(--space-2);
+  margin-right: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  vertical-align: middle;
+}
+
+.agent-home-way.ko b::before {
+  background: var(--ko);
+}
+
+.agent-home-way.ai b::before {
+  background: var(--ai);
 }
 
 @media (min-width: 720px) {
@@ -128,8 +190,12 @@
   color: var(--text-3);
 }
 
+/* A part of the scope reads as a control: outlined, on the surface, its value in bold. */
 .scope-chip {
   min-height: var(--tap);
+  border: var(--hairline) solid var(--field-line);
+  background: var(--surface);
+  color: var(--text-2);
 }
 
 .scope-chip.chosen {

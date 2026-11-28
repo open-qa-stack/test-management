@@ -248,7 +248,7 @@ describe("the console in a browser", () => {
       await page.getByRole("link", { name: "Revenir aux sessions" }).click();
       const row = page.getByRole("link", { name: /vérifier le changement d'adresse/ });
       await row.waitFor();
-      assert.match(await row.innerText(), /en attente d’un agent\s+En file$/);
+      assert.match(await row.innerText(), /vérifier le changement d'adresse\s+En file\s+.*en attente d’un agent$/);
       assert.equal(new URL(page.url()).hash, "#/agent");
     } finally {
       await page.close();

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { describe, it } from "vitest";
+import type { Api } from "./built-console.ts";
 import { builtConsole } from "./in-browser.ts";
 import { PlayedInstance } from "./played-instance.ts";
 import { SESSION_ID } from "./agent/session-fixture.ts";
@@ -201,6 +202,13 @@ describe("the code of the console is covered in full", () => {
       { id: "policies", label: "Polices", description: "Les contrats.", sources: [] },
       { id: "customers", label: "Clients", description: "Les clients.", sources: [] },
     ];
+    let told = false;
+    const held: Api = (request) => {
+      if (told && request.path === "/api/tests/verdicts")
+        return { status: 200, body: JSON.stringify({ items: [{ path: "a.spec.ts", title: "A", verdict: "failed" }] }) };
+      if (told && request.path === "/api/reviews") return { status: 200, body: JSON.stringify({ tests: [], counts: { inReview: 2, setAside: 0 } }) };
+      return instance.api(request);
+    };
     const [entry, picker, form] = await app().measure(
       ["src/agent/agent-home-page.tsx", "src/agent/scope-picker.tsx", "src/agent/request-form.tsx"],
       async (page) => {
@@ -210,10 +218,14 @@ describe("the code of the console is covered in full", () => {
         await page.getByText("Environnement : local").waitFor();
         instance.domains = domains;
         instance.staging = true;
+        // The entry reads again what the project holds to start from: told now, where it was not before.
+        told = true;
         await page.goto("http://console.test/#/tests");
         await page.goto("http://console.test/#/agent");
         // The entry reads the configuration and the domains again: the choice of the environment shows once it did.
         await page.getByText("Domaines : tous").waitFor();
+        await page.getByRole("link", { name: /Corriger le test échoué/ }).waitFor();
+        await page.getByRole("link", { name: /Relire les 2 nouveaux tests/ }).waitFor();
         await page.getByLabel("Environnement :").selectOption("staging", { timeout: 60_000 });
         await page.getByText("Domaines : tous").click();
         for (const label of ["Devis", "Polices", "Clients"]) await page.getByRole("checkbox", { name: new RegExp(`^${label}`) }).check();
@@ -246,7 +258,7 @@ describe("the code of the console is covered in full", () => {
         await page.evaluate(() => new Promise((settled) => requestAnimationFrame(settled)));
         assert.equal(await page.locator(".scope-picker").count(), 0);
       },
-      instance.api,
+      held,
     );
     assert.deepEqual(instance.asked.at(-1), { request: "couvrir les devis", environment: "staging", scope: { domains: ["quotes"], levels: ["business"] } });
     assert.ok(entry!.lines.length > 0 && picker!.lines.length > 0 && form!.lines.length > 0, "the entry, the picker and the form are in the build");
