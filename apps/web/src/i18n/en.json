@@ -881,7 +881,12 @@
       "truncated": "Mapped in part",
       "noKnowledgeBase": "Nothing is mapped yet: each source added is mapped at once, then all of them are put together by domain.",
       "knowledgeBase": "Knowledge base put together by domain on {{date}}.",
-      "partKnowledgeBase": "Knowledge base put together by domain on {{date}}, in part: a limit stopped the cartography."
+      "partKnowledgeBase": "Knowledge base put together by domain on {{date}}, in part: a limit stopped the cartography.",
+      "title": {
+        "none": "No cartography yet",
+        "behind": "Cartography to complete",
+        "done": "Cartography up to date"
+      }
     },
     "add": "Add knowledge",
     "addHint": "choose what the agents will read",
@@ -892,7 +897,9 @@
     "project": "The whole project",
     "projectHint": "read whatever application is tested",
     "sourceId": "Identifier: {{id}}",
-    "where": "Read from: {{where}}"
+    "where": "Read from: {{where}}",
+    "sourceCount_one": "{{count}} source",
+    "sourceCount_other": "{{count}} sources"
   },
   "tests": {
     "title": "Tests",

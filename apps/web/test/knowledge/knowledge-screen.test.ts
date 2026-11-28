@@ -102,7 +102,7 @@ describe("the knowledge of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Les domaines qu’en tire la cartographie sont dans Découverte\. .*Shop · shop Documentation de l’API contract local › backend Documentation de l’API local-contract/,
+      /Les domaines qu’en tire la cartographie sont dans Découverte\. .*Shop 8 sources Documentation de l’API contract local Documentation de l’API local-contract/,
     );
     assert.doesNotMatch(text, /SHOP_DB_URL|http:|specs\/orders\.md|\.\.\/shop|logs\/server\.log/);
     for (const row of [
@@ -114,7 +114,7 @@ describe("the knowledge of the project", () => {
       "Journaux container-log",
     ])
       assert.ok(text.includes(row), row);
-    assert.match(text, /Back office · back-office Aucune source n’est rattachée à cette application$/);
+    assert.match(text, /Back office 0 source Aucune source n’est rattachée à cette application$/);
     assert.deepEqual(
       linksOf(html).filter((link) => link.startsWith("#/knowledge/")),
       [
@@ -173,19 +173,24 @@ describe("the knowledge of the project", () => {
       { id: "contract", type: "openapi", state: "truncated", mappedAt: at },
     ] as const;
     const text = mapped({ environment: "local", sources });
-    assert.match(text, /Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt/);
+    assert.match(text, /Pas encore de cartographie Rien n’est encore cartographié : chaque source ajoutée est cartographiée aussitôt/);
     for (const row of [
       "Base de données orders En attente de cartographie",
       "Documents du dépôt specs Cartographie en cours",
       "Code code",
-      "local › backend Cartographiée en partie",
+      "contract local Cartographiée en partie",
     ])
       assert.ok(text.includes(row), row);
     assert.ok(!text.includes("Code code Cartographiée"), "a source mapped has no badge: the line of the knowledge base says it");
     assert.ok(text.includes("Documents déposés manuals 1 document Code"), "a source the cartography does not read has no badge");
+    // The knowledge base is up to date once written in full from every source mapped; to complete otherwise.
     assert.match(
       mapped({ environment: "local", sources, knowledgeBase: { producedAt: at, status: "complete" } }),
-      /Base de connaissance mise en commun par domaine le 22 nov\. 2026/,
+      /Cartographie à compléter Base de connaissance mise en commun par domaine le 22 nov\. 2026/,
+    );
+    assert.match(
+      mapped({ environment: "local", sources: [sources[2]], knowledgeBase: { producedAt: at, status: "complete" } }),
+      /Cartographie à jour Base de connaissance/,
     );
     assert.match(
       mapped({ environment: "local", sources, knowledgeBase: { producedAt: at, status: "truncated" } }),
@@ -229,7 +234,7 @@ describe("a source of the knowledge", () => {
     const state = [{ type: "read", view } as const, { type: "listed", source: "notes", items: [QUOTES] } as const].reduce(knowledgeAfter, stateAfter());
     assert.match(
       textOf(screen("#/knowledge", state)),
-      /Tout le projet · lue quelle que soit l’application testée Documents du dépôt glossary Documents déposés notes 1 document Shop · shop/,
+      /Tout le projet · lue quelle que soit l’application testée Documents du dépôt glossary Documents déposés notes 1 document Shop 8 sources/,
     );
     assert.match(
       textOf(screen("#/knowledge/glossary", state, INITIAL_CONFIGURATION)),

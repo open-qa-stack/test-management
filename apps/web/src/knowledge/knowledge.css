@@ -9,19 +9,6 @@
   overflow-wrap: anywhere;
 }
 
-/* The kind of a source, a picture on a soft square, as the row of a list reads it first. */
-.knowledge-kind {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--picture);
-  height: var(--picture);
-  border-radius: var(--radius-control);
-  background: var(--neutral-soft);
-  color: var(--text-2);
-}
-
 .knowledge-id {
   font-weight: var(--weight-medium);
 }
@@ -60,4 +47,74 @@
 
 .remap p {
   margin: 0;
+}
+
+/* Where the cartography stands, then the button that maps it all again: under it on a phone, at its right from a tablet. */
+.knowledge-mapping {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--pad);
+}
+
+.knowledge-mapping-text {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.knowledge-mapping-text p {
+  margin: 0;
+}
+
+.knowledge-mapping .remap .btn {
+  flex: 1;
+  min-height: calc(var(--space-8) + var(--space-3));
+  font-size: var(--type-body);
+  font-weight: var(--weight-strong);
+}
+
+/* The sources of each application, a card each: one under the other on a phone, side by side as many as the width takes. */
+.knowledge-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.knowledge-group > .hd {
+  display: flex;
+  align-items: center;
+  background: var(--surface-soft);
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+}
+
+.knowledge-group > .hd .right {
+  margin-left: auto;
+  color: var(--text-3);
+  font-size: var(--type-small);
+  font-weight: var(--weight-regular);
+}
+
+.knowledge-row {
+  min-height: calc(var(--space-8) + var(--space-6));
+}
+
+.knowledge-row .mono {
+  overflow-wrap: anywhere;
+}
+
+.knowledge-go {
+  display: inline-flex;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+}
+
+@media (min-width: 720px) {
+  .knowledge-mapping {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .knowledge-mapping .remap .btn {
+    min-width: calc(var(--space-12) * 4);
+  }
 }
