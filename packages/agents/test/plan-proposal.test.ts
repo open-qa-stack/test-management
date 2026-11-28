@@ -1312,12 +1312,22 @@ describe("the actions a plan cites", () => {
     assert.deepEqual(
       refused.filter((line) => line.includes("PLAN-SIGNIN")),
       [
-        "Refused (PLAN-SIGNIN): scenario a acts on shop after the actions 3, 4 signed in to it, and none of its steps cites them: a test starts signed out. Cite 3, 4 first in the actions of the first step that acts on shop; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.",
-        "Refused (PLAN-SIGNIN): scenario b acts on shop after the actions 6, 7, 8 signed in to it, and none of its steps cites them: a test starts signed out. Cite 6, 7, 8 first in the actions of the first step that acts on shop; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.",
+        'Refused (PLAN-SIGNIN): scenario a acts on shop after the actions 3, 4 signed in to it, and none of its steps cites them: a test starts signed out. Cite them first in the actions of the first step that acts on shop, such as "actions": [3, 4, …]; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.',
+        'Refused (PLAN-SIGNIN): scenario b acts on shop after the actions 6, 7, 8 signed in to it, and none of its steps cites them: a test starts signed out. Cite them first in the actions of the first step that acts on shop, such as "actions": [6, 7, 8, …]; or, for a scenario that verifies what a person who is not signed in sees, do its steps again signed out and cite those actions.',
       ],
     );
     // A scenario whose actions all came before any sign-in, as c, is held to nothing; one that cites the sign-in is accepted.
     assert.equal(await submit(made, steps([1], [6, 7, 8, 9])), ACCEPTED);
+  });
+
+  it("hold to nothing a scenario that acts after credentials typed then left, an address opened in place of sending them", async () => {
+    const { proposal: made, screens } = await proposal({}, true);
+    const password = { value: { account: "demo", field: "password" } };
+    // 1 opens the orders, 2 and 3 type the credentials, 4 opens another address without sending them, 5 clicks there.
+    for (const [action, args] of [["fill", password], ["fill", password], ["goto"], ["click"]] as const) await act(screens, action, args);
+    const plan = { scenarios: [scenario("a", { steps: [{ action: "Open the orders", actions: [4, 5], expects: [shown("Orders")] }] })] };
+    const told = await submit(made, plan);
+    assert.equal(typeof told, "string", JSON.stringify(told));
   });
 
   it("start, for each scenario, with one that opens an address: its test starts on an empty page", async () => {
@@ -1848,6 +1858,28 @@ describe("the effect of a scenario on the data of the environment", () => {
       data: [],
       steps: [{ action: "Open the orders", actions, expects: [{ result: "The orders show", shows: ["Orders"], absent: [] }] }],
     });
+
+  it("takes a click that signs in for none that writes: one on an element named so, or one that sends the credentials typed just before", async () => {
+    const signing = (): ToolDefinition[] =>
+      tools().map((tool) =>
+        tool.name === "shop_fill" ? { ...tool, execute: async () => ({ url: "/login", code: "await page.fill(process.env.SHOP_PASSWORD!);" }) } : tool,
+      );
+    const screens = new ScreenWatch(["shop"], signing());
+    const call = (name: string, args: object = {}) =>
+      screens
+        .tools()
+        .find((tool) => tool.name === name)!
+        .execute(args);
+    // 1 opens the page, 2 clicks a button named to sign in and save, 3 types the password, 4 sends it with a click named to save.
+    await call("shop_goto");
+    await call("shop_click", { target: { role: "button", name: "Log in and save my session" } });
+    await call("shop_fill", { target: { role: "textbox", name: "Password" }, value: "x" });
+    await call("shop_click", { target: { role: "button", name: "Save and continue" } });
+    const { reads } = await proposal();
+    const plan = new PlanProposal({ ...RULES, screens, reads }, new Journal());
+    const refused = (await plan.tool().execute({ scenarios: [told("read", [1, 2, 3, 4])] })) as string | { error: string };
+    assert.ok(typeof refused === "string" || !refused.error.includes("PLAN-EFFECT"), JSON.stringify(refused));
+  });
 
   it("refuses a scenario said to only read that cites a click whose name says it writes, and keeps it once it says it writes", async () => {
     const refused = (await (await saved()).tool().execute({ scenarios: [told("read", [1, 2])] })) as { error: string };
