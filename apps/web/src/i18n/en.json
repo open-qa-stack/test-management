@@ -1366,8 +1366,6 @@
     "lead": "A campaign is made of the tests you choose, fixed once it is ready, then follows what came of each at every launch.",
     "reading": "Reading the campaigns",
     "readingNote": "They show as soon as the instance answered.",
-    "none": "No campaign",
-    "noneNote": "Plan one: a name and an environment, then choose its tests.",
     "statuses": {
       "planned": "Planned",
       "ready": "Ready",
@@ -1379,9 +1377,10 @@
       "name": "Name",
       "namePlaceholder": "Release 4.2",
       "environment": "Environment",
-      "submit": "Plan",
+      "submit": "Plan, then choose the tests",
       "pending": "Planning…",
-      "more": "More about it (optional)"
+      "more": "More about it (optional)",
+      "none": "No campaign yet."
     },
     "chosen_one": "{{count}} test chosen",
     "chosen_other": "{{count}} tests chosen",
@@ -1397,6 +1396,23 @@
       "both": "{{from}} to {{until}}",
       "from": "from {{from}}",
       "until": "until {{until}}"
+    },
+    "steps": {
+      "label": "How a campaign is made",
+      "form": {
+        "title": "A name and an environment",
+        "note": "This form."
+      },
+      "tests": {
+        "title": "You choose its tests",
+        "note": "Among the tests of the repository.",
+        "count_one": "Among the one test of the repository.",
+        "count_other": "Among the {{count}} of the repository."
+      },
+      "ready": {
+        "title": "It is frozen, then launched",
+        "note": "Each launch keeps what came of each test."
+      }
     }
   },
   "campaign": {

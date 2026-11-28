@@ -13,7 +13,8 @@ const screen = (
   state: PolledState<CampaignList>,
   environments: readonly string[] = ["local", "staging"],
   planning: PlanningState = { pending: false },
-): string => render(createElement(CampaignsScreen, { project: "lakeside-tests", state, environments, planning, onPlan: () => undefined }));
+  tests?: number,
+): string => render(createElement(CampaignsScreen, { project: "lakeside-tests", state, environments, tests, planning, onPlan: () => undefined }));
 
 describe("the screen of the campaigns", () => {
   it("lists the campaigns, the latest planned first, each with its environment, how far it went, its state, and a link to it", () => {
@@ -39,15 +40,29 @@ describe("the screen of the campaigns", () => {
     const html = screen({ value: { items: [] } });
     assert.match(
       textOf(html),
-      /Planifier une campagne Nom Environnement local staging En dire plus \(facultatif\) Objectif Version visée Premier jour Dernier jour Responsable Planifier Aucune campagne Planifiez-en une : un nom et un environnement, puis choisissez ses tests\./,
+      /Planifier une campagne Aucune campagne pour l’instant\. Nom Environnement local staging En dire plus \(facultatif\) Objectif Version visée Premier jour Dernier jour Responsable Planifier, puis choisir les tests /,
     );
     assert.ok(html.includes('<select name="environment">'));
     assert.match(screen({ value: { items: [] } }, []), /<input required="" name="environment"\/>/);
   });
 
+  it("tells how a campaign is made before the first, among how many tests of the repository once the instance said", () => {
+    const steps = (tests?: number) => textOf(screen({ value: { items: [] } }, ["local"], { pending: false }, tests));
+    assert.match(
+      steps(),
+      /1 Un nom et un environnement C’est ce formulaire\. 2 Vous choisissez ses tests Parmi les tests du dépôt\. 3 Elle est figée, puis lancée Chaque lancement garde le résultat de chaque test\.$/,
+    );
+    assert.match(steps(41), / Parmi les 41 du dépôt\. /);
+    assert.match(steps(1), / Parmi le test du dépôt\. /);
+    assert.match(screen({ value: { items: [] } }), /<li aria-current="step"><span class="campaign-step-number">1</);
+    // Once there is a campaign, the form says nothing of the first, and the list takes the place of the steps.
+    const listed = textOf(screen({ value: { items: OVERVIEWS } }));
+    assert.doesNotMatch(listed, /Aucune campagne pour l’instant|Un nom et un environnement/);
+  });
+
   it("says the planning goes on, and why the instance refused it", () => {
     assert.match(textOf(screen({ value: { items: [] } }, ["local"], { pending: true })), /Planification…/);
-    assert.match(textOf(screen({ value: { items: [] } }, ["local"], { pending: false, refusal: "Refusé." })), /Refusé\. Planifier/);
+    assert.match(textOf(screen({ value: { items: [] } }, ["local"], { pending: false, refusal: "Refusé." })), /Refusé\. Planifier, puis choisir les tests/);
   });
 
   it("says it reads the campaigns until the instance answered, and why it could not", () => {

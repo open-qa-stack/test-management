@@ -13,18 +13,82 @@
 
 .campaign-plan {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
   padding: var(--pad);
 }
 
-.campaign-plan-title {
-  font-size: var(--type-heading);
+.campaign-plan-head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.campaign-plan-head p {
   margin: 0;
+}
+
+.campaign-plan-title {
+  margin: 0;
+  font-size: var(--type-heading);
+  line-height: var(--leading-heading);
 }
 
 .campaign-field {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  font-weight: var(--weight-medium);
+}
+
+/* The fields and the button of the form take the height of a thumb, on every screen. */
+.campaign-plan .campaign-field :is(input, select),
+.campaign-plan > .btn {
+  min-height: calc(var(--space-8) + var(--space-3));
+  font-weight: var(--weight-regular);
+}
+
+.campaign-plan > .btn {
+  margin-top: var(--space-2);
+  font-weight: var(--weight-strong);
+}
+
+/* How a campaign is made, its steps numbered, the one the form is at filled. */
+.campaign-steps {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.campaign-steps li {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.campaign-step-number {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--brand-navy);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-strong);
+}
+
+.campaign-steps [aria-current="step"] .campaign-step-number {
+  background: var(--brand-navy);
+  color: var(--on-brand);
+}
+
+.campaign-step-text {
+  display: grid;
+  color: var(--text-2);
+}
+
+.campaign-step-text b {
+  color: var(--text);
 }
 
 .campaign-refusal {
@@ -64,9 +128,26 @@
 }
 
 .campaign-more > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-height: var(--control);
-  align-content: center;
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+  list-style: none;
   cursor: pointer;
+}
+
+.campaign-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.campaign-more > summary svg {
+  transform: rotate(-90deg);
+}
+
+.campaign-more[open] > summary svg {
+  transform: none;
 }
 
 /* How far a campaign went: the bar of its verdicts, what was not run left empty. */

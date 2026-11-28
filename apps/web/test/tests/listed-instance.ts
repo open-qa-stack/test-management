@@ -53,6 +53,9 @@ export class ListedInstance {
   /** Whether the configuration cannot be read. */
   public unconfigured = false;
 
+  /** Whether the tests of the repository cannot be read. */
+  public untested = false;
+
   /** The changes the console asked of the tests, in order. */
   public readonly changes: TestChange[] = [];
 
@@ -190,6 +193,7 @@ export class ListedInstance {
     if (defects !== undefined) return defects;
     if (request.path === "/api/configuration" && this.unconfigured) return { status: 503, body: JSON.stringify({ code: "unavailable" }) };
     if (request.path === "/api/tests" && request.method === "PATCH") return this.#changed(request.body!);
+    if (request.path === "/api/tests" && this.untested) return { status: 503, body: JSON.stringify({ code: "unavailable" }) };
     if (request.path === "/api/tests") return { status: 200, body: JSON.stringify({ items: this.tests }) };
     if (request.path === "/api/tests/source") return { status: 200, body: JSON.stringify({ path: DETAIL.path, content: SOURCE }) };
     if (request.path === "/api/tests/reading") return { status: 200, body: JSON.stringify(this.reading) };

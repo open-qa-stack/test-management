@@ -10,11 +10,16 @@ import { CampaignsScreen, type PlanningState } from "./campaigns-screen.tsx";
 export function CampaignsPage({ project }: { readonly project: string }): ReactNode {
   const state = usePolled(() => api.campaigns(), "campaigns");
   const [environments, setEnvironments] = useState<readonly string[]>([]);
+  const [tests, setTests] = useState<number>();
   const [planning, setPlanning] = useState<PlanningState>({ pending: false });
   useEffect(() => {
     void api.configuration().then(
       (view) => setEnvironments(declaredEnvironments(view)),
       () => setEnvironments([]),
+    );
+    void api.tests().then(
+      (repository) => setTests(repository.length),
+      () => setTests(undefined),
     );
   }, []);
   const onPlan = (event: FormEvent<HTMLFormElement>): void => {
@@ -29,5 +34,5 @@ export function CampaignsPage({ project }: { readonly project: string }): ReactN
       (error: ApiError) => setPlanning({ pending: false, refusal: error.message }),
     );
   };
-  return <CampaignsScreen project={project} state={state} environments={environments} planning={planning} onPlan={onPlan} />;
+  return <CampaignsScreen project={project} state={state} environments={environments} tests={tests} planning={planning} onPlan={onPlan} />;
 }
