@@ -39,23 +39,34 @@ export function ModelCard({ model, connection, onTest }: ModelCardProps): ReactN
   const models = modelChoices(test?.check, model.model);
   const chosen = models?.find(({ id }) => id === model.model);
   return (
-    <Card id="config-model" title={t("configuration.model.title")} hint={t("configuration.model.hint")}>
+    <Card id="config-model" className="config-model" title={t("configuration.model.title")} hint={t("configuration.model.hint")}>
       <div className="config-body config-fields">
         <ChoiceField pointer="/model/mode" kind="connection" label={t("configuration.model.connection")} value={choice} options={connections()} />
+        {model.mode !== "github" && choice === OTHER_CHOICE && (
+          <InputField
+            pointer="/model/baseUrl"
+            label={t("configuration.model.baseUrl")}
+            hint={t("configuration.model.baseUrlHint")}
+            value={model.baseUrl}
+            code
+            placeholder="http://localhost:1234/v1"
+          />
+        )}
+        {models === undefined ? (
+          <InputField pointer="/model/model" label={t("configuration.model.model")} hint={t("configuration.model.modelHint")} value={model.model} code />
+        ) : (
+          <ChoiceField
+            pointer="/model/model"
+            label={t("configuration.model.model")}
+            value={model.model}
+            none={t("configuration.model.pick")}
+            options={models.map(({ id, name }) => ({ value: id, label: name === id ? id : `${name} (${id})` }))}
+          />
+        )}
         {model.mode === "github" ? (
-          <p className="small muted">{t("configuration.model.githubNote")}</p>
+          <p className="config-key">{t("configuration.model.githubNote")}</p>
         ) : (
           <>
-            {choice === OTHER_CHOICE && (
-              <InputField
-                pointer="/model/baseUrl"
-                label={t("configuration.model.baseUrl")}
-                hint={t("configuration.model.baseUrlHint")}
-                value={model.baseUrl}
-                code
-                placeholder="http://localhost:1234/v1"
-              />
-            )}
             <SecretField variable={model.apiKeyEnv} kind="model_key" />
             <AdvancedFields pointers={["/model/apiKeyEnv"]}>
               <InputField
@@ -71,7 +82,7 @@ export function ModelCard({ model, connection, onTest }: ModelCardProps): ReactN
         <div className="config-actions">
           <button
             type="button"
-            className="btn sm"
+            className="btn"
             onClick={onTest}
             disabled={connection !== undefined && connection.check === undefined && connection.failure === undefined}
           >
@@ -79,17 +90,6 @@ export function ModelCard({ model, connection, onTest }: ModelCardProps): ReactN
           </button>
         </div>
         <TestResult test={test} />
-        {models === undefined ? (
-          <InputField pointer="/model/model" label={t("configuration.model.model")} hint={t("configuration.model.modelHint")} value={model.model} code />
-        ) : (
-          <ChoiceField
-            pointer="/model/model"
-            label={t("configuration.model.model")}
-            value={model.model}
-            none={t("configuration.model.pick")}
-            options={models.map(({ id, name }) => ({ value: id, label: name === id ? id : `${name} (${id})` }))}
-          />
-        )}
         <Roles model={model} models={models} />
         <Advanced model={model} chosen={chosen} />
       </div>

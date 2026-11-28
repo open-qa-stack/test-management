@@ -33,7 +33,7 @@ export function AutonomyCard({
   readonly autonomy?: OqasConfig["autonomy"];
 }): ReactNode {
   return (
-    <Card id="config-autonomy" title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
+    <Card id="config-autonomy" className="config-autonomy" title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
       <div className="config-body">
         <div className="config-fields">
           <RadioField
@@ -42,8 +42,8 @@ export function AutonomyCard({
             label={t("configuration.settings.autonomy.level")}
             value={autonomy.level}
             options={[
-              { value: "bounded", label: t("configuration.settings.bounded") },
-              { value: "autonomous", label: t("configuration.settings.autonomous") },
+              { value: "bounded", label: t("configuration.settings.bounded"), hint: t("configuration.settings.boundedHint") },
+              { value: "autonomous", label: t("configuration.settings.autonomous"), hint: t("configuration.settings.autonomousHint") },
             ]}
           />
         </div>
@@ -111,7 +111,7 @@ export function AutonomyCard({
 export function DesignCard({ design }: { readonly design: OqasConfig["design"] }): ReactNode {
   const levels = design?.levels ?? DEFAULT_LEVELS;
   return (
-    <Card id="config-design" title={t("configuration.settings.design.title")} hint={t("configuration.settings.design.hint")}>
+    <Card id="config-design" className="config-design" title={t("configuration.settings.design.title")} hint={t("configuration.settings.design.hint")}>
       <fieldset className="config-body config-group">
         <legend className="sr-only">{t("configuration.settings.design.legend")}</legend>
         {LEVELS.map((level) => (

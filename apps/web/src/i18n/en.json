@@ -462,8 +462,8 @@
       "command": "Command"
     },
     "settings": {
-      "autonomous": "Autonomous: no limit per task, two hours at most per session",
-      "bounded": "Bounded (recommended): ten minutes per task, two hours at most per session",
+      "autonomous": "Autonomous",
+      "bounded": "Bounded (recommended)",
       "autonomy": {
         "title": "Autonomy",
         "hint": "how far the agents go on their own",
@@ -499,7 +499,9 @@
         "journeysDir": "Folder of the journeys",
         "stateDir": "Folder of the state",
         "knowledgeDir": "Folder of the knowledge base"
-      }
+      },
+      "boundedHint": "Ten minutes per task, two hours at most per session",
+      "autonomousHint": "No limit per task, two hours at most per session"
     },
     "model": {
       "title": "Model",
@@ -536,7 +538,7 @@
       "visionHint": "the agents see the screenshots",
       "visionTold": "the list says this model reads images",
       "roles": {
-        "title": "A model for each role",
+        "title": "Advanced: a model for each role",
         "hint": "Through the same connection. A role left as it is uses the model above.",
         "same": "Same model as above",
         "cartographer": "Cartography",
@@ -826,7 +828,9 @@
         "writer": "Writer of a test",
         "coherence-reviewer": "Reviewer of coherence",
         "code-reviewer": "Reviewer of code"
-      }
+      },
+      "roles_one": "{{count}} role",
+      "roles_other": "{{count}} roles"
     }
   },
   "knowledge": {
