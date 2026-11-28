@@ -21,6 +21,6 @@
   },
   "devDependencies": {
     "@open-qa-stack/testing": "workspace:*",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   }
 }

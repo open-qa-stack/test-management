@@ -24,6 +24,6 @@
     "@open-qa-stack/testing": "workspace:*",
     "@types/better-sqlite3": "9.6.0",
     "@types/pg": "8.23.1",
-    "vitest": "5.1.0"
+    "vitest": "5.1.1"
   }
 }
