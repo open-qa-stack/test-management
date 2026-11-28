@@ -61,7 +61,7 @@ describe("the console in English", () => {
   it("tells a session that ended: its facts, its thread, its plan, its verdicts and its composer", async () => {
     await inEnglish();
     const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x"), live: liveOf(COMPLETED), project: "p" }));
-    assert.match(text, /Passed Nov 15, 2026, 2:44:06 PM UTC · 1 min 54 sec · 3 actions · 50 requests to the model · \S+ Replay/);
+    assert.match(text, /Passed Nov 15, 2026, 2:44:06 PM · 1 min 54 sec · 3 actions · 50 requests to the model · \S+ Replay/);
     assert.match(text, /All Exchanges Actions Verdicts/);
     assert.match(text, /Your request: .* Harness hands over to Planner /);
     assert.match(text, /Planner explores the application and proposes the plan .* Reasoning /);
@@ -79,7 +79,7 @@ describe("the console in English", () => {
   it("asks before it stops a session that goes on", async () => {
     await inEnglish();
     const text = english(createElement(SessionScreen, { route: at("#/agent/sessions/x?stop=ask"), live: liveOf(RUNNING), project: "p" }));
-    assert.match(text, /Live Nov 15, 2026, 2:44:06 PM UTC · 2 actions Stop Replay Stop this session\? Its agents stop as soon as they hand over/);
+    assert.match(text, /Live Nov 15, 2026, 2:44:06 PM · 2 actions Stop Replay Stop this session\? Its agents stop as soon as they hand over/);
     assert.match(text, /Cancel Stop the session /);
     assert.match(text, /The agents are working|is working/);
   });
@@ -89,7 +89,10 @@ describe("the console in English", () => {
     const home = english(createElement(AgentHomeScreen, { project: "p", sessions: [RUNNING, COMPLETED], opening: { state: "idle" } }));
     assert.match(home, /^p \/ Agent What do we test\? Tell the agents what to test Start a session Sessions · 1 live /);
     assert.match(home, / · local · 1 min 54 sec 1 \/ 1 test passed$/);
-    assert.match(english(createElement(Console, { route: at("#/nowhere") })), /Page not found This address leads to no screen .* Back to the sessions$/);
+    assert.match(
+      english(createElement(Console, { route: at("#/nowhere") })),
+      /Page not found This address leads to no screen .* Back to the sessions Agent To review Tests Executions More$/,
+    );
   });
 
   it("shows the configuration, its languages among its settings", async () => {

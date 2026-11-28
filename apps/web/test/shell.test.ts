@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { Project } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
+import { MorePage } from "../src/shell/more-page.tsx";
 import { Shell, type ShellMenu } from "../src/shell/shell.tsx";
 import { at, linksOf, render, textOf } from "./render.ts";
 import { speaking } from "./i18n/in-language.ts";
@@ -33,7 +34,7 @@ function shell(hash: string, props: { readonly project?: Project; readonly unrea
 }
 
 /**
- * Lists the entries of the navigation the shell marks as the place the console is in.
+ * Lists the entries of the menu, then the tabs, the shell marks as the place the console is in.
  *
  * @param hash - The address the console is at.
  * @returns Where each marked entry leads.
@@ -43,26 +44,25 @@ function marked(hash: string): string[] {
 }
 
 describe("the shell", () => {
-  it("frames the page between the top bar and the navigation", () => {
+  it("frames the page between the bar of a phone and the menu, the tabs of a phone after it", () => {
     const html = shell("#/");
-    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu Travail Agent /);
+    assert.match(textOf(html), /^✓ Open QA Stack ✓ Open QA Stack Travail Agent /);
     assert.match(
       html,
-      /<aside id="shell-sidebar" class="shell-sidebar"><nav class="nav" aria-label="Navigation principale">.*<\/aside><main class="shell-page"><p>page<\/p><\/main><\/div>$/,
+      /^<div class="shell"><header class="top"><a class="brand" href="#\/agent"><i>✓<\/i><span>Open QA Stack<\/span><\/a><span class="top-project"><\/span><\/header><aside id="shell-sidebar" class="shell-sidebar"><div class="side-head"><a class="brand" href="#\/agent">/,
     );
-    assert.match(html, /<a class="brand" href="#\/agent">/);
+    assert.match(html, /<\/aside><main class="shell-page"><p>page<\/p><\/main><nav class="tabs" aria-label="Onglets">.*<\/nav><\/div>$/);
   });
 
-  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the defects, the applications, the knowledge, the memory and the configuration as links, after the help of the shortcuts", () => {
+  it("lists the agent, the discovery, the review, the tests, the executions, the campaigns, the defects, the applications, the knowledge, the memory and the configuration as links, then the help of the shortcuts, and the tabs of a phone", () => {
     const html = shell("#/");
     assert.match(
       textOf(html),
-      /Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration page$/,
+      /Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration Raccourcis clavier page Agent À relire Tests Exécutions Plus$/,
     );
     assert.deepEqual(linksOf(html), [
       "#/agent",
-      "#/?nav=open",
-      "#/?keys=open",
+      "#/agent",
       "#/agent",
       "#/discovery",
       "#/review",
@@ -74,18 +74,33 @@ describe("the shell", () => {
       "#/knowledge",
       "#/memory",
       "#/configuration",
+      "#/?keys=open",
+      "#/agent",
+      "#/review",
+      "#/tests",
+      "#/executions",
+      "#/more",
     ]);
   });
 
-  it("marks the agent at the home, at its entry and under it, the tests, the executions, the campaigns and the configuration at their own, and nowhere else", () => {
-    assert.deepEqual(marked("#/"), ["#/agent"]);
-    assert.deepEqual(marked("#/configuration"), ["#/configuration"]);
-    assert.deepEqual(marked("#/knowledge/manuals"), ["#/knowledge"]);
-    assert.deepEqual(marked("#/agent"), ["#/agent"]);
+  it("keeps the tabs of a phone to the screens of the navigation: a screen under one of them leads back to it instead", () => {
+    assert.match(shell("#/tests"), /<nav class="tabs"/);
+    assert.match(shell("#/more"), /<nav class="tabs"/);
+    for (const hash of ["#/tests/view?path=a.spec.ts", "#/agent/sessions/s1", "#/knowledge/manuals"]) assert.doesNotMatch(shell(hash), /class="tabs"/, hash);
+  });
+
+  it("marks the entry and the tab the console is under, the tab of the other entries under any of them, and nothing elsewhere", () => {
+    assert.deepEqual(marked("#/"), ["#/agent", "#/agent"]);
+    assert.deepEqual(marked("#/agent"), ["#/agent", "#/agent"]);
     assert.deepEqual(marked("#/agent/sessions/oqas-2026-11-15T14-44-06-348Z"), ["#/agent"]);
-    assert.deepEqual(marked("#/tests"), ["#/tests"]);
-    assert.deepEqual(marked("#/executions"), ["#/executions"]);
+    assert.deepEqual(marked("#/review"), ["#/review", "#/review"]);
+    assert.deepEqual(marked("#/tests"), ["#/tests", "#/tests"]);
+    assert.deepEqual(marked("#/executions"), ["#/executions", "#/executions"]);
+    assert.deepEqual(marked("#/configuration"), ["#/configuration", "#/more"]);
+    assert.deepEqual(marked("#/knowledge/manuals"), ["#/knowledge"]);
     assert.deepEqual(marked("#/campaigns/view?id=c1"), ["#/campaigns"]);
+    assert.deepEqual(marked("#/memory"), ["#/memory", "#/more"]);
+    assert.deepEqual(marked("#/more"), ["#/more"]);
     assert.deepEqual(marked("#/nowhere"), []);
   });
 
@@ -93,54 +108,31 @@ describe("the shell", () => {
     const closed = shell("#/review?id=a");
     assert.match(
       closed,
-      /<a class="top-help" href="#\/review\?id=a&amp;keys=open" aria-haspopup="dialog" aria-keyshortcuts="\?" aria-label="Raccourcis clavier" title="Raccourcis clavier"><svg /,
+      /<div class="side-foot"><a class="side-help" href="#\/review\?id=a&amp;keys=open" aria-haspopup="dialog" aria-keyshortcuts="\?" title="Raccourcis clavier"><svg [^>]*>.*?<\/svg><span class="nav-label">Raccourcis clavier<\/span><\/a><\/div>/,
     );
     assert.doesNotMatch(closed, /<dialog/);
     const open = shell("#/review?id=a&keys=open");
     assert.match(open, /<dialog class="side-panel" aria-labelledby="shell-shortcuts">/);
     assert.match(open, /<a class="side-panel-close" href="#\/review\?id=a"/);
     assert.match(
-      textOf(open),
-      /Raccourcis clavier Partout \? Ouvrir cette aide Échap Fermer le panneau ouvert Agent Ctrl Entrée Envoyer la demande \(⌘ \+ Entrée sur Mac\) Entrée Envoyer un message à une session Maj Entrée Aller à la ligne dans un message À relire J Test suivant K Test précédent V Valider le test affiché Fiche d’un test R Relancer le test Résultat d’une exécution ← Étape précédente → Étape suivante$/,
+      textOf(open.slice(open.indexOf("<dialog"))),
+      /^Raccourcis clavier Partout \? Ouvrir cette aide Échap Fermer le panneau ouvert Agent Ctrl Entrée Envoyer la demande \(⌘ \+ Entrée sur Mac\) Entrée Envoyer un message à une session Maj Entrée Aller à la ligne dans un message À relire J Test suivant K Test précédent V Valider le test affiché Fiche d’un test R Relancer le test Résultat d’une exécution ← Étape précédente → Étape suivante$/,
     );
     await inEnglish();
     assert.match(textOf(shell("#/?keys=open")), /Keyboard shortcuts Everywhere \? Open this help Esc Close the open panel Agent Ctrl Enter Send the request/);
   });
 
-  it("has a button that folds the menu to its icons and unfolds it, when it is given one, and none otherwise", () => {
+  it("has a button beside the mark of the menu that folds it to its icons and unfolds it, when it is given one, and none otherwise", () => {
     const toggle = (): void => undefined;
     const unfolded = shell("#/", { menu: { folded: false, toggle } });
     assert.match(
       unfolded,
-      /^<div class="shell"><header class="top"><button type="button" class="menu-toggle" aria-controls="shell-sidebar" aria-expanded="true" aria-label="Replier le menu" title="Replier le menu">/,
+      /<div class="side-head"><a class="brand" href="#\/agent"><i>✓<\/i><span>Open QA Stack<\/span><\/a><button type="button" class="menu-toggle" aria-controls="shell-sidebar" aria-expanded="true" aria-label="Replier le menu" title="Replier le menu">/,
     );
     const folded = shell("#/", { menu: { folded: true, toggle } });
-    assert.match(folded, /^<div class="shell folded"><header class="top"><button [^>]*aria-expanded="false" aria-label="Déplier le menu"/);
+    assert.match(folded, /^<div class="shell folded">/);
+    assert.match(folded, /<button [^>]*aria-expanded="false" aria-label="Déplier le menu"/);
     assert.doesNotMatch(shell("#/"), /menu-toggle/);
-  });
-
-  it("names the screen in the top bar by the entry it is under, and by the product at an address that leads nowhere", () => {
-    const named = (hash: string): string => /<span class="top-screen">([^<]*)<\/span>/.exec(shell(hash))![1]!;
-    assert.equal(named(""), "Agent");
-    assert.equal(named("#/agent/sessions/oqas-2026-11-15T14-44-06-348Z"), "Agent");
-    assert.equal(named("#/tests/view?id=t1"), "Tests");
-    assert.equal(named("#/knowledge/manuals"), "Connaissances");
-    assert.equal(named("#/nowhere"), "Open QA Stack");
-  });
-
-  it("opens the navigation in a panel over the screen from the button of the top bar, keeping where the screen is", () => {
-    const closed = shell("#/agent/sessions/s1?show=talk");
-    assert.match(closed, /<a class="btn top-menu" href="#\/agent\/sessions\/s1\?show=talk&amp;nav=open" aria-haspopup="dialog">Menu<\/a>/);
-    assert.doesNotMatch(closed, /<dialog/);
-    const open = shell("#/agent/sessions/s1?show=talk&nav=open", { project: projectWith(1) });
-    const panel = /<dialog class="side-panel" aria-labelledby="shell-menu">.*<\/dialog>/.exec(open)?.[0] ?? "";
-    assert.match(panel, /<h2 id="shell-menu">Menu<\/h2><a class="side-panel-close" href="#\/agent\/sessions\/s1\?show=talk" aria-label="Fermer">/);
-    assert.match(
-      textOf(panel),
-      /^Menu LA lakeside-tests 1 application · projet Travail Agent Référentiel Découverte À relire Tests Exécution Exécutions Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration$/,
-    );
-    assert.match(panel, /<a href="#\/agent" class="on" aria-current="page">/);
-    assert.match(shell("#/?nav=open"), /<a class="side-panel-close" href="#\/" aria-label="Fermer">/);
   });
 
   it("says the instance no longer answers only when it cannot be reached", () => {
@@ -151,9 +143,10 @@ describe("the shell", () => {
     assert.match(textOf(html), /^● Hors ligne — l’instance ne répond plus ; la page reprendra seule dès son retour ✓ Open QA Stack/);
   });
 
-  it("names the project over the navigation, once the API described it", () => {
+  it("names the project in the bar of a phone and over the menu, once the API described it", () => {
     const html = shell("#/", { project: projectWith(2) });
-    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu LA lakeside-tests 2 applications · projet Travail Agent/);
+    assert.match(textOf(html), /^✓ Open QA Stack lakeside-tests ✓ Open QA Stack LA lakeside-tests 2 applications · projet Travail Agent/);
+    assert.match(html, /<span class="top-project">lakeside-tests<\/span>/);
     assert.match(html, /<span class="proj-avatar">LA<\/span>/);
     assert.doesNotMatch(shell("#/"), /class="proj"/);
   });
@@ -161,7 +154,7 @@ describe("the shell", () => {
   it("does not name a project that has no name yet", () => {
     const html = shell("#/", { project: { applications: projectWith(2).applications } });
     assert.doesNotMatch(html, /class="chip mono"|class="proj"|undefined/);
-    assert.match(textOf(html), /^✓ Open QA Stack Agent Menu Travail Agent /);
+    assert.match(textOf(html), /^✓ Open QA Stack ✓ Open QA Stack Travail Agent /);
   });
 
   it("counts the applications of the project as French does, in the singular below two", () => {
@@ -172,7 +165,23 @@ describe("the shell", () => {
   it("is written in English when the console speaks it", async () => {
     await inEnglish();
     const text = textOf(shell("#/", { project: projectWith(1), unreachable: true }));
-    assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back ✓ Open QA Stack Agent Menu/);
+    assert.match(text, /● Offline — the instance no longer answers; the page picks up by itself once it is back ✓ Open QA Stack lakeside-tests/);
     assert.match(text, /lakeside-tests 1 application · project Work Agent Repository Discovery To review Tests Execution/);
+    assert.match(text, /Keyboard shortcuts page Agent To review Tests Executions More$/);
+  });
+});
+
+describe("the screen of the other entries", () => {
+  it("lists, under the heading of their group, the entries the tabs of a phone leave out, each a row that opens it", () => {
+    const html = render(createElement(MorePage, { project: "lakeside-tests" }));
+    assert.equal(
+      textOf(html),
+      "lakeside-tests / Plus Plus Référentiel Découverte Exécution Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration",
+    );
+    assert.deepEqual(linksOf(html), ["#/discovery", "#/campaigns", "#/defects", "#/applications", "#/knowledge", "#/memory", "#/configuration"]);
+    assert.match(
+      html,
+      /<section class="more-group" aria-labelledby="more-repository"><h2 id="more-repository" class="grp">Référentiel<\/h2><div class="more-list"><a class="more-link" href="#\/discovery">/,
+    );
   });
 });

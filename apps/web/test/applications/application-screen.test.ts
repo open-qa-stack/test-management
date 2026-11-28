@@ -29,7 +29,7 @@ describe("the page of an application", () => {
   it("says it reads the configuration until the instance told it, and leads back to the configuration", () => {
     assert.match(
       textOf(page("#/applications/shop", INITIAL_CONFIGURATION)),
-      /^shop-tests \/ Applications \/ shop shop Lecture de la configuration Elle apparaît dès que l’instance a répondu\. Revenir aux applications$/,
+      /^Applications shop-tests \/ Applications \/ shop shop Lecture de la configuration Elle apparaît dès que l’instance a répondu\. Revenir aux applications$/,
     );
     assert.match(
       textOf(page("#/applications?add=application", { ...INITIAL_CONFIGURATION, unread: "Down." })),
@@ -49,7 +49,7 @@ describe("the page of an application", () => {
   it("shows what the application is, then its test accounts and its environments a row each, with nothing to save while nothing changed, and no button that removes it", () => {
     const html = page("#/applications/shop");
     const text = textOf(html);
-    assert.match(text, /^shop-tests \/ Applications \/ Shop Shop Retirer l’application Nom .* Avancé Identifiant Minuscules/);
+    assert.match(text, /^Applications shop-tests \/ Applications \/ Shop Shop Retirer l’application Nom .* Avancé Identifiant Minuscules/);
     assert.match(
       text,
       /Comptes de test clerk Modifier Ajouter un compte Environnements local http:\/\/127\.0\.0\.1:3000 · 1 API Modifier Ajouter un environnement Enregistrée$/,
@@ -197,7 +197,7 @@ describe("the page of an application", () => {
     const document = { ...DOCUMENT, applications: [{ ...DOCUMENT.applications[0]!, name: "" }] };
     const view = { ...VIEW, revision: { ...VIEW.revision!, document } };
     const unnamed = configurationAfter(INITIAL_CONFIGURATION, { type: "read", view, revisions: REVISIONS });
-    assert.match(textOf(page("#/applications/shop", unnamed)), /^shop-tests \/ Applications \/ Application 1 Application 1 Retirer l’application/);
+    assert.match(textOf(page("#/applications/shop", unnamed)), /^Applications shop-tests \/ Applications \/ Application 1 Application 1 Retirer l’application/);
   });
 
   it("folds the identifier and the variables under « Avancé », which opens by itself on an error of one of them", () => {
@@ -232,7 +232,7 @@ describe("the page of an application", () => {
     const errors: ConfigError[] = [{ kind: "structure", path: "/applications/1/environments", rule: "too-few-items", message: "Too few items." }];
     const html = page("#/applications?add=application", { ...added, errors, tried: true });
     const text = textOf(html);
-    assert.match(text, /^shop-tests \/ Applications \/ Nouvelle application Nouvelle application 1 erreur à corriger avant d’enregistrer/);
+    assert.match(text, /^Applications shop-tests \/ Applications \/ Nouvelle application Nouvelle application 1 erreur à corriger avant d’enregistrer/);
     assert.match(text, /avant d’enregistrer .*Nom /);
     assert.doesNotMatch(html, /data-remove="\/applications\/1"/);
     assert.match(text, /Environnements Environnement 1 aucune API Modifier Il en faut au moins un\. Ajouter un environnement/);

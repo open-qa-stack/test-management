@@ -8,7 +8,8 @@
     "navigation": "Navigation principale",
     "fold": "Replier le menu",
     "unfold": "Déplier le menu",
-    "menuTitle": "Menu",
+    "tabs": "Onglets",
+    "more": "Plus",
     "applications_one": "{{count}} application · projet",
     "applications_other": "{{count}} applications · projet",
     "groups": {
@@ -54,7 +55,8 @@
       "running": "Exécution en cours",
       "review": "À relire",
       "defects": "Anomalies",
-      "memory": "Mémoire"
+      "memory": "Mémoire",
+      "more": "Plus"
     },
     "opening": {
       "title": "Lecture de la session",
@@ -1726,5 +1728,8 @@
       "saving": "Enregistrement…",
       "incomplete": "Écrivez ce que les agents doivent retenir, en 600 caractères au plus."
     }
+  },
+  "page": {
+    "back": "Retour à {{screen}}"
   }
 }

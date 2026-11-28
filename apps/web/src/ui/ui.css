@@ -8,9 +8,49 @@
   padding: 0 var(--gutter);
 }
 
+/* On a phone a page leads back to the screen it is under, on a line of its own; the breadcrumb waits for a wider screen. */
+.crumb-back {
+  display: flex;
+  width: 100%;
+}
+
+.crumb-back a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  margin-left: calc(-1 * var(--space-2));
+  padding-right: var(--space-2);
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.crumb {
+  display: none;
+}
+
+/* Without the breadcrumb above it, the head of a page keeps its distance from the bar of a phone. */
+.ph {
+  padding-top: var(--space-2);
+}
+
+@media (min-width: 720px) {
+  .ph {
+    padding-top: 0;
+  }
+
+  .crumb-back {
+    display: none;
+  }
+
+  .crumb {
+    display: flex;
+  }
+}
+
 /* The breadcrumb keeps to one line: its last step, which the title repeats, is the one cut short. */
 .crumb {
-  display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
@@ -154,13 +194,14 @@
   cursor: default;
 }
 
+/* A chip is pressed, as a field is filled: it takes the corners of a control. The pill is for a badge, which says a state and leads nowhere. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   min-height: var(--space-6);
   padding: 0 var(--space-3);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   background: var(--neutral-soft);
   color: var(--text-2);
   font-size: var(--type-small);

@@ -212,7 +212,7 @@ describe("a source of the knowledge", () => {
     const text = textOf(screen("#/knowledge/contract", stateAfter(), INITIAL_CONFIGURATION));
     assert.equal(
       text,
-      "shop-tests / Connaissances / Documentation de l’API · Shop Documentation de l’API · Shop Documentation de l’API Shop local › backend Les agents lisent cette source là où elle est : rien ne s’y dépose. Détails techniques Identifiant : contract Lue depuis : http://127.0.0.1:3001/openapi.json",
+      "Connaissances shop-tests / Connaissances / Documentation de l’API · Shop Documentation de l’API · Shop Documentation de l’API Shop local › backend Les agents lisent cette source là où elle est : rien ne s’y dépose. Détails techniques Identifiant : contract Lue depuis : http://127.0.0.1:3001/openapi.json",
     );
   });
 
@@ -241,7 +241,7 @@ describe("a source of the knowledge", () => {
     const html = screen("#/knowledge/contract");
     assert.match(
       textOf(html),
-      /^shop-tests \/ Connaissances \/ Documentation de l’API · Shop Documentation de l’API · Shop Retirer la source Documentation de l’API Identifiant/,
+      /^Connaissances shop-tests \/ Connaissances \/ Documentation de l’API · Shop Documentation de l’API · Shop Retirer la source Documentation de l’API Identifiant/,
     );
     assert.match(html, /<a class="btn ghost" href="#\/knowledge\/contract\?drop=source">Retirer la source<\/a>/);
     assert.match(html, /name="\/knowledge\/0\/url"/);

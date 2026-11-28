@@ -92,7 +92,8 @@ export default defineConfig({
         ],
       ),
       project("apps/cli", { setupFiles: [LOOPBACK_ONLY] }),
-      project("apps/web", { setupFiles: ["./test/in-french.ts"] }),
+      // The console writes its times in the time zone of the browser: its tests read them in universal time, wherever they run.
+      project("apps/web", { setupFiles: ["./test/in-french.ts"], env: { TZ: "UTC" } }),
       project("lint"),
     ].filter(({ test }) => chosen(test.root)),
     coverage: {

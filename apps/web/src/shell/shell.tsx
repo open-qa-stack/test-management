@@ -4,8 +4,9 @@ import { hrefTo, type Route } from "../routing/route.ts";
 import { t } from "../i18n/i18n.ts";
 import { Icon } from "../ui/icon.tsx";
 import { SidePanel } from "../ui/side-panel.tsx";
-import { entryAt, HOME_PATH, isMenuOpen, withMenu } from "./navigation.ts";
+import { HOME_PATH } from "./navigation.ts";
 import { NavigationList } from "./navigation-list.tsx";
+import { NavigationTabs } from "./navigation-tabs.tsx";
 import { isShortcutsOpen, withShortcuts } from "./shortcuts-help.ts";
 import { ShortcutsList } from "./shortcuts-list.tsx";
 
@@ -32,18 +33,24 @@ export interface ShellProps {
 }
 
 /**
- * The frame of every screen: a band when the instance cannot be reached, the top bar, the navigation and the page.
- * On a phone the bar names the screen beside a button that opens the navigation over it, in a panel its address
- * keeps; beside the mark on a tablet, a sidebar on a wide screen, which a button of the bar folds to its icons. From a
- * tablet, a button of the bar opens the help of the shortcuts, as `?` does, in a panel its address keeps.
- * A project that has no name yet is not named.
+ * The frame of every screen: a band when the instance cannot be reached, the navigation and the page. On a phone a bar
+ * at the top names the project beside the mark of the console, and on a screen of the navigation — not one under it,
+ * which leads back to it — tabs at the bottom open the screens a person goes back to all day, and the screen that
+ * lists the others. From a tablet the navigation is a menu at the left of the
+ * page, under the mark: a button folds it to its icons, and one at its foot opens the help of the shortcuts, as `?`
+ * does, in a panel its address keeps. A project that has no name yet is not named.
  *
  * @param props - The route, the project and the page to frame.
  * @returns The shell.
  */
 export function Shell({ route, project, unreachable = false, menu, children }: ShellProps): ReactNode {
-  const screen = entryAt(route);
   const folded = menu?.folded === true;
+  const brand = (
+    <a className="brand" href={hrefTo(HOME_PATH)}>
+      <i>✓</i>
+      <span>Open QA Stack</span>
+    </a>
+  );
   return (
     <div className={folded ? "shell folded" : "shell"}>
       {unreachable && (
@@ -52,47 +59,36 @@ export function Shell({ route, project, unreachable = false, menu, children }: S
         </div>
       )}
       <header className="top">
-        {menu !== undefined && (
-          <button
-            type="button"
-            className="menu-toggle"
-            aria-controls="shell-sidebar"
-            aria-expanded={!folded}
-            aria-label={t(folded ? "shell.unfold" : "shell.fold")}
-            title={t(folded ? "shell.unfold" : "shell.fold")}
-            onClick={menu.toggle}
-          >
-            <Icon name="collapse" />
-          </button>
-        )}
-        <a className="brand" href={hrefTo(HOME_PATH)}>
-          <i>✓</i>
-          <span>Open QA Stack</span>
-        </a>
-        <span className="top-screen">{screen === undefined ? "Open QA Stack" : t(`shell.entries.${screen.key}`)}</span>
-        <a className="btn top-menu" href={withMenu(route, true)} aria-haspopup="dialog">
-          {t("shell.menuTitle")}
-        </a>
-        <a
-          className="top-help"
-          href={withShortcuts(route, true)}
-          aria-haspopup="dialog"
-          aria-keyshortcuts="?"
-          aria-label={t("shortcuts.title")}
-          title={t("shortcuts.title")}
-        >
-          <Icon name="help" />
-        </a>
+        {brand}
+        <span className="top-project">{project?.name}</span>
       </header>
       <aside id="shell-sidebar" className="shell-sidebar">
+        <div className="side-head">
+          {brand}
+          {menu !== undefined && (
+            <button
+              type="button"
+              className="menu-toggle"
+              aria-controls="shell-sidebar"
+              aria-expanded={!folded}
+              aria-label={t(folded ? "shell.unfold" : "shell.fold")}
+              title={t(folded ? "shell.unfold" : "shell.fold")}
+              onClick={menu.toggle}
+            >
+              <Icon name="collapse" />
+            </button>
+          )}
+        </div>
         <NavigationList route={route} project={project} />
+        <div className="side-foot">
+          <a className="side-help" href={withShortcuts(route, true)} aria-haspopup="dialog" aria-keyshortcuts="?" title={t("shortcuts.title")}>
+            <Icon name="help" />
+            <span className="nav-label">{t("shortcuts.title")}</span>
+          </a>
+        </div>
       </aside>
       <main className="shell-page">{children}</main>
-      {isMenuOpen(route) && (
-        <SidePanel id="shell-menu" title={t("shell.menuTitle")} close={withMenu(route, false)}>
-          <NavigationList route={route} project={project} />
-        </SidePanel>
-      )}
+      {route.path.length <= 1 && <NavigationTabs route={route} />}
       {isShortcutsOpen(route) && (
         <SidePanel id="shell-shortcuts" title={t("shortcuts.title")} close={withShortcuts(route, false)}>
           <ShortcutsList />

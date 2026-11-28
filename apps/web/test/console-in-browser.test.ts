@@ -328,10 +328,9 @@ describe("the configuration in a browser", () => {
         await page.locator("details.config-json summary").click();
         assert.equal(await overflowOf(page), 0, `${width}`);
         if (width < 1100) {
-          // The top bar names the screen, and its menu stands whole in the window.
-          assert.equal(await page.locator(".top-screen").innerText(), "Configuration");
-          const box = await page.getByRole("link", { name: "Menu" }).boundingBox();
-          assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `the menu at ${width}`);
+          // The tab of the other entries, which the configuration is one of, stands whole in the window.
+          const box = await page.getByRole("link", { name: "Plus" }).boundingBox();
+          assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `the tab at ${width}`);
           assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0, "nothing to save, no button to save");
           assert.deepEqual(await tooSmallOf(page), [], `${width}`);
           assert.deepEqual(await tooSmallFieldsOf(page), [], `${width}`);

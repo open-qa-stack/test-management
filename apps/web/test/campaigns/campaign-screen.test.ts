@@ -34,7 +34,7 @@ const PASSED: CampaignProgress = {
 describe("the screen of a campaign", () => {
   it("tells where the campaign is in its life, how far it went, then each test, the failures first, which leads to its result", () => {
     const html = screen({ value: PROGRESS });
-    assert.match(textOf(html), /^lakeside-tests \/ Campagnes \/ Recette 4\.2 Recette 4\.2 En cours/);
+    assert.match(textOf(html), /^Campagnes lakeside-tests \/ Campagnes \/ Recette 4\.2 Recette 4\.2 En cours/);
     assert.match(textOf(html), /Planifiée Prête En cours Clôturée Environnement local Planifiée le \d+ nov\. 2026/);
     assert.match(
       textOf(html),
@@ -163,7 +163,7 @@ describe("the screen of a campaign", () => {
   });
 
   it("says it reads the campaign until the instance answered, and why it could not", () => {
-    assert.match(textOf(screen({})), /^lakeside-tests \/ Campagnes \/ c1 c1 Lecture de la campagne Elle apparaît dès que l’instance a répondu\.$/);
+    assert.match(textOf(screen({})), /^Campagnes lakeside-tests \/ Campagnes \/ c1 c1 Lecture de la campagne Elle apparaît dès que l’instance a répondu\.$/);
     assert.match(textOf(screen({ unread: "Down." })), /Lecture de la campagne Down\.$/);
   });
 });

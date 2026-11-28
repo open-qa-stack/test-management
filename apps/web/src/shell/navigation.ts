@@ -1,6 +1,6 @@
 import type { Words } from "../i18n/i18n.ts";
 import type { IconName } from "../ui/icon.tsx";
-import { hrefTo, isUnder, type Route } from "../routing/route.ts";
+import { isUnder, type Route } from "../routing/route.ts";
 
 /** The path of the screen the home of the console opens: the entry of the agent. */
 export const HOME_PATH = "/agent";
@@ -68,37 +68,27 @@ export function isAt(route: Route, entry: NavigationEntry): boolean {
   return isUnder(route, entry.path) || (route.path.length === 0 && entry.path === HOME_PATH);
 }
 
+/** The path of the screen that lists, on a phone, the entries its tabs leave out. */
+export const MORE_PATH = "/more";
+
+/** The entries a phone keeps in its tabs: those a person goes back to all day. */
+const TABBED: readonly NavigationEntry["key"][] = ["agent", "review", "tests", "executions"];
+
+/** The tabs of a phone, in the order of the navigation, before the one that opens the other entries. */
+export const TABS: readonly NavigationEntry[] = NAVIGATION.flatMap((group) => group.entries).filter((entry) => TABBED.includes(entry.key));
+
+/** The entries the tabs of a phone leave out, under the heading of their group, as the screen of the others lists them. */
+export const MORE: readonly NavigationGroup[] = NAVIGATION.map((group) => ({
+  ...group,
+  entries: group.entries.filter((entry) => !TABBED.includes(entry.key)),
+})).filter((group) => group.entries.length > 0);
+
 /**
- * Finds the entry of the navigation the console is at, which names the screen.
+ * Tells whether the tab that opens the other entries is the one a phone marks: on their screen, or under one of them.
  *
  * @param route - Where the console is.
- * @returns The entry; none at an address that leads nowhere.
+ * @returns Whether the console is at the screen of the other entries, or at an entry no tab opens.
  */
-export function entryAt(route: Route): NavigationEntry | undefined {
-  return NAVIGATION.flatMap((group) => group.entries).find((entry) => isAt(route, entry));
-}
-
-/** The parameter of the query that opens the menu of a phone over the screen. */
-const MENU = "nav";
-
-/**
- * Tells whether the menu of a phone is open over the screen.
- *
- * @param route - Where the console is.
- * @returns Whether its address opens the menu.
- */
-export function isMenuOpen(route: Route): boolean {
-  return route.query[MENU] !== undefined;
-}
-
-/**
- * Writes the link to the screen of a route with the menu of a phone open over it, or closed.
- *
- * @param route - The route, whose other parameters are kept.
- * @param open - Whether the menu is open.
- * @returns The fragment to put in an `href`.
- */
-export function withMenu(route: Route, open: boolean): string {
-  const { [MENU]: _open, ...query } = route.query;
-  return hrefTo(`/${route.path.join("/")}`, open ? { ...query, [MENU]: "open" } : query);
+export function isAtMore(route: Route): boolean {
+  return isUnder(route, MORE_PATH) || MORE.some((group) => group.entries.some((entry) => isAt(route, entry)));
 }

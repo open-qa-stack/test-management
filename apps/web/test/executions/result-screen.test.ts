@@ -18,10 +18,15 @@ describe("the screen of what came of a test in an execution", () => {
   it("says it reads the test until the instance read it, and why it could not, under the way to the card of the test", () => {
     assert.equal(
       textOf(screen({})),
-      `lakeside-tests / Exécutions / e1 / ${DETAIL.path} ${DETAIL.path} Fiche du test → Lecture du test Il apparaît dès que l’instance a répondu.`,
+      `e1 lakeside-tests / Exécutions / e1 / ${DETAIL.path} ${DETAIL.path} Fiche du test → Lecture du test Il apparaît dès que l’instance a répondu.`,
     );
     assert.match(textOf(screen({ unread: "L’instance ne répond pas." })), /Lecture du test L’instance ne répond pas\.$/);
-    assert.deepEqual(linksOf(screen({})), ["#/executions", "#/executions/view?id=e1", `#/tests/view?path=${encodeURIComponent(DETAIL.path)}`]);
+    assert.deepEqual(linksOf(screen({})), [
+      "#/executions/view?id=e1",
+      "#/executions",
+      "#/executions/view?id=e1",
+      `#/tests/view?path=${encodeURIComponent(DETAIL.path)}`,
+    ]);
   });
 
   it("says the detail of the execution is gone, when its report is", () => {
@@ -36,7 +41,7 @@ describe("the screen of what came of a test in an execution", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /^lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Display the detail of a policy Display the detail of a policy Fiche du test →/,
+      /^\d+ nov\. 2026, \d\d:\d\d lakeside-tests \/ Exécutions \/ \d+ nov\. 2026, \d\d:\d\d \/ Display the detail of a policy Display the detail of a policy Fiche du test →/,
     );
     assert.match(text, /Échoué Échoue à l’étape 2 sur 2\. Attendu "1500 CHF" Obtenu "250 CHF"/);
     assert.match(

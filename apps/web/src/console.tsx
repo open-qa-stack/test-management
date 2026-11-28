@@ -24,6 +24,7 @@ import { TestsPage } from "./tests/tests-page.tsx";
 import { ReviewPage } from "./review/review-page.tsx";
 import { DefectsPage } from "./defects/defects-page.tsx";
 import { MemoryPage } from "./memory/memory-page.tsx";
+import { MorePage } from "./shell/more-page.tsx";
 import { hrefTo, type Route } from "./routing/route.ts";
 import { t } from "./i18n/i18n.ts";
 import { nameApplications } from "./applications/application-names.ts";
@@ -73,6 +74,7 @@ type Shown =
         | "review"
         | "defects"
         | "memory"
+        | "more"
         | "campaigns"
         | "running"
         | "no_session"
@@ -169,6 +171,7 @@ function shownOf({ route, live, missing = false }: ConsoleProps): Shown {
   if (route.path.length === 1 && route.path[0] === "review") return { screen: "review" };
   if (route.path.length === 1 && route.path[0] === "defects") return { screen: "defects" };
   if (route.path.length === 1 && route.path[0] === "memory") return { screen: "memory" };
+  if (route.path.length === 1 && route.path[0] === "more") return { screen: "more" };
   if (route.path.length === 1 && route.path[0] === "campaigns") return { screen: "campaigns" };
   const campaign = route.query["id"];
   if (route.path.length === 2 && route.path[0] === "campaigns" && route.path[1] === "view" && given(campaign)) return { screen: "campaign", id: campaign };
@@ -232,6 +235,8 @@ function Screen(props: ConsoleProps): ReactNode {
       return <DefectsPage project={name} route={route} />;
     case "memory":
       return <MemoryPage project={name} route={route} />;
+    case "more":
+      return <MorePage project={name} />;
     case "test":
       return <TestPage key={shown.path} project={name} path={shown.path} route={route} />;
     case "campaigns":
