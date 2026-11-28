@@ -1125,7 +1125,11 @@
       "cancel": "Annuler",
       "confirm": "Créer l’anomalie",
       "incomplete": "Donnez un titre à l’anomalie."
-    }
+    },
+    "failing_one": "Un test a échoué, depuis l’exécution du {{date}}.",
+    "failing_other": "{{count}} tests ont échoué, depuis l’exécution du {{date}}.",
+    "seeFailing_one": "Voir le test échoué",
+    "seeFailing_other": "Voir les {{count}} tests échoués"
   },
   "test": {
     "reading": "Lecture du test",

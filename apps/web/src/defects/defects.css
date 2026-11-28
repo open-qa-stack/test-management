@@ -3,7 +3,47 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+}
+
+/* The views take the height of a thumb on every screen; the count of the chosen one reads lighter on its colour. */
+.defects-views .chip {
+  min-height: calc(var(--space-8) + var(--space-3));
+}
+
+.defects-views .chip.on .muted {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* A view without a defect: a card with a dashed edge, what to do, and the way to the tests that failed. */
+.defects-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--pad);
+  border-style: dashed;
+  border-color: var(--line);
+}
+
+.defects-empty h2,
+.defects-empty p {
+  margin: 0;
+}
+
+.defects-empty h2 {
+  font-size: var(--type-heading);
+  line-height: var(--leading-heading);
+}
+
+.defects-empty p {
+  max-width: var(--measure);
+  color: var(--text-2);
+}
+
+.defects-empty .btn {
+  min-height: calc(var(--space-8) + var(--space-3));
+  margin-top: var(--space-2);
+  font-weight: var(--weight-strong);
 }
 
 .defects-table table {
