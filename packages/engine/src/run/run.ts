@@ -428,7 +428,8 @@ export class Run {
           const repaired = await repair({
             brief: coupledBrief(coupled),
             suiteFailures: new Map(coupled.map(({ path, reason }) => [path, reason])),
-            ...(branch === undefined ? {} : { continuedBranch: branch }),
+            // A design that gave a test that passed committed it on its branch: the repair goes on with it.
+            continuedBranch: branch!,
           });
           this.relay(journal, "execution", repaired.journal);
           outcome = await suite();
