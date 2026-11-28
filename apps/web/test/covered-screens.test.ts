@@ -780,6 +780,26 @@ describe("the code of the console is covered in full", () => {
     }
   });
 
+  it("invites to add an application under what the page is for on a phone, at the right of its title from a tablet", async () => {
+    for (const [width, under] of [
+      [390, true],
+      [1280, false],
+    ] as const) {
+      const page = await app().open(width, "#/applications", new ConfiguredInstance().api);
+      try {
+        const add = (await page.getByRole("link", { name: "Ajouter une application" }).boundingBox())!;
+        const hint = (await page.locator(".page-hint").boundingBox())!;
+        const title = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
+        assert.equal(add.y >= hint.y + hint.height, under, `${width} ${JSON.stringify({ add, hint })}`);
+        assert.equal(add.x > title.x + title.width && add.y < hint.y, !under, `${width} ${JSON.stringify({ add, title })}`);
+        assert.ok(add.height >= 44, `${width} ${add.height}`);
+        assert.equal(await overflowOf(page), 0, `${width}`);
+      } finally {
+        await page.close();
+      }
+    }
+  });
+
   it("runs every line of the screens of the applications when they are used in the browser", async () => {
     const instance = new ConfiguredInstance();
     const [screen, panel, panels] = await app().measure(

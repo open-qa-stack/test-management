@@ -9,8 +9,9 @@ import { APPLICATIONS, applicationPath } from "./application-paths.ts";
 import { ApplicationScreen, type ApplicationControls } from "./application-screen.tsx";
 
 /**
- * An application of the configuration in force, as a tile that leads to its page: its name and what it exposes, what
- * it holds — environments, APIs, test accounts — and how many sources describe it, then its identifier.
+ * An application of the configuration in force, as a tile that leads to its page: its name, what it exposes and its
+ * identifier, then what it holds — its environments, its APIs, the sources that describe it, its test accounts, none
+ * of which said in the tone of a warning.
  */
 function ApplicationTile({
   application,
@@ -23,19 +24,33 @@ function ApplicationTile({
 }): ReactNode {
   const { environments, authentication } = application;
   const apis = environments.reduce((count, environment) => count + (environment.apis?.length ?? 0), 0);
-  const holds = [
-    t("configuration.applications.environments", { count: environments.length }),
-    t("configuration.applications.apis", { count: apis }),
-    t("configuration.applications.accounts", { count: authentication.accounts?.length ?? 0 }),
-  ];
+  const accounts = authentication.accounts?.length ?? 0;
+  const facts = [
+    ["environments", [String(environments.length), ...environments.map(({ name }) => name)].join(" · ")],
+    ["apis", String(apis)],
+    ["sources", String(sources)],
+  ] as const;
   return (
-    <a className="tile" href={hrefTo(applicationPath(application.id))}>
+    <a className="tile app-tile" href={hrefTo(applicationPath(application.id))}>
       <span className="tile-head">
-        <b>{application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name}</b>
+        <span className="app-tile-name">
+          <b>{application.name === "" ? t("configuration.application.untitled", { rank: rank + 1 }) : application.name}</b>
+          <span className="mono">{application.id}</span>
+        </span>
+        <span className="chip">{t(`configuration.application.types.${application.type}`)}</span>
       </span>
-      <span className="tile-text">{[t(`configuration.application.types.${application.type}`), ...holds].join(" · ")}</span>
-      <span className="tile-text">{t("configuration.applications.sources", { count: sources })}</span>
-      <span className="tile-text mono">{application.id}</span>
+      <dl className="app-tile-facts">
+        {facts.map(([fact, value]) => (
+          <div key={fact}>
+            <dt>{t(`configuration.applications.facts.${fact}`)}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+        <div>
+          <dt>{t("configuration.applications.facts.accounts")}</dt>
+          <dd className={accounts === 0 ? "app-tile-none" : undefined}>{accounts === 0 ? t("configuration.applications.facts.none") : accounts}</dd>
+        </div>
+      </dl>
     </a>
   );
 }
@@ -74,7 +89,7 @@ function ApplicationList({ project, state }: { readonly project: string; readonl
     </a>
   );
   return (
-    <Page crumbs={crumbs} title={title} actions={add} hint={t("configuration.applications.lead")}>
+    <Page crumbs={crumbs} title={title} invite={add} hint={t("configuration.applications.lead")}>
       <div className="tiles">
         {revision.document.applications.map((application, index) => (
           <ApplicationTile

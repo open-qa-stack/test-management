@@ -760,23 +760,19 @@
       "dropNote": "The next sessions no longer test it. A new revision of the configuration is saved: the previous one stays in the history. The sources attached to it must be detached from it first.",
       "confirmDrop": "Remove the application",
       "cancel": "Cancel",
-      "environments_one": "{{count}} environment",
-      "environments_other": "{{count}} environments",
-      "apis_zero": "no API",
-      "apis_one": "{{count}} API",
-      "apis_other": "{{count}} APIs",
-      "accounts_zero": "no test account",
-      "accounts_one": "{{count}} test account",
-      "accounts_other": "{{count}} test accounts",
       "add": "Add an application",
       "title": "Applications",
       "lead": "The applications the agents test, each with its environments and APIs.",
       "none": "No configuration yet",
       "noneNote": "Configure the project: its applications are declared when it starts.",
       "configure": "Configure the project",
-      "sources_zero": "no knowledge",
-      "sources_one": "{{count}} knowledge source",
-      "sources_other": "{{count}} knowledge sources"
+      "facts": {
+        "environments": "Environments",
+        "apis": "APIs",
+        "sources": "Knowledge",
+        "accounts": "Test accounts",
+        "none": "None"
+      }
     },
     "places": {
       "whole": "The configuration",

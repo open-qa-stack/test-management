@@ -135,6 +135,34 @@
   margin-left: auto;
 }
 
+/* What a page invites to do first: on a phone, a large button under what the page is for. */
+.ph > .page-invite {
+  flex-basis: 100%;
+  justify-content: flex-start;
+  margin: var(--space-3) 0 0;
+}
+
+.page-invite .btn {
+  min-width: min(100%, calc(var(--space-12) * 5 + var(--space-8)));
+  min-height: calc(var(--space-8) + var(--space-3));
+  font-weight: var(--weight-strong);
+}
+
+@media (min-width: 720px) {
+  /* After what the page is for in the order of reading, it still stands at the right of the title. */
+  .ph {
+    grid-auto-flow: row dense;
+  }
+
+  .ph > .page-invite {
+    margin: 0;
+  }
+
+  .page-invite .btn {
+    min-width: 0;
+  }
+}
+
 /* What a page is for: a line under its title, as close to it as a line to the one above, as wide as reads well. */
 .page-hint {
   flex-basis: 100%;
