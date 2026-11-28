@@ -42,6 +42,8 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
       { keys: [{ sign: "J" }], does: "next" },
       { keys: [{ sign: "K" }], does: "previous" },
       { keys: [{ sign: "V" }], does: "validate" },
+      { keys: [{ sign: "C" }], does: "correct" },
+      { keys: [{ sign: "E" }], does: "setAside" },
     ],
   },
   { key: "test", entries: [{ keys: [{ sign: "R" }], does: "relaunch" }] },

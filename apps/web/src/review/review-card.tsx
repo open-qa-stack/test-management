@@ -55,25 +55,25 @@ function Gestures({ gestures }: { readonly gestures: ReviewGestures | undefined 
       <Refusal gestures={gestures} />
       <div className="review-actions">
         {idle ? (
-          <a className="btn ghost" href={gestures.setAside}>
-            {t("review.gestures.setAside")}
+          <a className="btn ghost" href={gestures.setAside} aria-keyshortcuts="E">
+            {t("review.gestures.setAside")} <kbd>E</kbd>
           </a>
         ) : (
-          <button type="button" className="btn ghost" disabled>
-            {t("review.gestures.setAside")}
+          <button type="button" className="btn ghost" disabled aria-keyshortcuts="E">
+            {t("review.gestures.setAside")} <kbd>E</kbd>
           </button>
         )}
         {idle ? (
           <a className="btn" href={gestures.correct} aria-keyshortcuts="C">
-            {t("review.gestures.correct")}
+            {t("review.gestures.correct")} <kbd>C</kbd>
           </a>
         ) : (
           <button type="button" className="btn" disabled aria-keyshortcuts="C">
-            {t("review.gestures.correct")}
+            {t("review.gestures.correct")} <kbd>C</kbd>
           </button>
         )}
         <button type="button" className="btn primary" disabled={!idle} aria-keyshortcuts="V" onClick={gestures?.validate}>
-          {t(gestures?.pending === true ? "review.gestures.validating" : "review.gestures.validate")}
+          {t(gestures?.pending === true ? "review.gestures.validating" : "review.gestures.validate")} <kbd>V</kbd>
         </button>
       </div>
     </>
@@ -94,18 +94,31 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
     <article className="card review-card" aria-labelledby="review-title">
       <header className="review-card-head">
         <div className="review-badges">
-          <Badge tone={proposal.status === "set_aside" ? "neutral" : proposal.status === "in_correction" ? "info" : "warn"}>
-            {t(`review.status.${proposal.status}`)}
-          </Badge>
-          <Badge tone="outline">{levelName(proposal.level)}</Badge>
+          <Badge tone="ai">{t("review.byAgent")}</Badge>
+          {proposal.status !== "in_review" && (
+            <Badge tone={proposal.status === "set_aside" ? "neutral" : "info"}>{t(`review.status.${proposal.status}`)}</Badge>
+          )}
           {proposal.kind === "visual" && <Badge tone="outline">{t("review.visual")}</Badge>}
-          <Badge tone={proposal.reviewed ? "ok" : "neutral"}>{t(proposal.reviewed ? "review.reviewed" : "review.notReviewed")}</Badge>
           <Badge tone={proposal.verdict === "passed" ? "ok" : "ko"}>{t(`review.verdicts.${proposal.verdict === "passed" ? "passed" : "failed"}`)}</Badge>
+          <Badge tone={proposal.reviewed ? "ok" : "neutral"}>{t(proposal.reviewed ? "review.reviewed" : "review.notReviewed")}</Badge>
         </div>
         <h2 id="review-title">{proposal.title}</h2>
-        <p className="small muted">
-          {t("review.where", { application: applicationName(proposal.application), domain: proposal.domain, feature: proposal.feature })}
-        </p>
+        <dl className="test-facts">
+          <div>
+            <dt>{t("review.facts.level")}</dt>
+            <dd>{levelName(proposal.level)}</dd>
+          </div>
+          <div>
+            <dt>{t("review.facts.feature")}</dt>
+            <dd className="mono">
+              {proposal.domain} › {proposal.feature}
+            </dd>
+          </div>
+          <div>
+            <dt>{t("review.facts.application")}</dt>
+            <dd>{applicationName(proposal.application)}</dd>
+          </div>
+        </dl>
       </header>
       {decision?.status === "in_correction" && (
         <p className="review-decision" role="note">
@@ -135,16 +148,21 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
       <section className="review-section" aria-labelledby="review-verifies">
         <h3 id="review-verifies">{t("review.verifies")}</h3>
         <ol className="review-steps">
-          {proposal.steps.map(({ action, expects }) => (
+          {proposal.steps.map(({ action, expects }, rank) => (
             <li key={action}>
-              {action}
-              {expects.length > 0 && (
-                <ul className="small muted">
-                  {expects.map((expected) => (
-                    <li key={expected}>{expected}</li>
-                  ))}
-                </ul>
-              )}
+              <span className="review-step-number" aria-hidden="true">
+                {rank + 1}
+              </span>
+              <span className="review-step-text">
+                {action}
+                {expects.length > 0 && (
+                  <ul className="small muted">
+                    {expects.map((expected) => (
+                      <li key={expected}>{expected}</li>
+                    ))}
+                  </ul>
+                )}
+              </span>
             </li>
           ))}
         </ol>
@@ -164,15 +182,20 @@ export function ReviewCard({ proposal, gestures }: { readonly proposal: TestProp
           </ul>
         )}
       </section>
-      <details className="review-section review-code">
-        <summary>{t("review.code", { files: proposal.files.map(({ path, added }) => `${path} (+${added})`).join(" · ") })}</summary>
-        {proposal.files.map(({ path, content }) => (
-          <div key={path} className="review-file">
-            <p className="small mono">{path}</p>
-            <Code lines={content.trimEnd().split("\n")} className="review-code-lines" />
-          </div>
-        ))}
-      </details>
+      <section className="review-section" aria-labelledby="review-added">
+        <h3 id="review-added">{t("review.added")}</h3>
+        <div className="review-files">
+          {proposal.files.map(({ path, content, added }) => (
+            <details key={path} className="review-file">
+              <summary>
+                <span className="mono grow">{path}</span>
+                <span className="review-file-added">+{added}</span>
+              </summary>
+              <Code lines={content.trimEnd().split("\n")} className="review-code-lines" />
+            </details>
+          ))}
+        </div>
+      </section>
       <footer className="review-card-foot">
         <p className="small muted">
           {t("review.runs", { count: proposal.runs })} · {proposal.reason}

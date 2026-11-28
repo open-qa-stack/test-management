@@ -933,7 +933,6 @@
       "passed": "ran ✔",
       "failed": "ran ✗"
     },
-    "where": "{{application}} › {{domain}} › {{feature}}",
     "why": "Why this test",
     "byAgents": "AI",
     "brief": "Asked: {{brief}}",
@@ -946,13 +945,12 @@
       "coherence": "Coherence, {{where}}:",
       "code": "Code, {{where}}:"
     },
-    "code": "Code — {{files}}",
     "runs_one": "{{count}} run",
     "runs_other": "{{count}} runs",
     "gestures": {
       "setAside": "Set aside",
       "correct": "Ask for a correction",
-      "validate": "Validate",
+      "validate": "Validate and go to the next",
       "validating": "Validating…",
       "restore": "Put back in review",
       "restoring": "Putting back…"
@@ -1030,7 +1028,15 @@
       "sending": "Sending…",
       "remember": "Keep as an instruction",
       "rememberHint": "Kept in the Memory for the design of the tests of this application, which you can change later."
-    }
+    },
+    "byAgent": "Written by the agent",
+    "facts": {
+      "level": "Level",
+      "feature": "Feature",
+      "application": "Application"
+    },
+    "added": "Code added",
+    "sound": "Run successfully and reviewed"
   },
   "defects": {
     "title": "Defects",
@@ -1703,7 +1709,9 @@
       "validate": "Validate the test shown",
       "relaunch": "Run the test again",
       "stepBefore": "Step before",
-      "stepAfter": "Step after"
+      "stepAfter": "Step after",
+      "correct": "Ask for a correction of the test shown",
+      "setAside": "Set the test shown aside"
     },
     "keys": {
       "escape": "Esc",

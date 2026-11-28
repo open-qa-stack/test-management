@@ -933,7 +933,6 @@
       "passed": "joué ✔",
       "failed": "joué ✗"
     },
-    "where": "{{application}} › {{domain}} › {{feature}}",
     "why": "Pourquoi ce test",
     "byAgents": "IA",
     "brief": "Demandé : {{brief}}",
@@ -946,13 +945,12 @@
       "coherence": "Cohérence, {{where}} :",
       "code": "Code, {{where}} :"
     },
-    "code": "Code — {{files}}",
     "runs_one": "{{count}} essai",
     "runs_other": "{{count}} essais",
     "gestures": {
       "setAside": "Écarter",
       "correct": "Demander une correction",
-      "validate": "Valider",
+      "validate": "Valider et passer au suivant",
       "validating": "Validation…",
       "restore": "Remettre en relecture",
       "restoring": "Remise en relecture…"
@@ -1030,7 +1028,15 @@
       "sending": "Envoi…",
       "remember": "Mémoriser comme consigne",
       "rememberHint": "Gardée dans la Mémoire pour la conception des tests de cette application, modifiable ensuite."
-    }
+    },
+    "byAgent": "Écrit par l’agent",
+    "facts": {
+      "level": "Niveau",
+      "feature": "Fonction",
+      "application": "Application"
+    },
+    "added": "Code ajouté",
+    "sound": "Joué avec succès et relu"
   },
   "defects": {
     "title": "Anomalies",
@@ -1703,7 +1709,9 @@
       "validate": "Valider le test affiché",
       "relaunch": "Relancer le test",
       "stepBefore": "Étape précédente",
-      "stepAfter": "Étape suivante"
+      "stepAfter": "Étape suivante",
+      "correct": "Demander une correction du test affiché",
+      "setAside": "Écarter le test affiché"
     },
     "keys": {
       "escape": "Échap",

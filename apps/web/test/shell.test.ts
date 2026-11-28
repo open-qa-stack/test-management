@@ -116,7 +116,7 @@ describe("the shell", () => {
     assert.match(open, /<a class="side-panel-close" href="#\/review\?id=a"/);
     assert.match(
       textOf(open.slice(open.indexOf("<dialog"))),
-      /^Raccourcis clavier Partout \? Ouvrir cette aide Échap Fermer le panneau ouvert Agent Ctrl Entrée Envoyer la demande \(⌘ \+ Entrée sur Mac\) Entrée Envoyer un message à une session Maj Entrée Aller à la ligne dans un message À relire J Test suivant K Test précédent V Valider le test affiché Fiche d’un test R Relancer le test Résultat d’une exécution ← Étape précédente → Étape suivante$/,
+      /^Raccourcis clavier Partout \? Ouvrir cette aide Échap Fermer le panneau ouvert Agent Ctrl Entrée Envoyer la demande \(⌘ \+ Entrée sur Mac\) Entrée Envoyer un message à une session Maj Entrée Aller à la ligne dans un message À relire J Test suivant K Test précédent V Valider le test affiché C Demander une correction du test affiché E Écarter le test affiché Fiche d’un test R Relancer le test Résultat d’une exécution ← Étape précédente → Étape suivante$/,
     );
     await inEnglish();
     assert.match(textOf(shell("#/?keys=open")), /Keyboard shortcuts Everywhere \? Open this help Esc Close the open panel Agent Ctrl Enter Send the request/);
