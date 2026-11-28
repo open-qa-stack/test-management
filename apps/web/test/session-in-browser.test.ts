@@ -55,8 +55,10 @@ describe("the shell on a narrow and on a wide screen", () => {
     ] as const) {
       const page = await app().open(width, "#/executions/view?id=e1", new ListedInstance().api);
       try {
-        await page.locator(".ph").waitFor();
-        assert.equal(await page.getByRole("link", { name: "Retour à Exécutions" }).isVisible(), back, `the way back at ${width}`);
+        // What the width shows is waited for, then what it hides is looked at, once the page is laid out.
+        const way = page.getByRole("link", { name: "Retour à Exécutions" });
+        await (back ? way : page.locator(".crumb")).waitFor({ state: "visible" });
+        assert.equal(await way.isVisible(), back, `the way back at ${width}`);
         assert.equal(await page.locator(".crumb").isVisible(), crumb, `the breadcrumb at ${width}`);
       } finally {
         await page.close();
