@@ -24,10 +24,7 @@ const screen = (state: ConfigurationState): string =>
 
 describe("the screen of the configuration", () => {
   it("says it reads the configuration until the instance told it, and why it could not", () => {
-    assert.equal(
-      textOf(screen(INITIAL_CONFIGURATION)),
-      "shop-tests / Configuration Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.",
-    );
+    assert.equal(textOf(screen(INITIAL_CONFIGURATION)), "Configuration Lecture de la configuration Elle apparaît dès que l’instance a répondu.");
     assert.match(textOf(screen({ ...INITIAL_CONFIGURATION, unread: "L’instance ne répond pas." })), /Lecture de la configuration L’instance ne répond pas\.$/);
   });
 

@@ -19,6 +19,8 @@ import { scriptOf } from "./agent/session-steps.ts";
 import { openingOf } from "./agent/scope-choices.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { api } from "./api/instance-api.ts";
+import { usePolled } from "./api/use-polled.ts";
+import { failingTests } from "./tests/failing-tests.ts";
 import { i18n, t } from "./i18n/i18n.ts";
 import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "./console.tsx";
 import { keepMenuFold, readMenuFold } from "./shell/menu-fold.ts";
@@ -73,6 +75,11 @@ export function App(): ReactNode {
     },
   };
   const sync = useMemo(() => new ConsoleSync(api, dispatch), []);
+  // The menu counts the tests that wait for a review and those that failed last, read again now and then.
+  const counted = usePolled(async () => {
+    const [verdicts, queue] = await Promise.all([api.testVerdicts(), api.reviews()]);
+    return { review: queue.counts.inReview, tests: failingTests(verdicts) };
+  }, "menu-counts");
   const id = sessionAt(route);
   const followed = state.followed?.id === id ? state.followed : undefined;
   const session = followed?.session;
@@ -166,6 +173,7 @@ export function App(): ReactNode {
     onOpen: open,
     onConfigured: configured,
     menu,
+    ...(counted.value === undefined ? {} : { counts: counted.value }),
     ...(state.project === undefined ? {} : { project: state.project }),
     ...(state.sessions === undefined ? {} : { sessions: state.sessions }),
     ...(state.unlisted === undefined ? {} : { unlisted: state.unlisted }),

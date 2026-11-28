@@ -28,8 +28,8 @@ export interface PageProps {
 
 /**
  * A page of the console: a breadcrumb, a title or the header of an entity, its actions, what it is for in a line, then
- * its content. On a phone the breadcrumb gives way to a link back to the screen it leads to last, which a screen
- * the tabs open has none of. Its title takes the focus when the console arrives on the page, without being a stop of
+ * its content. Only a page under another has a breadcrumb, which a phone replaces by a link back to the screen it
+ * leads to last: a screen of the navigation opens on its title. Its title takes the focus when the console arrives on the page, without being a stop of
  * the keyboard.
  *
  * @param props - The header and the content of the page.
@@ -48,20 +48,22 @@ export function Page({ crumbs, title, actions, hint, entity, children }: PagePro
             </a>
           </div>
         )}
-        <div className="crumb">
-          {crumbs.map((crumb, index) => (
-            <span key={crumb.label} className="crumb-step">
-              {index > 0 && <span className="crumb-sep">/</span>}
-              {crumb.href !== undefined ? (
-                <a href={crumb.href}>{crumb.label}</a>
-              ) : index === crumbs.length - 1 ? (
-                <b>{crumb.label}</b>
-              ) : (
-                <span>{crumb.label}</span>
-              )}
-            </span>
-          ))}
-        </div>
+        {parent !== undefined && (
+          <div className="crumb">
+            {crumbs.map((crumb, index) => (
+              <span key={crumb.label} className="crumb-step">
+                {index > 0 && <span className="crumb-sep">/</span>}
+                {crumb.href !== undefined ? (
+                  <a href={crumb.href}>{crumb.label}</a>
+                ) : index === crumbs.length - 1 ? (
+                  <b>{crumb.label}</b>
+                ) : (
+                  <span>{crumb.label}</span>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
         {title !== undefined && <h1 tabIndex={-1}>{title}</h1>}
         {actions !== undefined && <div className="actions">{actions}</div>}
         {hint !== undefined && <p className="page-hint">{hint}</p>}

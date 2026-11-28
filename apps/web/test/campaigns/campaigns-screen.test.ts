@@ -18,7 +18,7 @@ const screen = (
 describe("the screen of the campaigns", () => {
   it("lists the campaigns, the latest planned first, each with its environment, how far it went, its state, and a link to it", () => {
     const html = screen({ value: { items: OVERVIEWS } });
-    assert.match(textOf(html), /^lakeside-tests \/ Campagnes Campagnes Une campagne est faite des tests que vous choisissez/);
+    assert.match(textOf(html), /^Campagnes Une campagne est faite des tests que vous choisissez/);
     assert.match(textOf(html), /Tout le dépôt local 3 tests choisis Planifiée .* Recette 4\.2 local 1 \/ 2 joués · 1 échoué En cours/);
     assert.deepEqual(linksOf(html), [campaignHref("c2"), campaignHref("c1")]);
     assert.match(textOf(html), /Planifiée \d+ nov\. .* En cours Échoué/);

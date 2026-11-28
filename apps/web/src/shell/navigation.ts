@@ -6,6 +6,31 @@ import { isUnder, type Route } from "../routing/route.ts";
 export const HOME_PATH = "/agent";
 
 /** An entry of the navigation. */
+/** What the menu counts beside its entries: the tests that wait for a review, and those that failed last. */
+export interface MenuCounts {
+  readonly review: number;
+  readonly tests: number;
+}
+
+/** How many things wait behind an entry, in the tone of what they are. */
+export interface EntryCount {
+  readonly value: number;
+  readonly tone: "ai" | "ko";
+}
+
+/**
+ * The count an entry of the navigation shows: the tests to review, in the tone of the agents, and those that failed, in the tone of the failure.
+ *
+ * @param key - The entry.
+ * @param counts - What the menu counts, once the instance told it.
+ * @returns Its count; none for an entry that counts nothing, or before the instance told.
+ */
+export function countOf(key: string, counts: MenuCounts | undefined): EntryCount | undefined {
+  if (counts === undefined) return undefined;
+  if (key === "review") return { value: counts.review, tone: "ai" };
+  return key === "tests" ? { value: counts.tests, tone: "ko" } : undefined;
+}
+
 export interface NavigationEntry {
   /** Its icon. */
   readonly icon: IconName;

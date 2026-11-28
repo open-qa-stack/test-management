@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../api/instance-api.ts";
+import { failingTests } from "../tests/failing-tests.ts";
 import { AgentHomeScreen, type AgentHomeScreenProps, type Existing } from "./agent-home-screen.tsx";
 import { scopeChoicesOf, type ScopeChoices } from "./scope-choices.ts";
 
@@ -17,7 +18,7 @@ export function AgentHomePage(props: Omit<AgentHomeScreenProps, "choices" | "exi
     // What the project holds to start from is read once; what the instance cannot tell counts as nothing.
     void Promise.all([api.testVerdicts().catch(() => []), api.reviews().catch(() => undefined), domains]).then(([verdicts, queue, known]) =>
       setExisting({
-        failing: new Set(verdicts.filter(({ verdict }) => verdict === "failed").map(({ path, title }) => `${path}\n${title}`)).size,
+        failing: failingTests(verdicts),
         toReview: queue?.counts.inReview ?? 0,
         domains: known.length,
       }),

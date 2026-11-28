@@ -16,11 +16,20 @@ describe("the code of the console is covered in full", () => {
     const mount = source.findIndex((line) => line.startsWith("createRoot(")) + 1;
     const instance = new PlayedInstance();
     instance.unlisted = true;
+    // The menu counts the tests to review and those that failed last.
+    const counted: Api = (request) => {
+      if (request.path === "/api/tests/verdicts")
+        return { status: 200, body: JSON.stringify({ items: [{ path: "a.spec.ts", title: "A", verdict: "failed" }] }) };
+      if (request.path === "/api/reviews") return { status: 200, body: JSON.stringify({ tests: [], counts: { inReview: 3, setAside: 0 } }) };
+      return instance.api(request);
+    };
     const [main, application] = await app().measure(
       ["src/main.tsx", "src/app.tsx"],
       async (page) => {
         await page.getByRole("status").filter({ hasText: "The folder of the sessions cannot be read." }).waitFor();
         instance.unlisted = false;
+        await page.locator(".nav .nav-count.ai", { hasText: "3" }).waitFor();
+        await page.locator(".nav .nav-count.ko", { hasText: "1" }).waitFor();
         await page.getByRole("link", { name: /tester la recherche d'un client/ }).click();
         await page.getByText("I write the test now.").waitFor();
         await page.getByRole("switch", { name: "Actions" }).click();
@@ -101,7 +110,7 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("button", { name: "Déplier le menu" }).click();
         await page.getByRole("button", { name: "Replier le menu" }).waitFor();
       },
-      instance.api,
+      counted,
     );
     assert.ok(main!.lines.includes(mount), `line ${mount} of src/main.tsx, the mount, is in the build`);
     assert.deepEqual(main!.uncovered, []);

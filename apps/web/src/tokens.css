@@ -97,7 +97,7 @@
   --keyline: calc(var(--picture) + var(--space-3));
 
   /* The columns, which are the sidebar, the thread, the entry, the drawer of a look, and the longest line that reads well. */
-  --sidebar: 224px;
+  --sidebar: 248px;
   /* The sidebar folded to its icons. */
   --rail: 56px;
   --column: 848px;

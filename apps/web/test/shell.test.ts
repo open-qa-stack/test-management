@@ -171,13 +171,29 @@ describe("the shell", () => {
   });
 });
 
+describe("the counts of the menu", () => {
+  it("say beside À relire and Tests how many tests wait for a review and how many failed, in their tones, and nothing for none or before the instance told", () => {
+    const counted = render(createElement(Shell, { route: at("#/agent"), counts: { review: 11, tests: 12 } }));
+    assert.match(counted, /À relire<\/span><span class="nav-count ai">11<\/span><\/a>/);
+    assert.match(counted, /Tests<\/span><span class="nav-count ko">12<\/span><\/a>/);
+    // The tabs of a phone carry them too, on the icon of their entry.
+    assert.equal(counted.match(/nav-count/g)?.length, 4);
+    assert.match(counted, /<span class="tab-icon"><svg [^>]*>.*?<\/svg><span class="nav-count ai">11<\/span><\/span><span class="tab-label">À relire<\/span>/);
+    assert.doesNotMatch(render(createElement(Shell, { route: at("#/agent"), counts: { review: 0, tests: 0 } })), /nav-count/);
+    assert.doesNotMatch(render(createElement(Shell, { route: at("#/agent") })), /nav-count/);
+  });
+
+  it("leave the shell of a page over the whole window without a menu to count in", () => {
+    const bare = render(createElement(Shell, { route: at("#/executions/trace?id=e&path=a"), bare: true, unreachable: true, counts: { review: 1, tests: 1 } }));
+    assert.match(bare, /^<div class="shell bare"><div class="env" role="alert">/);
+    assert.doesNotMatch(bare, /nav-count|shell-sidebar/);
+  });
+});
+
 describe("the screen of the other entries", () => {
   it("lists, under the heading of their group, the entries the tabs of a phone leave out, each a row that opens it", () => {
     const html = render(createElement(MorePage, { project: "lakeside-tests" }));
-    assert.equal(
-      textOf(html),
-      "lakeside-tests / Plus Plus Référentiel Découverte Exécution Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration",
-    );
+    assert.equal(textOf(html), "Plus Référentiel Découverte Exécution Campagnes Anomalies Projet Applications Connaissances Mémoire Configuration");
     assert.deepEqual(linksOf(html), ["#/discovery", "#/campaigns", "#/defects", "#/applications", "#/knowledge", "#/memory", "#/configuration"]);
     assert.match(
       html,

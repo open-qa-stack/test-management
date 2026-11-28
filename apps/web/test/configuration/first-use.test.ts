@@ -43,7 +43,7 @@ describe("the setting up of an instance that has no configuration", () => {
 
   it("opens on a welcome that says what the tool does, with no steps to show yet", () => {
     const html = render(createElement(FirstUse, { project: "shop-tests", state: begun(), controls: CONTROLS, step: "welcome", ...MOVES }));
-    assert.match(textOf(html), /^shop-tests \/ Démarrer Bienvenue Des agents découvrent votre application.* Rien n’est écrit avant la dernière\. Commencer$/);
+    assert.match(textOf(html), /^Bienvenue Des agents découvrent votre application.* Rien n’est écrit avant la dernière\. Commencer$/);
     assert.doesNotMatch(html, /first-use-steps/);
     const told = begun(FIRST_DRAFT, { type: "repository", repository: { folder: "/work/shop-tests", git: "none", playwright: false } });
     assert.match(

@@ -4,7 +4,7 @@ import { hrefTo, type Route } from "../routing/route.ts";
 import { t } from "../i18n/i18n.ts";
 import { Icon } from "../ui/icon.tsx";
 import { SidePanel } from "../ui/side-panel.tsx";
-import { HOME_PATH } from "./navigation.ts";
+import { HOME_PATH, type MenuCounts } from "./navigation.ts";
 import { NavigationList } from "./navigation-list.tsx";
 import { NavigationTabs } from "./navigation-tabs.tsx";
 import { isShortcutsOpen, withShortcuts } from "./shortcuts-help.ts";
@@ -30,6 +30,8 @@ export interface ShellProps {
   readonly menu?: ShellMenu;
   /** Whether the page takes the whole window, without the navigation, as a trace does. */
   readonly bare?: boolean;
+  /** What the menu counts beside its entries, once the instance told it. */
+  readonly counts?: MenuCounts;
   /** The page shown in the main area. */
   readonly children?: ReactNode;
 }
@@ -46,7 +48,7 @@ export interface ShellProps {
  * @param props - The route, the project and the page to frame.
  * @returns The shell.
  */
-export function Shell({ route, project, unreachable = false, menu, bare = false, children }: ShellProps): ReactNode {
+export function Shell({ route, project, unreachable = false, menu, bare = false, counts, children }: ShellProps): ReactNode {
   const folded = menu?.folded === true;
   const brand = (
     <a className="brand" href={hrefTo(HOME_PATH)}>
@@ -91,7 +93,7 @@ export function Shell({ route, project, unreachable = false, menu, bare = false,
             </button>
           )}
         </div>
-        <NavigationList route={route} project={project} />
+        <NavigationList route={route} project={project} counts={counts} />
         <div className="side-foot">
           <a className="side-help" href={withShortcuts(route, true)} aria-haspopup="dialog" aria-keyshortcuts="?" title={t("shortcuts.title")}>
             <Icon name="help" />
@@ -100,7 +102,7 @@ export function Shell({ route, project, unreachable = false, menu, bare = false,
         </div>
       </aside>
       <main className="shell-page">{children}</main>
-      {route.path.length <= 1 && <NavigationTabs route={route} />}
+      {route.path.length <= 1 && <NavigationTabs route={route} counts={counts} />}
       {isShortcutsOpen(route) && (
         <SidePanel id="shell-shortcuts" title={t("shortcuts.title")} close={withShortcuts(route, false)}>
           <ShortcutsList />

@@ -30,10 +30,7 @@ describe("the views of the defects in the address", () => {
 
 describe("the defects reported from tests that failed", () => {
   it("say they are read until the instance told them, and why it could not", () => {
-    assert.equal(
-      textOf(screen("#/defects", {})),
-      "lakeside-tests / Anomalies Anomalies Lecture des anomalies Elles apparaissent dès que l’instance a répondu.",
-    );
+    assert.equal(textOf(screen("#/defects", {})), "Anomalies Lecture des anomalies Elles apparaissent dès que l’instance a répondu.");
     assert.match(textOf(screen("#/defects", { unread: "L’instance ne répond pas." })), /Lecture des anomalies L’instance ne répond pas\.$/);
     assert.match(
       textOf(screen("#/defects", { value: DEFECTS, unread: "L’instance ne répond pas." })),
