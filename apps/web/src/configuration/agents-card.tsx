@@ -50,7 +50,7 @@ function askedOf(agent: AgentKey, agents: OqasConfig["agents"], prompts: ReadPro
 export function AgentsCard({ agents, prompts, route, wrong, footer }: AgentsCardProps): ReactNode {
   const opened = openedOn(route);
   return (
-    <Card title={t("configuration.agents.title")} hint={t("configuration.agents.hint")}>
+    <Card id="config-agents" title={t("configuration.agents.title")} hint={t("configuration.agents.hint")}>
       {AGENT_KEYS.map((agent) => (
         <PartRow
           key={agent}

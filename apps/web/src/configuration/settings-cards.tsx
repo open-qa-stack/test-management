@@ -33,7 +33,7 @@ export function AutonomyCard({
   readonly autonomy?: OqasConfig["autonomy"];
 }): ReactNode {
   return (
-    <Card title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
+    <Card id="config-autonomy" title={t("configuration.settings.autonomy.title")} hint={t("configuration.settings.autonomy.hint")}>
       <div className="config-body">
         <div className="config-fields">
           <RadioField
@@ -111,7 +111,7 @@ export function AutonomyCard({
 export function DesignCard({ design }: { readonly design: OqasConfig["design"] }): ReactNode {
   const levels = design?.levels ?? DEFAULT_LEVELS;
   return (
-    <Card title={t("configuration.settings.design.title")} hint={t("configuration.settings.design.hint")}>
+    <Card id="config-design" title={t("configuration.settings.design.title")} hint={t("configuration.settings.design.hint")}>
       <fieldset className="config-body config-group">
         <legend className="sr-only">{t("configuration.settings.design.legend")}</legend>
         {LEVELS.map((level) => (
@@ -140,7 +140,7 @@ export function DesignCard({ design }: { readonly design: OqasConfig["design"] }
  */
 export function LanguageCard({ config }: { readonly config: OqasConfig }): ReactNode {
   return (
-    <Card title={t("configuration.settings.languages.title")} hint={t("configuration.settings.languages.hint")}>
+    <Card id="config-languages" title={t("configuration.settings.languages.title")} hint={t("configuration.settings.languages.hint")}>
       <div className="config-body config-fields">
         <ChoiceField
           pointer="/language"
@@ -169,7 +169,7 @@ export function LanguageCard({ config }: { readonly config: OqasConfig }): React
  */
 export function RepositoryCard({ repository = {} }: { readonly repository?: OqasConfig["repository"] }): ReactNode {
   return (
-    <Card title={t("configuration.settings.repository.title")} hint={t("configuration.settings.repository.hint")}>
+    <Card id="config-repository" title={t("configuration.settings.repository.title")} hint={t("configuration.settings.repository.hint")}>
       <div className="config-body">
         <div className="config-fields">
           <InputField pointer="/repository/appsDir" label={t("configuration.settings.repository.appsDir")} value={repository.appsDir} code placeholder="apps" />
@@ -205,6 +205,7 @@ export function RepositoryCard({ repository = {} }: { readonly repository?: Oqas
             placeholder=".oqas/knowledge"
           />
         </AdvancedFields>
+        <p className="config-secrets">{t("configuration.screen.secrets")}</p>
       </div>
     </Card>
   );

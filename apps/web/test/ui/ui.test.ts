@@ -33,8 +33,8 @@ describe("the components of the console", () => {
   it("frames a card with its header when it has a title", () => {
     assert.equal(render(createElement(Card, { children: "content" })), '<section class="card">content</section>');
     assert.equal(
-      render(createElement(Card, { title: "Sessions", hint: "les demandes", aside: "3", className: "tbl", children: "content" })),
-      '<section class="card tbl"><div class="hd"><span>Sessions</span><span class="sub">· les demandes</span><span class="right">3</span></div>content</section>',
+      render(createElement(Card, { title: "Sessions", hint: "les demandes", aside: "3", className: "tbl", id: "sessions", children: "content" })),
+      '<section class="card tbl" id="sessions"><div class="hd"><span>Sessions</span><span class="sub"><span class="sub-sep">· </span>les demandes</span><span class="right">3</span></div>content</section>',
     );
   });
 

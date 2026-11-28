@@ -1,7 +1,7 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode } from "react";
 import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { t } from "../i18n/i18n.ts";
-import type { Route } from "../routing/route.ts";
+import { hrefTo, type Route } from "../routing/route.ts";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
 import { EditContext, type ConfigurationEdit } from "./configuration-edit.ts";
@@ -17,6 +17,25 @@ import { SaveBar } from "./save-bar.tsx";
 
 /** The form of the configuration, which the bar at its foot submits. */
 export const FORM_ID = "configuration-form";
+
+/** The path of the screen of the settings. */
+const CONFIGURATION_PATH = "/configuration";
+
+/** The parts of the settings, in the order they show, each a card the head of the screen leads to; the history closes them. */
+export const CONFIGURATION_PARTS = ["model", "autonomy", "design", "languages", "agents", "repository", "history"] as const;
+
+/** One of the parts of the settings. */
+export type ConfigurationPart = (typeof CONFIGURATION_PARTS)[number];
+
+/**
+ * The link to a part of the settings, which the screen scrolls to.
+ *
+ * @param part - The part.
+ * @returns The fragment to put in an `href`.
+ */
+export function partHref(part: ConfigurationPart): string {
+  return hrefTo(CONFIGURATION_PATH, { part });
+}
 
 /** What the person does on the screen besides changing a field. */
 export interface ConfigurationControls extends Omit<ConfigurationEdit, "errors" | "secrets" | "values" | "addressChecks" | "checkAddress"> {
@@ -137,6 +156,13 @@ export function ConfigurationScreen({ project, state, controls, route, prompts }
     );
   return (
     <Page crumbs={crumbs} title={title} hint={t("configuration.screen.lead")}>
+      <nav className="config-parts" aria-label={t("configuration.screen.parts")}>
+        {CONFIGURATION_PARTS.filter((part) => part !== "history").map((part) => (
+          <a key={part} className="chip" href={partHref(part)}>
+            {t(`configuration.screen.part.${part}`)}
+          </a>
+        ))}
+      </nav>
       <Notes state={state} />
       <ErrorSummary errors={errors} draft={draft} />
       <EditContext.Provider
@@ -150,8 +176,7 @@ export function ConfigurationScreen({ project, state, controls, route, prompts }
         }}
       >
         <form id={FORM_ID} className="config-form" onSubmit={controls.save} noValidate>
-          <section className="config-section" aria-labelledby="config-agents">
-            <h2 id="config-agents">{t("configuration.screen.agents")}</h2>
+          <div className="config-grid">
             <ModelCard model={draft.model} onTest={controls.testModel} {...(state.connection === undefined ? {} : { connection: state.connection })} />
             <AutonomyCard {...(draft.autonomy === undefined ? {} : { autonomy: draft.autonomy })} />
             <DesignCard design={draft.design} />
@@ -163,19 +188,28 @@ export function ConfigurationScreen({ project, state, controls, route, prompts }
               wrong={(pointer) => errors.some(({ path }) => path === pointer || path.startsWith(`${pointer}/`))}
               footer={<SaveBar saving={saving} pending={pending} saved={t("configuration.item.saved")} discard={controls.discard} />}
             />
-          </section>
-          <section className="config-section" aria-labelledby="config-repository">
-            <h2 id="config-repository">{t("configuration.screen.repository")}</h2>
             <RepositoryCard {...(draft.repository === undefined ? {} : { repository: draft.repository })} />
-          </section>
-          <p className="small muted config-secrets">{t("configuration.screen.secrets")}</p>
-          <SaveBar saving={saving} pending={pending} saved={t("configuration.screen.inForce", { number: view!.revision!.number })} discard={controls.discard} />
+          </div>
+          <div className="card config-foot">
+            <SaveBar
+              saving={saving}
+              pending={pending}
+              saved={
+                <>
+                  <b>{t("configuration.screen.inForce", { number: view!.revision!.number })}</b>
+                  <a href={partHref("history")}>{t("configuration.screen.history")}</a>
+                </>
+              }
+              discard={controls.discard}
+              always
+            />
+          </div>
         </form>
       </EditContext.Provider>
-      {/* The history, the file and the JSON are an expert's: they are folded. */}
-      <details className="config-section config-advanced">
+      {/* The history, the file and the JSON are an expert's: they are folded, unless the foot of the form led to them. */}
+      <details id="config-history" className="config-section config-advanced" open={route.query["part"] === "history"}>
         <summary>
-          <h2 id="config-history">{t("configuration.screen.history")}</h2>
+          <h2>{t("configuration.screen.history")}</h2>
         </summary>
         {/* The instance tells the revisions with the configuration: there is a draft once it told them. */}
         <HistoryCard revisions={revisions!} />

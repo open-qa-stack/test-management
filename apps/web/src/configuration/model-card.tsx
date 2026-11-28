@@ -39,7 +39,7 @@ export function ModelCard({ model, connection, onTest }: ModelCardProps): ReactN
   const models = modelChoices(test?.check, model.model);
   const chosen = models?.find(({ id }) => id === model.model);
   return (
-    <Card title={t("configuration.model.title")} hint={t("configuration.model.hint")}>
+    <Card id="config-model" title={t("configuration.model.title")} hint={t("configuration.model.hint")}>
       <div className="config-body config-fields">
         <ChoiceField pointer="/model/mode" kind="connection" label={t("configuration.model.connection")} value={choice} options={connections()} />
         {model.mode === "github" ? (

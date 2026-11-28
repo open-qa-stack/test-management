@@ -106,7 +106,7 @@ describe("the console in English", () => {
     const text = english(createElement(ConfigurationScreen, { project: "p", state, controls: CONTROLS, route: at("#/configuration") }));
     assert.match(
       text,
-      /The settings of Open QA Stack\. The applications under test and the knowledge the agents read have screens of their own\.(?: .*)? Agents Model · what the agents think with Connection to the model /,
+      /The settings of Open QA Stack\. The applications under test and the knowledge the agents read have screens of their own\. Model Autonomy Levels Languages Instructions Test repository Model · what the agents think with Connection to the model /,
     );
     assert.match(text, /Languages · what the product says, and what the tests say Language of the console and of the agents English Français /);
     assert.match(text, /Language of the tests English Français The titles, the steps and the intents of the tests written; their code stays in English\./);
