@@ -53,31 +53,3 @@ export function failuresFirst<Result extends Pick<ExecutionResult, "verdict">>(r
     .toSorted((left, right) => rank(left.result) - rank(right.result) || left.order - right.order)
     .map(({ result }) => result);
 }
-
-/**
- * What came of the tests of an execution at a glance: a bar of their verdicts, the failures at its right end, then the
- * failures and the retries in words, or how many passed when none failed nor needed a retry.
- *
- * @param props - The results of the execution.
- * @returns The bar and its words.
- */
-export function VerdictBar({ results }: { readonly results: readonly ExecutionResult[] }): ReactNode {
-  const count = (verdict: ExecutionVerdict): number => results.filter((result) => result.verdict === verdict).length;
-  const troubles = (["failed", "flaky"] as const).filter((verdict) => count(verdict) > 0);
-  // Without a failure nor a retry, the words say how many passed; an execution without a test says nothing.
-  const words: readonly ExecutionVerdict[] = troubles.length > 0 || results.length === 0 ? troubles : ["passed"];
-  return (
-    <>
-      <span className="verdict-bar" aria-hidden="true">
-        {(["passed", "flaky", "skipped", "failed"] as const).map((verdict) => (
-          <span key={verdict} className={`verdict-part ${verdict}`} style={{ flexGrow: count(verdict) }} />
-        ))}
-      </span>
-      {words.map((verdict) => (
-        <span key={verdict} className={`verdict-words ${verdict}`}>
-          {statusCount(verdict, count(verdict))}
-        </span>
-      ))}
-    </>
-  );
-}

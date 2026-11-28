@@ -10,21 +10,19 @@ import {
   type TestLaunch,
 } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
-import { dateText, durationText } from "../i18n/formats.ts";
+import { dateText } from "../i18n/formats.ts";
 import { t } from "../i18n/i18n.ts";
-import { originName } from "../i18n/vocabulary.ts";
-import { applicationName } from "../applications/application-names.ts";
+import { originName, statusCount, statusName } from "../i18n/vocabulary.ts";
 import { Badge } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
+import { Icon } from "../ui/icon.tsx";
 import { Page } from "../ui/page.tsx";
 import { campaignHref } from "../campaigns/campaigns-paths.ts";
 import { hrefTo } from "../routing/route.ts";
 import { LaunchAdvance } from "./launch-advance.tsx";
-import { contentText, environmentText, executionDuration, launchOrigin, launchText } from "./execution-text.ts";
+import { campaignText, environmentText, executionDuration, launchOrigin, launchText } from "./execution-text.ts";
 import { EXECUTION_PERIODS } from "./execution-period.ts";
-import { EXECUTIONS_SIZES, executionHref, executionsHref, resultHref, RUNNING_PATH, type ExecutionsFilter } from "./executions-paths.ts";
-import { FailureNote } from "./failure-note.tsx";
-import { failuresFirst, VerdictBadge, VerdictBar } from "./verdicts.tsx";
+import { EXECUTIONS_SIZES, executionHref, executionsHref, RUNNING_PATH, type ExecutionsFilter } from "./executions-paths.ts";
 
 /** The outcomes a person narrows the executions to. */
 const OUTCOMES: readonly ExecutionOutcome[] = ["failing", "passing"];
@@ -139,37 +137,16 @@ function Filters({
           ))}
         </select>
       </label>
-      <label className="exec-filter small">
-        <span className="muted">{t("executions.sizeFilter")}</span>
-        <select value={filter.size ?? ""} onChange={controls.size}>
-          {EXECUTIONS_SIZES.map((size, rank) => (
-            <option key={size} value={rank === 0 ? "" : size}>
-              {size}
-            </option>
-          ))}
-        </select>
-      </label>
     </div>
   );
 }
 
-/** A test of an execution, which leads to what came of it there: its verdict, its title, its application, where it failed, and how long it took. */
-function ResultRow({ execution, result }: { readonly execution: Execution; readonly result: ExecutionResult }): ReactNode {
-  return (
-    <a className="row tests-row" href={resultHref(execution.id, result.path)}>
-      <VerdictBadge verdict={result.verdict} />
-      <div className="grow">
-        <b>{result.title}</b>
-        <span className="small muted"> · {applicationName(result.project)}</span>
-        <FailureNote failure={result.failure} />
-      </div>
-      <span className="small muted">{durationText(result.durationMs)}</span>
-    </a>
-  );
-}
-
-/** An execution, as a line that unfolds into its tests: when it ran, where from, what it ran and against which environment, what came of it, how long, at which version. */
-function ExecutionRow({
+/**
+ * An execution, on a card: whether a test of it failed, when it ran, what ran it — the session, leading to it, or the
+ * campaign —, where, how many tests and how long; what came of its tests, those that passed and those that failed;
+ * then the way to its failures, first, and to each of its tests.
+ */
+function ExecutionCard({
   execution,
   sessions,
   campaigns,
@@ -178,38 +155,59 @@ function ExecutionRow({
   readonly sessions: readonly Session[];
   readonly campaigns: readonly CampaignOverview[];
 }): ReactNode {
-  const content = contentText(execution, sessions, campaigns);
+  const count = (verdict: ExecutionResult["verdict"]): number => execution.results.filter((result) => result.verdict === verdict).length;
+  const failed = count("failed");
+  const session = sessions.find(({ id }) => id === execution.sessionId);
   const where = environmentText(execution, campaigns);
+  const what =
+    execution.campaignId !== undefined ? (
+      <a href={campaignHref(execution.campaignId)}>{campaignText(execution, campaigns)}</a>
+    ) : session !== undefined ? (
+      <a href={hrefTo(`/agent/sessions/${session.id}`)}>{session.request}</a>
+    ) : undefined;
   return (
-    <details className="exec-row">
-      <summary className="exec-line">
-        <span className="exec-toggle" aria-hidden="true" />
-        <a className="exec-date" href={executionHref(execution.id)}>
-          {dateText(execution.ranAt)}
-        </a>
-        <span className="exec-origin">
-          <Badge tone="neutral">{originName(execution.origin)}</Badge>
+    <section className="card exec-card" aria-labelledby={`execution-${execution.id}`}>
+      <div className="exec-card-head">
+        <span className={failed > 0 ? "tests-mark failed" : "tests-mark passed"} role="img" aria-label={statusName(failed > 0 ? "failed" : "passed")}>
+          <Icon name={failed > 0 ? "close" : "check"} size={12} />
         </span>
-        <span className="exec-content small">
-          {execution.campaignId === undefined ? content : <a href={campaignHref(execution.campaignId)}>{content}</a>}
-          {where !== undefined && <span className="muted"> · {where}</span>}
-        </span>
-        <span className="exec-result small">
-          <VerdictBar results={execution.results} />
-        </span>
-        <span className="exec-duration small muted">{executionDuration(execution)}</span>
-      </summary>
-      <div className="exec-tests">
-        {execution.results.length === 0 ? (
-          <p className="small muted">{t("execution.noTest")}</p>
-        ) : (
-          failuresFirst(execution.results).map((result, rank) => <ResultRow key={rank} execution={execution} result={result} />)
+        <div className="exec-card-what">
+          <a id={`execution-${execution.id}`} className="exec-date" href={executionHref(execution.id)}>
+            {dateText(execution.ranAt)}
+          </a>
+          <span className="exec-card-origin">
+            {originName(execution.origin)}
+            {what !== undefined && <> · {what}</>}
+          </span>
+          <span className="small muted">
+            {[where, t("executions.tests", { count: execution.results.length }), executionDuration(execution)].filter((part) => part !== undefined).join(" · ")}
+          </span>
+        </div>
+        {execution.results.length > 0 && (
+          <span className="exec-card-result small">
+            <span className="verdict-bar" aria-hidden="true">
+              {(["passed", "flaky", "skipped", "failed"] as const).map((verdict) => (
+                <span key={verdict} className={`verdict-part ${verdict}`} style={{ flexGrow: count(verdict) }} />
+              ))}
+            </span>
+            <span className="exec-card-words">
+              <span className="verdict-words passed">{statusCount("passed", count("passed"))}</span>
+              {failed > 0 && <span className="verdict-words failed">{statusCount("failed", failed)}</span>}
+            </span>
+          </span>
         )}
-        <a className="small" href={executionHref(execution.id)}>
-          {t("executions.open")} →
+      </div>
+      <div className="exec-card-actions">
+        {failed > 0 && (
+          <a className="btn primary" href={executionHref(execution.id)}>
+            {t("executions.seeFailures", { count: failed })}
+          </a>
+        )}
+        <a className="btn" href={executionHref(execution.id, "all")}>
+          {t("executions.byTest")}
         </a>
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -220,28 +218,20 @@ function Table({
   before,
   sessions,
   campaigns,
+  controls,
 }: {
   readonly page: ExecutionList;
   readonly filter: ExecutionsFilter;
   readonly before: string | undefined;
   readonly sessions: readonly Session[];
   readonly campaigns: readonly CampaignOverview[];
+  readonly controls: ExecutionsControls;
 }): ReactNode {
   return (
     <>
-      <section className="card exec-table">
-        <div className="exec-line exec-head muted" aria-hidden="true">
-          <span className="exec-toggle-room" />
-          <span className="exec-date small">{t("executions.columns.date")}</span>
-          <span className="exec-origin small">{t("executions.columns.origin")}</span>
-          <span className="exec-content small">{t("executions.columns.content")}</span>
-          <span className="exec-result small">{t("executions.columns.result")}</span>
-          <span className="exec-duration small">{t("executions.columns.duration")}</span>
-        </div>
-        {page.items.map((execution) => (
-          <ExecutionRow key={execution.id} execution={execution} sessions={sessions} campaigns={campaigns} />
-        ))}
-      </section>
+      {page.items.map((execution) => (
+        <ExecutionCard key={execution.id} execution={execution} sessions={sessions} campaigns={campaigns} />
+      ))}
       <nav className="exec-pages" aria-label={t("executions.pages")}>
         <span className="exec-range small muted">
           {t("executions.range", { first: page.start + 1, last: page.start + page.items.length, total: page.total })}
@@ -256,6 +246,16 @@ function Table({
             {t("executions.older")} →
           </a>
         )}
+        <label className="exec-filter exec-size small">
+          <span className="muted">{t("executions.sizeFilter")}</span>
+          <select value={filter.size ?? ""} onChange={controls.size}>
+            {EXECUTIONS_SIZES.map((size, rank) => (
+              <option key={size} value={rank === 0 ? "" : size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
       </nav>
     </>
   );
@@ -293,7 +293,7 @@ export function ExecutionsScreen({ project, filter, before, sessions, campaigns 
           {page.items.length === 0 ? (
             <EmptyState title={t("executions.noMatch")}>{t("executions.noMatchNote")}</EmptyState>
           ) : (
-            <Table page={page} filter={filter} before={before} sessions={sessions} campaigns={campaigns} />
+            <Table page={page} filter={filter} before={before} sessions={sessions} campaigns={campaigns} controls={controls} />
           )}
         </>
       )}

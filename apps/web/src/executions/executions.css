@@ -1,58 +1,70 @@
-/* The screen of the executions: a table whose lines unfold into their tests, then the links between its pages. */
-.exec-table {
-  overflow: hidden;
-}
-
-/* On a phone a line keeps its toggle, its date and what came of it. */
-.exec-line {
+/*
+ * The screen of the executions: a card each, what came of it at its right from a tablet and under it on a phone, then
+ * the ways to its failures and to each of its tests; the links between the pages, with how many a page holds, close it.
+ */
+.exec-card {
   display: grid;
-  grid-template-columns: var(--space-6) minmax(0, 1fr) auto;
-  gap: var(--space-1) var(--space-3);
+  padding: 0;
+}
+
+.exec-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--inset);
+}
+
+.exec-card-what {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* What ran it, on two lines at most: what was asked of a session can be long. */
+.exec-card-origin {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.exec-card-result {
+  display: grid;
+  grid-column: 2;
+  align-self: start;
+  gap: var(--space-1);
+}
+
+.exec-card-result .verdict-bar {
+  width: 100%;
+}
+
+.exec-card-words {
+  display: flex;
+  justify-content: space-between;
+}
+
+.exec-card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12em), 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3) var(--inset);
+  border-top: var(--hairline) solid var(--line-soft);
+}
+
+.exec-card-actions .btn {
+  min-height: var(--tap);
+}
+
+/* How many executions a page holds, its label beside its choice, at the end of the links between the pages. */
+.exec-pages .exec-size {
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  padding: var(--space-3) var(--space-4);
-}
-
-.exec-head,
-.exec-origin,
-.exec-content,
-.exec-duration {
-  display: none;
-}
-
-.exec-row {
-  border-top: var(--hairline) solid var(--line);
-}
-
-.exec-row > summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.exec-row > summary::-webkit-details-marker {
-  display: none;
-}
-
-.exec-toggle {
-  display: inline-grid;
-  place-items: center;
-  width: var(--space-6);
-  height: var(--space-6);
-  border: var(--hairline) solid var(--line);
-  border-radius: var(--radius-inner);
-  background: var(--surface);
-  color: var(--neutral);
-}
-
-.exec-toggle::before {
-  content: "▸";
-}
-
-.exec-row[open] .exec-toggle::before {
-  content: "▾";
-}
-
-.exec-row[open] > summary {
-  background: var(--surface-soft);
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 .exec-date {
@@ -63,19 +75,6 @@
 
 .exec-date:hover {
   text-decoration: underline;
-}
-
-.exec-result {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.exec-tests {
-  padding: 0 var(--space-4) var(--space-3) calc(var(--space-6) + var(--space-6) + var(--space-1));
-  background: var(--surface-soft);
 }
 
 .exec-pages {
@@ -246,30 +245,18 @@
 }
 
 @media (min-width: 960px) {
-  .exec-line {
-    grid-template-columns: var(--space-6) 11em 11em minmax(0, 1fr) 14em 6em;
-  }
-
-  .exec-origin,
-  .exec-content,
-  .exec-duration {
-    display: block;
-  }
-
-  .exec-head {
-    display: grid;
-    border-bottom: var(--hairline) solid var(--line);
-  }
-
-  .exec-result {
-    justify-content: flex-start;
-  }
-
   .verdict-bar {
     width: calc(var(--space-8) + var(--space-8));
   }
 
-  .exec-duration,
+  .exec-card-head {
+    grid-template-columns: auto minmax(0, 1fr) calc(var(--space-12) * 4.5);
+  }
+
+  .exec-card-result {
+    grid-column: 3;
+  }
+
   .exec-seconds {
     text-align: right;
   }

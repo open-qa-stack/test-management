@@ -25,19 +25,16 @@ export function requestOf(execution: Pick<Execution, "sessionId">, sessions: rea
 }
 
 /**
- * What an execution ran, in a few words: the session that asked for it, the campaign it was launched for, or how many tests it ran.
+ * The campaign an execution was launched for, in a few words: its name when the console knows it, and how many tests it ran.
  *
- * @param execution - The execution.
- * @param sessions - The sessions of the project the console listed.
- * @param campaigns - The campaigns of the project the console listed, which name the one of an execution launched for it.
+ * @param execution - The execution, launched for a campaign.
+ * @param campaigns - The campaigns of the project the console listed.
  * @returns The words.
  */
-export function contentText(execution: Execution, sessions: readonly Session[], campaigns: readonly Pick<Campaign, "id" | "name">[] = []): string {
-  const request = requestOf(execution, sessions);
+export function campaignText(execution: Pick<Execution, "campaignId" | "results">, campaigns: readonly Pick<Campaign, "id" | "name">[]): string {
   const campaign = campaigns.find(({ id }) => id === execution.campaignId);
-  if (campaign !== undefined) return t("executions.campaignNamed", { name: campaign.name, count: execution.results.length });
-  if (execution.campaignId !== undefined) return t("executions.campaign", { count: execution.results.length });
-  return request === undefined ? t("executions.tests", { count: execution.results.length }) : t("executions.session", { request });
+  const count = execution.results.length;
+  return campaign === undefined ? t("executions.campaign", { count }) : t("executions.campaignNamed", { name: campaign.name, count });
 }
 
 /** Where the execution a launch that runs will keep comes from, by the campaign it was launched for. */
