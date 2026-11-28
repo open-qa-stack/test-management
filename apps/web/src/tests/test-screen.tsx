@@ -13,7 +13,7 @@ import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { TESTS_PATH } from "./tests-paths.ts";
+import { REPORT_PANEL, TESTS_PATH } from "./tests-paths.ts";
 import { TestRelaunch, type RelaunchState } from "./test-relaunch.tsx";
 import { TestCode } from "./test-code.tsx";
 import { TestTree } from "./test-tree.tsx";
@@ -57,9 +57,6 @@ export interface TestScreenProps {
   /** Reports a defect of it, from the form of its panel. */
   readonly onReport?: FormEventHandler<HTMLFormElement>;
 }
-
-/** The panel of the card of a test that reports a defect of it, as the address names it. */
-export const REPORT_PANEL = "report";
 
 /** What the tags of the test say of it: its level, its domain and functionality, its applications. */
 function Tags({ test }: { readonly test: RepositoryTest }): ReactNode {

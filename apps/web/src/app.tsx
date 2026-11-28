@@ -20,7 +20,7 @@ import { openingOf } from "./agent/scope-choices.ts";
 import { asksToStop, focusAfterStop, withoutStop } from "./agent/stop-request.ts";
 import { api } from "./api/instance-api.ts";
 import { i18n, t } from "./i18n/i18n.ts";
-import { Console, documentTitleOf, isEntry, isTrace, sessionAt, type ConsoleProps } from "./console.tsx";
+import { Console, documentTitleOf, isEntry, sessionAt, type ConsoleProps } from "./console.tsx";
 import { keepMenuFold, readMenuFold } from "./shell/menu-fold.ts";
 import { withShortcuts } from "./shell/shortcuts-help.ts";
 import { hearShortcuts } from "./ui/shortcuts.ts";
@@ -65,22 +65,11 @@ export function App(): ReactNode {
   const route = useMemo(() => parseRoute(hash), [hash]);
   const [state, dispatch] = useReducer(consoleAfter, INITIAL_STATE);
   const [folded, setFolded] = useState(() => readMenuFold(storage));
-  const tracing = isTrace(route);
-  // A trace opens with the menu folded, whatever the person keeps; unfolded over the traces, it is folded again once they are left.
-  const [traceUnfolded, setTraceUnfolded] = useState(false);
-  const [tracedBefore, setTracedBefore] = useState(tracing);
-  if (tracedBefore !== tracing) {
-    setTracedBefore(tracing);
-    setTraceUnfolded(false);
-  }
   const menu = {
-    folded: tracing ? !traceUnfolded : folded,
+    folded,
     toggle: (): void => {
-      if (tracing) setTraceUnfolded(!traceUnfolded);
-      else {
-        keepMenuFold(storage, !folded);
-        setFolded(!folded);
-      }
+      keepMenuFold(storage, !folded);
+      setFolded(!folded);
     },
   };
   const sync = useMemo(() => new ConsoleSync(api, dispatch), []);

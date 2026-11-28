@@ -4,6 +4,8 @@ import { describe, it } from "vitest";
 import { builtConsole } from "./in-browser.ts";
 import { PlayedInstance } from "./played-instance.ts";
 import { SESSION_ID } from "./agent/session-fixture.ts";
+import { DETAIL, EXECUTIONS } from "./executions/executions-fixture.ts";
+import { ListedInstance } from "./tests/listed-instance.ts";
 
 const app = builtConsole();
 
@@ -92,14 +94,10 @@ describe("the code of the console is covered in full", () => {
         instance.refusal = undefined;
         await page.getByRole("button", { name: "Démarrer une session" }).click();
         await page.locator(".thread .request", { hasText: "vérifier le changement d'adresse" }).waitFor();
-        // The menu folds as the person asks, and stays so at the next visit; a trace opens with it folded, whatever is kept.
+        // The menu folds as the person asks, and stays so at the next visit.
         await page.getByRole("button", { name: "Replier le menu" }).click();
         assert.equal(await page.evaluate(() => window.localStorage.getItem("oqas.navigation")), "folded");
         await page.getByRole("button", { name: "Déplier le menu" }).click();
-        await page.goto("http://console.test/#/executions/trace?id=e1&path=a.spec.ts");
-        await page.getByRole("button", { name: "Déplier le menu" }).click();
-        await page.getByRole("button", { name: "Replier le menu" }).waitFor();
-        await page.goto("http://console.test/#/agent");
         await page.getByRole("button", { name: "Replier le menu" }).waitFor();
       },
       instance.api,
@@ -110,9 +108,10 @@ describe("the code of the console is covered in full", () => {
     assert.deepEqual(application!.uncovered, []);
   });
 
-  it("runs every line of the button that copies the branch of a session, which says when the browser refuses", async () => {
+  it("runs every line of the button that copies the branch of a session or the link of a trace, which says when the browser refuses", async () => {
     const instance = new PlayedInstance();
     instance.complete();
+    const listed = new ListedInstance();
     const [button] = await app().measure(
       ["src/ui/copy-button.tsx"],
       async (page) => {
@@ -121,11 +120,24 @@ describe("the code of the console is covered in full", () => {
         // A page served over plain HTTP has no clipboard, as one whose browser refuses: the person is told to select the text.
         await copy.click();
         await page.getByRole("status").filter({ hasText: "Copie impossible : sélectionnez le texte." }).waitFor();
-        await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() } }));
+        await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true }));
         await copy.click();
         await page.getByRole("status").filter({ hasText: "Copié" }).waitFor();
+        // On a phone, the link of a trace is copied whole, from the button that leads the screen.
+        await page.setViewportSize({ width: 390, height: 800 });
+        await page.goto(`http://console.test/#/executions/trace?id=${EXECUTIONS[0]!.id}&path=${encodeURIComponent(DETAIL)}`);
+        let copied = "";
+        await page.exposeFunction("keepCopied", (text: string) => (copied = text));
+        await page.evaluate(() =>
+          Object.defineProperty(navigator, "clipboard", {
+            value: { writeText: (text: string) => (window as unknown as { keepCopied: (text: string) => Promise<void> }).keepCopied(text) },
+          }),
+        );
+        await page.getByRole("button", { name: "Copier le lien de la trace" }).click();
+        await page.getByRole("status").filter({ hasText: "Copié" }).waitFor();
+        assert.match(copied, /^http:\/\/console\.test\/.*#\/executions\/trace\?id=/);
       },
-      instance.api,
+      async (request) => (request.path.startsWith("/api/tests") ? listed.api(request) : instance.api(request)),
     );
     assert.ok(button!.lines.length > 5, "the button is in the build");
     assert.deepEqual(button!.uncovered, []);
