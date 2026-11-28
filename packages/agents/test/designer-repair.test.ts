@@ -88,6 +88,25 @@ describe("a design that repairs tests the repository has", () => {
     assert.match(request, /Next: call run_test with the text of the test as the repository has it, unchanged\.$/);
   });
 
+  it("tells the session that repairs a test how it failed in the suite, and to make it hold the data the other tests leave", async () => {
+    const root = await designed();
+    const planning = [{ body: toolCalls(MODEL, [repair("fix", LISTING)]) }, { body: toolCalls(MODEL, []) }];
+    const writing = [[run(broken("list-orders").trimEnd(), "r0")], [look("l0")], ...write("list-orders")];
+    const { outcome, server } = await design([...planning, ...replies(writing)], {
+      root,
+      plan: false,
+      branch: null,
+      continued: BRANCH,
+      brief: "Repair the tests that failed in the suite.",
+      batch: { suiteFailures: new Map([[LISTING, "Expected 1-1 of 1, received 1-2 of 2."]]) },
+    });
+    assert.equal(outcome.ok, true, messages(outcome));
+    const request = firstMessage(sessions(server).at(-1)!);
+    assert.match(request, /It passes alone, but failed when the whole suite ran, after the tests that change the data: Expected 1-1 of 1, received 1-2 of 2\./);
+    assert.match(request, /First call run_test with its text as it is; then make it hold whatever they leave/);
+    assert.match(request, /never a total, a count of rows, a pagination text or which row comes first/);
+  });
+
   it("leaves the test as the repository has it when its repair does not pass", async () => {
     const root = await designed();
     const before = readFileSync(join(root, LISTING), "utf8");
