@@ -235,10 +235,15 @@ describe("the code of the console is covered in full", () => {
     const [entry, picker, form] = await app().measure(
       ["src/agent/agent-home-page.tsx", "src/agent/scope-picker.tsx", "src/agent/request-form.tsx"],
       async (page) => {
-        // Before a cartography, no domain is named; one environment goes with the request as it is.
+        // Before a cartography, no domain is named; one environment goes with the request as it is. A phone folds the scope under its summary.
+        await page.setViewportSize({ width: 390, height: 800 });
         await page.goto("http://console.test/#/agent");
-        await page.getByText("Domaines : pas encore cartographiés").waitFor();
-        await page.getByText("Environnement : local").waitFor();
+        await page.getByText("Tout le projet · local").waitFor();
+        await page.getByRole("button", { name: "Modifier" }).click();
+        await page.getByRole("button", { name: "Fermer" }).click();
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.getByText("Domaines pas encore cartographiés").waitFor();
+        await page.getByText("Environnement local").waitFor();
         instance.domains = domains;
         instance.staging = true;
         // The entry reads again what the project holds to start from: told now, where it was not before.
@@ -246,19 +251,19 @@ describe("the code of the console is covered in full", () => {
         await page.goto("http://console.test/#/tests");
         await page.goto("http://console.test/#/agent");
         // The entry reads the configuration and the domains again: the choice of the environment shows once it did.
-        await page.getByText("Domaines : tous").waitFor();
+        await page.locator(".scope-menu summary", { hasText: "Domaines" }).waitFor();
         await page.getByRole("link", { name: /Corriger le test échoué/ }).waitFor();
         await page.getByRole("link", { name: /Relire les 2 nouveaux tests/ }).waitFor();
-        await page.getByLabel("Environnement :").selectOption("staging", { timeout: 60_000 });
-        await page.getByText("Domaines : tous").click();
+        await page.getByLabel("Environnement").selectOption("staging", { timeout: 60_000 });
+        await page.locator(".scope-menu summary", { hasText: "Domaines" }).click();
         for (const label of ["Devis", "Polices", "Clients"]) await page.getByRole("checkbox", { name: new RegExp(`^${label}`) }).check();
-        await page.getByText("Domaines : 3 choisis").waitFor();
+        await page.locator(".scope-menu summary", { hasText: "3 choisis" }).waitFor();
         await page.getByRole("checkbox", { name: /^Clients/ }).uncheck();
-        await page.getByText("Domaines : Devis, Polices").waitFor();
+        await page.locator(".scope-menu summary", { hasText: "Devis, Polices" }).waitFor();
         await page.getByRole("button", { name: "tous" }).first().click();
-        await page.getByText("Domaines : tous").waitFor();
+        await page.locator(".scope-menu summary", { hasText: "Domaines" }).waitFor();
         await page.getByRole("checkbox", { name: /^Devis/ }).check();
-        await page.getByText("Niveaux : tous").click();
+        await page.locator(".scope-menu summary", { hasText: "Niveaux" }).click();
         await page.getByRole("checkbox", { name: "métier" }).check();
         // An empty request presses nothing; Enter alone writes a new line; a refusal is said; Ctrl+Enter sends.
         const field = page.getByRole("textbox", { name: "Dites aux agents quoi tester" });

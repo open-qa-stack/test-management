@@ -87,7 +87,7 @@ describe("the console in English", () => {
   it("lists the sessions under the request that opens one, and names the screens that lead nowhere", async () => {
     await inEnglish();
     const home = english(createElement(AgentHomeScreen, { project: "p", sessions: [RUNNING, COMPLETED], opening: { state: "idle" } }));
-    assert.match(home, /^What do we test\? Tell the agents what to test Start a session Sessions · 1 live /);
+    assert.match(home, /^What do we test\? Tell the agents what to test Start a session Sessions · 2 · 1 live /);
     assert.match(home, / · local · 1 min 54 sec 1 \/ 1 test passed$/);
     assert.match(
       english(createElement(Console, { route: at("#/nowhere") })),

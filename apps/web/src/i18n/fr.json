@@ -97,7 +97,6 @@
     "start": "Démarrer une session",
     "sessions": "Sessions",
     "live": "{{count}} en direct",
-    "hint": "chaque demande ouvre une session",
     "reading": "Lecture des sessions…",
     "emptyTitle": "Aucune session pour l’instant",
     "emptyBody": "La première apparaîtra ici dès qu’une demande sera faite.",
@@ -1445,7 +1444,11 @@
     "noDomain": "pas encore cartographiés",
     "noLevel": "aucun demandé",
     "chosen_one": "{{count}} choisi",
-    "chosen_other": "{{count}} choisis"
+    "chosen_other": "{{count}} choisis",
+    "title": "Périmètre",
+    "whole": "Tout le projet",
+    "edit": "Modifier",
+    "close": "Fermer"
   },
   "relaunch": {
     "button": "Relancer ce test",
