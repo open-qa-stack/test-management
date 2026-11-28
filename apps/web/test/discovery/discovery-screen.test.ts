@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { describe, it } from "vitest";
 import type { CartographyState } from "@open-qa-stack/domain/sessions";
-import { DiscoveryScreen, type DiscoveryControls, type DiscoveryScreenProps } from "../../src/discovery/discovery-screen.tsx";
+import { DiscoveryScreen, shownDomains, type DiscoveryControls, type DiscoveryScreenProps } from "../../src/discovery/discovery-screen.tsx";
 import { at, linksOf, render, textOf } from "../render.ts";
 
 /** What the person does on the screen, which a static rendering never calls. */
 const CONTROLS: DiscoveryControls = {
   toggle: () => assert.fail("nothing is picked"),
+  chooseAll: () => assert.fail("nothing is picked"),
+  search: () => assert.fail("nothing is searched"),
   generate: () => assert.fail("nothing is opened"),
   exclude: () => assert.fail("nothing is excluded"),
   restore: () => assert.fail("nothing is taken back"),
@@ -102,20 +104,58 @@ describe("the discovery of the project", () => {
     const text = textOf(html);
     assert.match(
       text,
-      /Domaines Clients La recherche et la fiche d’un client\. shop D’où il vient : 1 source contract · shop — customers Renommer Exclure Commandes La commande et son suivi\. shop warehouse Tout le projet D’où il vient : 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Renommer Exclure Aucun domaine choisi sur 2 Générer les tests Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 Base de connaissance mise en commun par domaine le .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
+      /Tout choisir 2 domaines · 2 sources lues le .* · Voir chaque source Domaines Clients La recherche et la fiche d’un client\. 1 application 1 source contract · shop — customers Renommer Exclure Commandes La commande et son suivi\. 2 applications 3 sources contract · shop — orders, carts stock · warehouse — public\.items guide · Tout le projet — Passer commande Renommer Exclure Aucun domaine choisi sur 2 Générer les tests$/,
     );
     assert.match(html, /<input id="domain-customers" type="checkbox" name="domain" value="customers"\/>/);
     assert.match(html, /<button type="submit" class="btn primary" disabled="">Générer les tests<\/button>/);
   });
 
-  it("names, on each domain, the applications its sources describe, then each source with its applications and what it holds of the domain", () => {
+  it("counts, on each domain, the applications its sources describe, then folds each source with its applications and what it holds of the domain", () => {
     const html = screen();
     assert.match(
       html,
-      /<div class="domain-sources small"><span class="domain-marks"><span class="badge neutral sq">shop<\/span><span class="badge neutral sq">warehouse<\/span><span class="badge neutral sq">Tout le projet<\/span><\/span><details><summary>D’où il vient : 3 sources<\/summary><ul><li><b>contract<\/b> · shop — <span class="muted">orders, carts<\/span><\/li>/,
+      /<div class="domain-sources small"><span class="muted">2 applications<\/span><details><summary>3 sources<\/summary><ul><li><b>contract<\/b> · shop — <span class="muted">orders, carts<\/span><\/li>/,
     );
-    // What the domain comes from sits apart from what picks it.
-    assert.match(html, /<label class="tile-pick" for="domain-orders"><span class="tile-head"><b>Commandes<\/b>.*?<\/label><div class="domain-sources small">/s);
+    // What the domain comes from sits apart from what picks it, beside the menu that renames and excludes it; its box stands before its name.
+    assert.match(
+      html,
+      /<label class="tile-pick" for="domain-orders"><span class="tile-head"><input id="domain-orders" [^>]*\/><b>Commandes<\/b>.*?<\/label><div class="domain-foot"><div class="domain-sources small">.*?<details class="domain-more"><summary aria-label="Actions du domaine Commandes" title="Actions du domaine">/s,
+    );
+  });
+
+  it("shows, before any domain, where the cartography of each source stands, and says how many sources a cartography read without a knowledge base", () => {
+    const before = textOf(screen({ domains: [] }));
+    assert.match(
+      before,
+      /Sources · 2 lues par la cartographie Cartographiée · 1 Cartographie en cours · 1 .* Voir chaque source contract Cartographiée orders Cartographie en cours$/,
+    );
+    const { knowledgeBase: _base, ...unbased } = MAPPING;
+    assert.match(textOf(screen({ mapping: unbased })), /Tout choisir 2 domaines · 2 sources lues · Voir chaque source Domaines/);
+  });
+
+  it("narrows the domains to the words of a search, kept in the address, and says when none matches", () => {
+    const html = screen({ route: at("#/discovery?q=COMMANDE%20suivi") });
+    assert.doesNotMatch(textOf(html), /Clients La recherche/);
+    assert.match(textOf(html), /Commandes La commande et son suivi\./);
+    assert.match(
+      html,
+      /<input type="search" form="discovery-search" aria-label="Chercher un domaine" placeholder="Chercher un domaine" name="q" value="COMMANDE suivi"\/>/,
+    );
+    assert.match(textOf(screen({ route: at("#/discovery?q=nothing") })), /Aucun domaine ne correspond Cherchez d’autres mots\./);
+    assert.match(textOf(screen({ route: at("#/discovery?q=commande"), chosen: new Set(["orders"]) })), /Ne rien choisir/);
+    assert.deepEqual(
+      shownDomains(DOMAINS, "  la  ").map(({ id }) => id),
+      ["customers", "orders"],
+    );
+    assert.deepEqual(shownDomains([{ ...DOMAINS[0]!, excluded: true }], ""), []);
+  });
+
+  it("picks every domain at once, or none once all are, outlines those picked and names them by the button that writes their tests", () => {
+    const all = screen({ chosen: new Set(["customers", "orders"]) });
+    assert.match(textOf(all), /^.*Ne rien choisir 2 domaines/);
+    assert.match(all, /<div class="tile on">/);
+    assert.match(textOf(all), /2 domaines choisis sur 2 Clients, Commandes Générer les tests$/);
+    assert.doesNotMatch(screen(), /class="tile on"/);
   });
 
   it("sets the domains a person excluded apart, to take back, and says it when every one is, and why a change was refused", () => {
@@ -123,7 +163,7 @@ describe("the discovery of the project", () => {
     const html = screen({ domains: [{ ...customers, excluded: true }, orders] });
     assert.match(
       textOf(html),
-      /sur 1 Générer les tests Domaines exclus · Les agents n’y travaillent pas\. Clients La recherche et la fiche d’un client\. Réintégrer Sources/,
+      /sur 1 Générer les tests Domaines exclus · Les agents n’y travaillent pas\. Clients La recherche et la fiche d’un client\. Réintégrer$/,
     );
     assert.doesNotMatch(html, /id="domain-customers"/);
     assert.match(
@@ -135,7 +175,7 @@ describe("the discovery of the project", () => {
   it("renames a domain in a panel, which tells the name the cartography gave, and why a name was refused", () => {
     const named = DOMAINS.map((domain) => (domain.id === "orders" ? { ...domain, label: "Ventes", foundLabel: "Commandes" } : domain));
     const html = screen({ domains: named, route: at("#/discovery?panel=rename%3Aorders"), changing: { pending: false, refusal: "Refusé." } });
-    assert.match(textOf(html), /Nom du domaine Nom La cartographie l’a nommé « Commandes »\. Refusé\. Annuler Enregistrer Sources/);
+    assert.match(textOf(html), /Nom du domaine Nom La cartographie l’a nommé « Commandes »\. Refusé\. Annuler Enregistrer$/);
     assert.match(html, /name="label" value="Ventes"|value="Ventes"/);
     assert.doesNotMatch(textOf(screen({ route: at("#/discovery?panel=rename%3Aorders") })), /La cartographie l’a nommé/);
   });
@@ -143,9 +183,9 @@ describe("the discovery of the project", () => {
   it("writes the tests of the domains picked, says the session opens, and why it was refused", () => {
     assert.match(
       screen({ chosen: new Set(["orders"]) }),
-      /<input id="domain-orders" type="checkbox" name="domain" checked="" value="orders"\/>.*<button type="submit" class="btn primary">Générer les tests de ce domaine<\/button>/s,
+      /<input id="domain-orders" type="checkbox" name="domain" checked="" value="orders"\/>.*<button type="submit" class="btn primary">Générer les tests<\/button>/s,
     );
-    assert.match(screen({ chosen: new Set(["orders", "customers"]) }), />Générer les tests de ces 2 domaines</);
+    assert.match(screen({ chosen: new Set(["orders", "customers"]) }), />Générer les tests</);
     assert.match(screen({ chosen: new Set(["orders"]), opening: { state: "opening" } }), /disabled="">Ouverture de la session…</);
     assert.match(
       screen({ chosen: new Set(["orders"]), opening: { state: "refused", text: "Refusé." } }),

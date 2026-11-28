@@ -8,6 +8,7 @@
 
 .discovery-form fieldset {
   min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--column-narrow) / 2.4), 1fr));
   margin: 0;
   padding: 0;
   border: 0;
@@ -40,33 +41,181 @@
   cursor: pointer;
 }
 
+/* What the domains to pick start with: the way to pick them all, and how many there are, from how many sources. */
+.discovery-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.discovery-toolbar input {
+  flex: 1 1 18em;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: var(--hairline) solid var(--field-line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.discovery-toolbar .chip {
+  min-height: var(--tap);
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--type-small);
+}
+
+/* A domain picked is outlined in the tone of what is chosen, on the surface; its box stands before its name, which reads as a title. */
+.discovery-form .tile.on {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 var(--hairline) var(--primary);
+}
+
+.discovery-form .tile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.discovery-form .tile-head input[type="checkbox"] {
+  width: var(--space-6);
+  height: var(--space-6);
+}
+
+.discovery-form .tile-head b {
+  font-size: var(--type-heading);
+  line-height: var(--leading-heading);
+}
+
+.discovery-form .tile-text {
+  display: -webkit-box;
+  overflow: hidden;
+  padding-left: calc(var(--space-6) + var(--space-3));
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.discovery-form .domain-foot {
+  padding-left: calc(var(--space-6) + var(--space-3));
+}
+
+/* The foot of a domain: how many applications and sources it comes from, then what else it offers. */
+.domain-foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
 /* Where a domain comes from: the applications its sources describe, then each source, folded. */
 .domain-sources {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
 }
 
-.domain-marks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+.domain-sources details {
+  min-width: 0;
+}
+
+.domain-more {
+  position: relative;
+  flex: none;
+}
+
+.domain-more > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-2)) 0 0;
+  border-radius: var(--radius-control);
+  color: var(--text-3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.domain-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Its button reads as three dots on top of one another. */
+.domain-more > summary svg {
+  transform: rotate(90deg);
+}
+
+.domain-more-items {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  z-index: 2;
+  display: grid;
+  min-width: max-content;
+  padding: var(--space-1);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  box-shadow: var(--elevation-raised);
+}
+
+.domain-more-items .btn {
+  justify-content: flex-start;
+  min-height: var(--tap);
+}
+
+.discovery-picked {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+/* What is picked, and the action, on a card raised over the domains that scroll under it. */
+.discovery-form .action-bar {
+  justify-content: space-between;
+  padding: var(--space-3) var(--pad);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--elevation-raised);
+}
+
+.discovery-picked .small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .domain-sources summary {
   color: var(--primary);
   cursor: pointer;
+  list-style: none;
+  text-decoration: underline;
+}
+
+.domain-sources summary::-webkit-details-marker {
+  display: none;
+}
+
+.domain-sources > .muted::after {
+  content: " ·";
 }
 
 .domain-sources ul {
   margin: var(--space-2) 0 0;
   padding-left: var(--space-4);
   overflow-wrap: anywhere;
-}
-
-/* What the person sets of a domain: its name, and whether it is excluded. */
-.domain-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }

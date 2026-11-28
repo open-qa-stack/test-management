@@ -164,14 +164,28 @@ describe("the code of the console is covered in full", () => {
           },
           { id: "policies", label: "Polices", description: "Les contrats.", sources: [{ id: "guide", applications: [], items: ["Contrats"] }] },
         ];
-        await page.getByRole("checkbox", { name: /^Devis/ }).check({ timeout: 15_000 });
+        // A search narrows the domains, which are picked at once, then let go; a search left empty shows them all again.
+        const search = page.getByRole("searchbox", { name: "Chercher un domaine" });
+        await search.fill("devis", { timeout: 15_000 });
+        await search.press("Enter");
+        await page.waitForURL(/#\/discovery\?q=devis$/);
+        await page.getByRole("button", { name: "Tout choisir" }).click();
+        await page.getByRole("button", { name: "Ne rien choisir" }).click();
+        await search.fill("");
+        await search.press("Enter");
+        await page.waitForURL(/#\/discovery$/);
+        await page.getByRole("button", { name: "Tout choisir" }).click();
+        await page.getByRole("button", { name: "Ne rien choisir" }).click();
+        await page.getByRole("checkbox", { name: /^Devis/ }).check();
         await page.getByRole("checkbox", { name: /^Polices/ }).check();
         await page.getByRole("checkbox", { name: /^Polices/ }).uncheck();
         // A domain is excluded, which leaves what is picked, taken back, then renamed: once refused, then taken.
         await page.getByRole("checkbox", { name: /^Polices/ }).check();
+        await page.locator('summary[aria-label="Actions du domaine Polices"]').click();
         await page.getByRole("button", { name: "Exclure Polices" }).click();
         await page.getByText("Domaines exclus").waitFor();
         await page.getByRole("button", { name: "Réintégrer" }).click();
+        await page.locator('summary[aria-label="Actions du domaine Polices"]').click();
         await page.getByRole("link", { name: "Renommer Polices" }).click();
         await page.getByRole("dialog").getByLabel("Nom").fill("Contrats");
         instance.domainRefused = true;
@@ -182,10 +196,10 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("dialog").waitFor({ state: "detached" });
         // A session the instance refuses says why, and the person may ask again.
         instance.refusal = "error";
-        await page.getByRole("button", { name: "Générer les tests de ce domaine" }).click();
+        await page.getByRole("button", { name: "Générer les tests" }).click();
         await page.getByRole("alert").filter({ hasText: "The API refuses in its own words." }).waitFor();
         instance.refusal = undefined;
-        await page.getByRole("button", { name: "Générer les tests de ce domaine" }).click();
+        await page.getByRole("button", { name: "Générer les tests" }).click();
         await page.waitForURL(/#\/agent\/sessions\//);
         assert.deepEqual(instance.asked.at(-1), { request: "Écris les tests des domaines : Devis.", scope: { domains: ["quotes"] } });
       },
