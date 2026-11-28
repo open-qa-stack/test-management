@@ -492,7 +492,7 @@
         "testLanguageHint": "The titles, the steps and the intents of the tests written; their code stays in English."
       },
       "repository": {
-        "title": "Layout of the repository",
+        "title": "Test repository",
         "hint": "each folder relative to the root of the test repository",
         "appsDir": "Folder of the applications",
         "blocksDir": "Folder of the blocks",
@@ -739,12 +739,19 @@
       "inForce": "Revision {{number}} in force",
       "discard": "Discard the changes",
       "save": "Save",
-      "agents": "Agents",
-      "repository": "Test repository",
       "history": "History and copies of the settings",
       "secrets": "The values typed here — key, connection strings, passwords — stay on the computer the tool runs on, out of the test repository and of the database. An environment variable wins: that is the way of a CI.",
       "lead": "The settings of Open QA Stack. The applications under test and the knowledge the agents read have screens of their own.",
-      "addApplication": "Add an application"
+      "addApplication": "Add an application",
+      "parts": "Parts of the settings",
+      "part": {
+        "model": "Model",
+        "autonomy": "Autonomy",
+        "design": "Levels",
+        "languages": "Languages",
+        "agents": "Instructions",
+        "repository": "Test repository"
+      }
     },
     "item": {
       "saved": "Saved"

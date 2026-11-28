@@ -492,7 +492,7 @@
         "testLanguageHint": "Les titres, les étapes et les intentions des tests écrits ; leur code reste en anglais."
       },
       "repository": {
-        "title": "Organisation du dépôt",
+        "title": "Dépôt de tests",
         "hint": "chaque dossier relatif à la racine du dépôt de tests",
         "appsDir": "Dossier des applications",
         "blocksDir": "Dossier des blocs",
@@ -739,12 +739,19 @@
       "inForce": "Révision {{number}} en vigueur",
       "discard": "Annuler les modifications",
       "save": "Enregistrer",
-      "agents": "Agents",
-      "repository": "Dépôt de tests",
       "history": "Historique et copies des réglages",
       "secrets": "Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil, hors du dépôt de tests et de la base. Une variable d’environnement l’emporte : c’est le chemin d’une CI.",
       "lead": "Les réglages d’Open QA Stack. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans.",
-      "addApplication": "Ajouter une application"
+      "addApplication": "Ajouter une application",
+      "parts": "Parties des réglages",
+      "part": {
+        "model": "Modèle",
+        "autonomy": "Autonomie",
+        "design": "Niveaux",
+        "languages": "Langues",
+        "agents": "Consignes",
+        "repository": "Dépôt de tests"
+      }
     },
     "item": {
       "saved": "Enregistrée"

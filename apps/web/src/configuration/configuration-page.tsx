@@ -29,6 +29,12 @@ export function ConfigurationPage({ project, route, onSaved }: { readonly projec
   useEffect(() => {
     if (saved !== undefined) onSaved?.();
   }, [saved, onSaved]);
+  // A part the head of the screen leads to comes into sight once the screen shows it.
+  const part = route.query["part"];
+  const shown = draft !== undefined;
+  useEffect(() => {
+    if (shown && part !== undefined) document.getElementById(`config-${part}`)?.scrollIntoView({ block: "start" });
+  }, [shown, part]);
   // An instance with neither a revision nor a file starts from a first draft, which the setting up shows.
   const unset = state.view !== undefined && state.view.revision === undefined && state.view.file === "missing";
   useEffect(() => {

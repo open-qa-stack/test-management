@@ -868,7 +868,11 @@ describe("the code of the console is covered in full", () => {
       ["src/configuration/configuration-page.tsx", "src/configuration/use-configuration-editor.ts"],
       async (page) => {
         await page.goto("http://console.test/#/configuration");
-        await page.getByRole("heading", { name: "Agents", exact: true }).waitFor();
+        await page.getByRole("navigation", { name: "Parties des réglages" }).waitFor();
+        // The head of the screen leads to a part, which comes into sight.
+        await page.getByRole("link", { name: "Dépôt de tests" }).click();
+        await page.waitForURL(/#\/configuration\?part=repository$/);
+        await page.waitForFunction(() => document.getElementById("config-repository")!.getBoundingClientRect().top < window.innerHeight / 2);
         // The settings of an expert are folded: those of the model, then those of the autonomy.
         await page
           .locator("details", { has: page.getByLabel("Attente d’une réponse, en secondes") })
@@ -882,7 +886,8 @@ describe("the code of the console is covered in full", () => {
         await page.getByLabel(/^Autonome/).check();
         await page.getByLabel("Entre applications").check();
         await page.getByRole("button", { name: "Annuler les modifications" }).click();
-        await page.getByRole("button", { name: "Enregistrer" }).waitFor({ state: "detached" });
+        // Once dropped, nothing waits to be saved: the button waits too.
+        await page.locator("button:disabled", { hasText: "Enregistrer" }).waitFor();
         await page.getByLabel("Modèle", { exact: true }).fill("saved-model");
         await page.getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("status").filter({ hasText: "Révision 3 enregistrée" }).waitFor();
@@ -929,7 +934,7 @@ describe("the code of the console is covered in full", () => {
         instance.prompts = undefined;
         await page.goto("http://console.test/#/agent");
         // The screen of the configuration is left, and its draft with it, before it opens again.
-        await page.getByRole("heading", { name: "Agents", exact: true }).waitFor({ state: "detached" });
+        await page.getByRole("navigation", { name: "Parties des réglages" }).waitFor({ state: "detached" });
         await page.goto("http://console.test/#/configuration");
         await page.getByRole("button", { name: "Commencer" }).click();
         for (const step of ["Vos applications", "Ce que les agents peuvent lire", "Le modèle"]) {

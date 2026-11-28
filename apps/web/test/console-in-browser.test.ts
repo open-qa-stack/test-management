@@ -303,7 +303,7 @@ describe("the configuration in a browser", () => {
   /** The configuration of the instance, its form read. */
   async function configurationAt(width: number, instance = new ConfiguredInstance()): Promise<Page> {
     const page = await app().open(width, "#/configuration", instance.api);
-    await page.getByRole("heading", { name: "Agents", exact: true }).waitFor();
+    await page.getByRole("navigation", { name: "Parties des réglages" }).waitFor();
     return page;
   }
 
@@ -331,7 +331,7 @@ describe("the configuration in a browser", () => {
           // The tab of the other entries, which the configuration is one of, stands whole in the window.
           const box = await page.getByRole("link", { name: "Plus" }).boundingBox();
           assert.ok(box !== null && box.x >= 0 && box.x + box.width <= width, `the tab at ${width}`);
-          assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0, "nothing to save, no button to save");
+          assert.ok(await page.getByRole("button", { name: "Enregistrer" }).isDisabled(), "nothing to save, the button waits");
           assert.deepEqual(await tooSmallOf(page), [], `${width}`);
           assert.deepEqual(await tooSmallFieldsOf(page), [], `${width}`);
           const size = await page.getByLabel("Modèle", { exact: true }).evaluate((field) => parseFloat(getComputedStyle(field).fontSize));
@@ -359,7 +359,7 @@ describe("the configuration in a browser", () => {
       await page.getByRole("heading", { name: "Historique et copies des réglages" }).click();
       await page.getByText("Révision 3", { exact: true }).waitFor();
       assert.equal(instance.saved[0]!.document.model.model, "other-model");
-      assert.equal(await page.getByRole("button", { name: "Enregistrer" }).count(), 0);
+      assert.ok(await page.getByRole("button", { name: "Enregistrer" }).isDisabled());
     } finally {
       await page.close();
     }

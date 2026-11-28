@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import type { ConfigError, OqasConfig } from "@open-qa-stack/domain/sessions";
 import { describe, it } from "vitest";
-import { ConfigurationScreen, FORM_ID } from "../../src/configuration/configuration-screen.tsx";
+import { ConfigurationScreen, FORM_ID, partHref } from "../../src/configuration/configuration-screen.tsx";
 import { configurationAfter, INITIAL_CONFIGURATION, type ConfigurationAction, type ConfigurationState } from "../../src/configuration/configuration-state.ts";
-import { at, render, textOf } from "../render.ts";
+import { at, linksOf, render, textOf } from "../render.ts";
 import { BARE, DOCUMENT, REVISIONS, VIEW } from "./configuration-fixture.ts";
 import { bears } from "./fields.ts";
 import { UNCALLED_CONTROLS } from "./uncalled-controls.ts";
@@ -18,9 +18,9 @@ function stateAfter(actions: readonly ConfigurationAction[], document: OqasConfi
   return [{ type: "read", view, revisions: REVISIONS } as const, ...actions].reduce(configurationAfter, INITIAL_CONFIGURATION);
 }
 
-/** The screen in a state, as HTML. */
-const screen = (state: ConfigurationState): string =>
-  render(createElement(ConfigurationScreen, { project: "shop-tests", state, controls: CONTROLS, route: at("#/configuration") }));
+/** The screen in a state, at an address, as HTML. */
+const screen = (state: ConfigurationState, hash = "#/configuration"): string =>
+  render(createElement(ConfigurationScreen, { project: "shop-tests", state, controls: CONTROLS, route: at(hash) }));
 
 describe("the screen of the configuration", () => {
   it("says it reads the configuration until the instance told it, and why it could not", () => {
@@ -42,11 +42,18 @@ describe("the screen of the configuration", () => {
     const text = textOf(html);
     assert.match(html, new RegExp(`<form id="${FORM_ID}" class="config-form" noValidate="">`));
     assert.match(text, /Révision 2 en vigueur Historique et copies des réglages/);
-    assert.doesNotMatch(html, /type="submit"/, "nothing to save, no button to save");
+    assert.match(html, /<button type="submit" class="btn primary" disabled="">Enregistrer<\/button>/, "nothing to save, the button waits");
     assert.match(text, /Les réglages d’Open QA Stack\. Les applications testées et les connaissances que lisent les agents ont leurs propres écrans\./);
     assert.doesNotMatch(html, /name="\/(applications|knowledge)\//);
-    for (const heading of ["Agents", "Dépôt de tests"]) assert.match(html, new RegExp(`<h2 id="[^"]+">${heading}</h2>`));
-    assert.match(html, /<details class="config-section config-advanced"><summary><h2 id="config-history">Historique et copies des réglages<\/h2><\/summary>/);
+    // The head leads to each part, which is a card of its own; the foot leads to the history, which it then opens.
+    assert.match(text, /ont leurs propres écrans\. Modèle Autonomie Niveaux Langues Consignes Dépôt de tests Modèle · /);
+    for (const part of ["model", "autonomy", "design", "languages", "agents", "repository"] as const) {
+      assert.ok(linksOf(html).includes(partHref(part)), part);
+      assert.match(html, new RegExp(`<section class="card" id="config-${part}">`));
+    }
+    assert.equal(partHref("history"), "#/configuration?part=history");
+    assert.match(html, /<details id="config-history" class="config-section config-advanced"><summary><h2>Historique et copies des réglages<\/h2><\/summary>/);
+    assert.match(screen(stateAfter([]), "#/configuration?part=history"), /<details id="config-history" class="config-section config-advanced" open="">/);
     assert.match(text, /Révision 2 Console · .* en vigueur Révision 1 Fichier oqas\.json · /);
     assert.match(text, /Les valeurs tapées ici — clé, chaînes de connexion, mots de passe — restent sur l’ordinateur où tourne l’outil/);
     assert.match(html, /<summary>Voir la configuration en JSON<\/summary><pre class="mono">\{\n {2}&quot;formatVersion&quot;: 1,/);
