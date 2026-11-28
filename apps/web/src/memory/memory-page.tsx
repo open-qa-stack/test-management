@@ -1,11 +1,11 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { lessonDraftOf, memoryChangeOf, type MemoryItem } from "@open-qa-stack/domain/sessions";
 import type { ApiError } from "../api/api-error.ts";
 import { api } from "../api/instance-api.ts";
 import { usePolled } from "../api/use-polled.ts";
 import { t } from "../i18n/i18n.ts";
 import type { Route } from "../routing/route.ts";
-import { memoryHref, memoryPlaceOf } from "./memory-paths.ts";
+import { closedOf, MEMORY_TYPES, memoryHref, memoryPlaceOf } from "./memory-paths.ts";
 import { MemoryScreen } from "./memory-screen.tsx";
 
 /**
@@ -46,10 +46,14 @@ export function MemoryPage({ project, route }: { readonly project: string; reado
       () => {
         setSaving({ pending: false });
         setSaved((count) => count + 1);
-        window.location.hash = memoryHref({ view: place.view, ...(place.type === undefined ? {} : { type: place.type }) });
+        window.location.hash = memoryHref(closedOf(place));
       },
       (error: ApiError) => setSaving({ pending: false, refusal: error.message }),
     );
   };
-  return <MemoryScreen project={project} place={place} memory={memory} controls={{ save, ...saving }} />;
+  const narrow = (event: ChangeEvent<HTMLSelectElement>): void => {
+    const type = MEMORY_TYPES.find((known) => known === event.currentTarget.value);
+    window.location.hash = memoryHref({ view: place.view, ...(type === undefined ? {} : { type }) });
+  };
+  return <MemoryScreen project={project} place={place} memory={memory} controls={{ save, narrow, ...saving }} />;
 }

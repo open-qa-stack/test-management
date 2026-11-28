@@ -1787,13 +1787,13 @@
     "lead": "Ce que les agents relisent avant chaque tâche : vos consignes, et ce qu’ils ont noté en travaillant. Reformulez, changez la portée, mettez de côté sans supprimer.",
     "reading": "Lecture de la mémoire",
     "readingNote": "Elle apparaît dès que l’instance a répondu.",
-    "add": "+ Consigne",
+    "add": "Ajouter une consigne",
     "views": "Vues de la mémoire",
     "view": {
       "active": "Actives",
       "inactive": "Mises de côté"
     },
-    "typeFilter": "Types",
+    "typeFilter": "Type",
     "allTypes": "Tous les types",
     "types": {
       "instruction": "Consigne",
@@ -1819,8 +1819,6 @@
       "vocabulary": "vocabulaire"
     },
     "project": "Tout le projet",
-    "given": "{{where}} · {{target}} · {{date}}",
-    "noted": "Noté par un agent · {{domain}}, {{kind}} · {{date}}",
     "adjust": "Ajuster",
     "adjustNamed": "Ajuster « {{text}} »",
     "empty": {
@@ -1843,7 +1841,10 @@
       "save": "Enregistrer",
       "saving": "Enregistrement…",
       "incomplete": "Écrivez ce que les agents doivent retenir, en 600 caractères au plus."
-    }
+    },
+    "notedBy": "Noté par un agent · {{date}}",
+    "more_one": "Afficher l’autre",
+    "more_other": "Afficher les {{count}} autres"
   },
   "page": {
     "back": "Retour à {{screen}}"

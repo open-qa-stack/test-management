@@ -56,7 +56,7 @@ describe("the code of the console is covered in full", () => {
         await page.waitForURL(/#\/memory$/);
         await page.getByText("Create the customers by the API, never by the screens.").waitFor();
         // An instruction of blanks is refused by the console, one the instance refuses says why, and one taken closes the panel.
-        await page.getByRole("link", { name: "+ Consigne" }).click();
+        await page.getByRole("link", { name: "Ajouter une consigne" }).click();
         const panel = page.getByRole("dialog");
         await panel.getByLabel("Ce que les agents doivent retenir").fill("   ");
         await panel.getByRole("button", { name: "Enregistrer" }).click();
@@ -78,8 +78,14 @@ describe("the code of the console is covered in full", () => {
         await page.getByRole("dialog").getByLabel("Active").uncheck();
         await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();
         await page.getByRole("dialog").waitFor({ state: "detached" });
+        // A type chosen in the list narrows the view, every type again once the first choice is taken.
+        await page.getByLabel("Type").selectOption("correction");
+        await page.waitForURL(/#\/memory\?type=correction$/);
+        await page.getByLabel("Type").selectOption("");
+        await page.waitForURL(/#\/memory$/);
         // From a view narrowed to a type, a lesson is kept to an application, and the panel closes on that view.
-        await page.goto("http://console.test/#/memory?type=instruction");
+        await page.getByLabel("Type").selectOption("instruction");
+        await page.waitForURL(/#\/memory\?type=instruction$/);
         await page.getByRole("link", { name: "Ajuster « Never test the risk report. »" }).click();
         await page.getByRole("dialog").getByLabel("Portée").selectOption("customer-management");
         await page.getByRole("dialog").getByRole("button", { name: "Enregistrer" }).click();

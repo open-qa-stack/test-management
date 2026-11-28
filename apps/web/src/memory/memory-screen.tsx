@@ -1,4 +1,4 @@
-import type { FormEventHandler, ReactNode } from "react";
+import type { ChangeEventHandler, FormEventHandler, ReactNode } from "react";
 import type { MemoryItem, MemoryList } from "@open-qa-stack/domain/sessions";
 import type { PolledState } from "../api/polled-state.ts";
 import { applicationName } from "../applications/application-names.ts";
@@ -7,7 +7,7 @@ import { t } from "../i18n/i18n.ts";
 import { Badge, type BadgeTone } from "../ui/badge.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
-import { MEMORY_TYPES, MEMORY_VIEWS, memoryHref, type MemoryPlace } from "./memory-paths.ts";
+import { closedOf, FIRST_LINES, MEMORY_TYPES, MEMORY_VIEWS, memoryHref, type MemoryPlace } from "./memory-paths.ts";
 import { MemoryPanel } from "./memory-panel.tsx";
 
 /** The tone of the badge of each type of line: what a person gave, then what an agent noted. */
@@ -21,6 +21,8 @@ export interface MemoryControls {
   readonly pending: boolean;
   /** Why the instance refused the last change, when it did. */
   readonly refusal?: string;
+  /** Narrows the view to the type chosen. */
+  readonly narrow: ChangeEventHandler<HTMLSelectElement>;
 }
 
 /** What the screen of the memory is drawn from. */
@@ -33,25 +35,30 @@ export interface MemoryScreenProps {
   readonly controls?: MemoryControls;
 }
 
-/** Where a line is kept and when it was written: the application or the project and the work, or what an agent noted it under. */
-function originOf(item: MemoryItem): string {
-  if (item.filed !== undefined) return t("memory.noted", { domain: item.filed.domain, kind: t(`memory.kinds.${item.filed.kind}`), date: dateText(item.at) });
+/** Where a line applies: the domain and the kind an agent noted it under, or the application or the project and the work. */
+function scopeOf(item: MemoryItem): string {
+  if (item.filed !== undefined) return [item.filed.domain, t(`memory.kinds.${item.filed.kind}`)].join(" · ");
   const where = item.application === undefined ? t("memory.project") : applicationName(item.application);
-  return t("memory.given", { where, target: t(`memory.targets.${item.target}`), date: dateText(item.at) });
+  return [where, t(`memory.targets.${item.target}`)].join(" · ");
 }
 
-/** A line of the memory: its type, what it says, where it comes from, and the link that adjusts it. */
-function Row({ item, place }: { readonly item: MemoryItem; readonly place: MemoryPlace }): ReactNode {
+/** A line of the memory, as a card: its type and where it applies, what it says, then who wrote it and when, and the link that adjusts it. */
+function Line({ item, place }: { readonly item: MemoryItem; readonly place: MemoryPlace }): ReactNode {
   return (
-    <div className="row memory-row" role="listitem">
-      <span className="grow">
-        <Badge tone={TYPE_TONES[item.type]}>{t(`memory.types.${item.type}`)}</Badge>
-        <span className="memory-text">{item.text}</span>
-        <span className="small muted">{originOf(item)}</span>
+    <div className="card memory-card" role="listitem">
+      <span className="memory-card-head">
+        <Badge tone={TYPE_TONES[item.type]} square>
+          {t(`memory.types.${item.type}`)}
+        </Badge>
+        <span className="small muted">{scopeOf(item)}</span>
       </span>
-      <a className="btn sm" href={memoryHref({ ...place, panel: item.id })} aria-label={t("memory.adjustNamed", { text: item.text })}>
-        {t("memory.adjust")}
-      </a>
+      <p className="memory-text">{item.text}</p>
+      <span className="memory-card-foot">
+        <span className="small muted">{item.filed === undefined ? dateText(item.at) : t("memory.notedBy", { date: dateText(item.at) })}</span>
+        <a className="memory-adjust" href={memoryHref({ ...place, panel: item.id })} aria-label={t("memory.adjustNamed", { text: item.text })}>
+          {t("memory.adjust")}
+        </a>
+      </span>
     </div>
   );
 }
@@ -78,7 +85,7 @@ export function MemoryScreen({ project, place, memory, controls }: MemoryScreenP
   const { items, counts } = memory.value;
   const shown = items.filter((item) => item.active === (place.view === "active") && (place.type === undefined || item.type === place.type));
   const counted = { active: counts.active, inactive: counts.inactive };
-  const close = memoryHref({ view: place.view, ...(place.type === undefined ? {} : { type: place.type }) });
+  const close = memoryHref(closedOf(place));
   const adjusted = items.find(({ id }) => id === place.panel);
   const panel = place.panel === "add" || adjusted !== undefined;
   return (
@@ -86,7 +93,7 @@ export function MemoryScreen({ project, place, memory, controls }: MemoryScreenP
       crumbs={crumbs}
       title={title}
       hint={t("memory.lead")}
-      actions={
+      invite={
         <a className="btn primary" href={memoryHref({ ...place, panel: "add" })}>
           {t("memory.add")}
         </a>
@@ -109,33 +116,30 @@ export function MemoryScreen({ project, place, memory, controls }: MemoryScreenP
           </a>
         ))}
       </nav>
-      <nav className="memory-views" aria-label={t("memory.typeFilter")}>
-        <a
-          className={place.type === undefined ? "chip on" : "chip"}
-          href={memoryHref({ view: place.view })}
-          aria-current={place.type === undefined ? "page" : undefined}
-        >
-          {t("memory.allTypes")}
-        </a>
-        {MEMORY_TYPES.map((type) => (
-          <a
-            key={type}
-            className={type === place.type ? "chip on" : "chip"}
-            href={memoryHref({ view: place.view, type })}
-            aria-current={type === place.type ? "page" : undefined}
-          >
-            {t(`memory.typesPlural.${type}`)}
-          </a>
-        ))}
-      </nav>
+      <label className="memory-type">
+        <span className="small muted">{t("memory.typeFilter")}</span>
+        <select key={place.type ?? ""} defaultValue={place.type ?? ""} {...(controls === undefined ? { disabled: true } : { onChange: controls.narrow })}>
+          <option value="">{t("memory.allTypes")}</option>
+          {MEMORY_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {t(`memory.typesPlural.${type}`)}
+            </option>
+          ))}
+        </select>
+      </label>
       {shown.length === 0 ? (
         <EmptyState title={t(`memory.empty.${place.view}`)}>{t("memory.emptyNote")}</EmptyState>
       ) : (
-        <div className="card" role="list" aria-label={t(`memory.view.${place.view}`)}>
-          {shown.map((item) => (
-            <Row key={item.id} item={item} place={place} />
+        <div className="memory-lines" role="list" aria-label={t(`memory.view.${place.view}`)}>
+          {(place.all === true ? shown : shown.slice(0, FIRST_LINES)).map((item) => (
+            <Line key={item.id} item={item} place={place} />
           ))}
         </div>
+      )}
+      {place.all !== true && shown.length > FIRST_LINES && (
+        <a className="btn memory-more" href={memoryHref({ ...place, all: true })}>
+          {t("memory.more", { count: shown.length - FIRST_LINES })}
+        </a>
       )}
       {panel && (
         <MemoryPanel
