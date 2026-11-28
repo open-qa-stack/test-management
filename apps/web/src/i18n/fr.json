@@ -103,7 +103,28 @@
     "emptyBody": "La première apparaîtra ici dès qu’une demande sera faite.",
     "running": "Session en cours",
     "unasked": "Session sans demande",
-    "mapping": "Cartographie des connaissances"
+    "mapping": "Cartographie des connaissances",
+    "startFrom": "Repartir de l’existant",
+    "ways": {
+      "failing": {
+        "title_one": "Corriger le test échoué",
+        "title_other": "Corriger les {{count}} tests échoués",
+        "note_one": "Son dernier passage a échoué.",
+        "note_other": "Leur dernier passage a échoué."
+      },
+      "review": {
+        "title_one": "Relire le nouveau test",
+        "title_other": "Relire les {{count}} nouveaux tests",
+        "note_one": "Écrit par les agents, en attente de votre décision.",
+        "note_other": "Écrits par les agents, en attente de votre décision."
+      },
+      "domains": {
+        "title_one": "Couvrir un domaine",
+        "title_other": "Couvrir un domaine",
+        "note_one": "{{count}} domaine cartographié dans Découverte.",
+        "note_other": "{{count}} domaines cartographiés dans Découverte."
+      }
+    }
   },
   "session": {
     "stopAsked": "arrêt demandé…",

@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge.tsx";
 import { Card } from "../ui/card.tsx";
 import { EmptyState } from "../ui/empty-state.tsx";
 import { Page } from "../ui/page.tsx";
+import { testsHref } from "../tests/tests-screen.tsx";
 import type { Opening } from "./console-state.ts";
 import type { ScopeChoices } from "./scope-choices.ts";
 import { RequestForm } from "./request-form.tsx";
@@ -29,6 +30,44 @@ export interface AgentHomeScreenProps {
   readonly onOpen?: (event: FormEvent<HTMLFormElement>) => void;
   /** What a session may be kept to; none until the configuration was read. */
   readonly choices?: ScopeChoices;
+  /** What the project holds to start from, once the instance told it. */
+  readonly existing?: Existing;
+}
+
+/** What the project holds to start a session from: the tests that failed last, those to review, the domains of the cartography. */
+export interface Existing {
+  readonly failing: number;
+  readonly toReview: number;
+  readonly domains: number;
+}
+
+/**
+ * Where a person can start from what the project holds: the tests that failed last, the tests the agents wrote that
+ * wait for a decision, and the domains the cartography found; each that holds nothing is left out.
+ */
+function StartFrom({ existing }: { readonly existing: Existing }): ReactNode {
+  const ways = [
+    { count: existing.failing, key: "failing", tone: "ko", href: testsHref({ outcome: "failed" }) },
+    { count: existing.toReview, key: "review", tone: "ai", href: hrefTo("/review") },
+    { count: existing.domains, key: "domains", tone: "info", href: hrefTo("/discovery") },
+  ] as const;
+  const shown = ways.filter(({ count }) => count > 0);
+  if (shown.length === 0) return null;
+  return (
+    <section className="agent-home-start" aria-labelledby="agent-home-start">
+      <h2 id="agent-home-start" className="grp">
+        {t("home.startFrom")}
+      </h2>
+      <div className="agent-home-ways">
+        {shown.map(({ count, key, tone, href }) => (
+          <a key={key} className={`agent-home-way ${tone}`} href={href}>
+            <b>{t(`home.ways.${key}.title`, { count })}</b>
+            <span className="small muted">{t(`home.ways.${key}.note`, { count })}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 /** A session of the list: what was asked, when, what it waits for or how it went, and the link to its thread. */
@@ -46,13 +85,15 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
     <a className={live ? "row run-row live" : "row run-row"} href={hrefTo(`/agent/sessions/${session.id}`)}>
       <div className="grow">
         <div className="agent-home-session">
-          {session.purpose === "map" ? t("home.mapping") : (session.request ?? t(live ? "home.running" : "home.unasked"))}
+          <span className="agent-home-request">
+            {session.purpose === "map" ? t("home.mapping") : (session.request ?? t(live ? "home.running" : "home.unasked"))}
+          </span>
+          <Badge tone={state.tone}>{state.label}</Badge>
         </div>
         <div className="small muted">{facts.join(" · ")}</div>
       </div>
       <span className="run-row-side">
         <SessionBar session={session} />
-        {(session.result?.tests ?? []).length === 0 && <Badge tone={state.tone}>{state.label}</Badge>}
       </span>
     </a>
   );
@@ -64,7 +105,7 @@ function SessionRow({ session }: { readonly session: Session }): ReactNode {
  * @param props - The project, its sessions, and the opening of a session.
  * @returns The screen.
  */
-export function AgentHomeScreen({ project, sessions, unlisted, opening, request, onOpen, choices }: AgentHomeScreenProps): ReactNode {
+export function AgentHomeScreen({ project, sessions, unlisted, opening, request, onOpen, choices, existing }: AgentHomeScreenProps): ReactNode {
   const live = sessions?.filter(({ state }) => state === "running") ?? [];
   return (
     <Page crumbs={[{ label: project }, { label: t("console.titles.entry") }]}>
@@ -78,6 +119,7 @@ export function AgentHomeScreen({ project, sessions, unlisted, opening, request,
           {...(onOpen === undefined ? {} : { onOpen })}
           {...(choices === undefined ? {} : { choices })}
         />
+        {existing !== undefined && <StartFrom existing={existing} />}
         <Card className="agent-home-sessions" title={t("home.sessions")} hint={live.length > 0 ? t("home.live", { count: live.length }) : t("home.hint")}>
           {sessions === undefined && (
             <div className="row small muted" role="status">

@@ -103,7 +103,28 @@
     "emptyBody": "The first one will show here as soon as a request is made.",
     "running": "Session in progress",
     "unasked": "Session without a request",
-    "mapping": "Mapping of the knowledge"
+    "mapping": "Mapping of the knowledge",
+    "startFrom": "Start from what exists",
+    "ways": {
+      "failing": {
+        "title_one": "Fix the failed test",
+        "title_other": "Fix the {{count}} failed tests",
+        "note_one": "Its last run failed.",
+        "note_other": "Their last run failed."
+      },
+      "review": {
+        "title_one": "Review the new test",
+        "title_other": "Review the {{count}} new tests",
+        "note_one": "Written by the agents, waiting for your decision.",
+        "note_other": "Written by the agents, waiting for your decision."
+      },
+      "domains": {
+        "title_one": "Cover a domain",
+        "title_other": "Cover a domain",
+        "note_one": "{{count}} domain mapped in Discovery.",
+        "note_other": "{{count}} domains mapped in Discovery."
+      }
+    }
   },
   "session": {
     "stopAsked": "stop asked…",
